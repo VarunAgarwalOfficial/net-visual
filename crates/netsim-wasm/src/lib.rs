@@ -10,7 +10,7 @@ use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
-use netsim::rdt;
+use netsim::{rdt, tcp};
 
 /// Reserves `len` bytes and returns their address.
 #[no_mangle]
@@ -64,6 +64,7 @@ fn parse<T: DeserializeOwned>(value: Value) -> Result<T, String> {
 fn source(tool: &str) -> Option<&'static str> {
     match tool {
         "rdt" => Some(include_str!("../../netsim/src/rdt.rs")),
+        "tcp" => Some(include_str!("../../netsim/src/tcp.rs")),
         _ => None,
     }
 }
@@ -94,6 +95,11 @@ pub fn handle(bytes: &[u8]) -> Value {
                 }
                 json!(rdt::sweep(&s.base, &s.losses))
             }
+            ("tcp", "run") => {
+                let p: tcp::Params = parse(request.params)?;
+                check_tcp(&p)?;
+                json!(tcp::run(&p))
+            }
             (tool, op) => return Err(format!("unknown request {tool}/{op}")),
         })
     })();
@@ -112,6 +118,36 @@ fn check_rdt(p: &rdt::Params) -> Result<(), String> {
         && p.timeout_us >= 1
         && (0.0..1.0).contains(&p.loss_data)
         && (0.0..1.0).contains(&p.loss_ack);
+    if ok {
+        Ok(())
+    } else {
+        Err("parameters out of range".into())
+    }
+}
+
+/// Bounds that keep one run to a few million packets, so a shared link
+/// cannot hang the page.
+fn check_tcp(p: &tcp::Params) -> Result<(), String> {
+    let packets =
+        p.duration_us as f64 / 1e6 * p.rate_bps as f64 / (8.0 * p.mss_bytes.max(1) as f64);
+    let ok = (1..=4).contains(&p.flows.len())
+        && p.flows
+            .iter()
+            .all(|f| (1_000..=2_000_000).contains(&f.rtt_us) && f.start_us < p.duration_us)
+        && (64_000..=10_000_000_000).contains(&p.rate_bps)
+        && (100..=9000).contains(&p.mss_bytes)
+        && p.buffer_pkts <= 100_000
+        && (0.0..0.5).contains(&p.loss)
+        && (p.drop_every == 0 || p.drop_every >= 2)
+        && p.jitter_us <= 1_000_000
+        && (1_000..=600_000_000).contains(&p.duration_us)
+        && packets <= 3e6
+        && (1.0..=100.0).contains(&p.iw)
+        && p.init_ssthresh >= 2.0
+        && (1.0..=1e6).contains(&p.max_window)
+        && p.min_rto_us <= 10_000_000
+        && p.drops.len() <= 64
+        && p.drops.iter().all(|d| d.flow < p.flows.len());
     if ok {
         Ok(())
     } else {
