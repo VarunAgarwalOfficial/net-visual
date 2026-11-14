@@ -1,0 +1,15 @@
+[package]
+name = "netsim-wasm"
+version = "0.1.0"
+description = "Plain C-ABI WebAssembly boundary for netsim: JSON in, JSON out, no imports"
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+netsim = { path = "../netsim" }
+serde = "1"
+serde_json = "1"

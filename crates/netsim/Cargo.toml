@@ -1,0 +1,12 @@
+[package]
+name = "netsim"
+version = "0.1.0"
+description = "Deterministic, seeded models of network protocols for teaching: reliable transfer, TCP, routing"
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+
+[dev-dependencies]

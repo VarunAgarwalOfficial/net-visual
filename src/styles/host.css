@@ -1,0 +1,380 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "katex/dist/katex.min.css";
+@import "shadcn/tailwind.css";
+
+/*
+ * One theme, four renditions.
+ * - light (default) and dark: the reading themes.
+ * - phosphor and blueprint: optional period themes, chosen in the theme menu.
+ *   Both also carry the .dark class so every dark: variant applies.
+ * Colour roles follow shadcn's variable names; site-specific roles are
+ * --link (the single accent), --status-* (result marks) and --series-* (charts).
+ */
+
+@custom-variant dark (&:is(.dark *));
+
+@font-face {
+  font-family: "CM Web Serif";
+  src: url("../../public/fonts/cmweb-serif-book.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "CM Web Serif";
+  src: url("../../public/fonts/cmweb-serif-bookitalic.woff2") format("woff2");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: "CM Web Serif";
+  src: url("../../public/fonts/cmweb-serif-bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "CM Web Serif";
+  src: url("../../public/fonts/cmweb-serif-bolditalic.woff2") format("woff2");
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: "CM Web Sans";
+  src: url("../../public/fonts/cmweb-sans-book.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "CM Web Sans";
+  src: url("../../public/fonts/cmweb-sans-bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "CM Web Mono";
+  src: url("../../public/fonts/cmweb-mono-book.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "CM Web Mono";
+  src: url("../../public/fonts/cmweb-mono-bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme inline {
+  --font-serif: "CM Web Serif", "Latin Modern Roman", "CMU Serif", Georgia, serif;
+  --font-sans: "CM Web Sans", "Latin Modern Sans", "CMU Sans Serif", system-ui, sans-serif;
+  --font-mono: "CM Web Mono", "Latin Modern Mono", "CMU Typewriter Text", ui-monospace, monospace;
+  --font-heading: var(--font-serif);
+  --color-link: var(--link);
+  --color-status-checked: var(--status-checked);
+  --color-status-paper: var(--status-paper);
+  --color-status-experiment: var(--status-experiment);
+  --color-status-open: var(--status-open);
+  --color-status-false: var(--status-false);
+  --color-chart-6: var(--chart-6);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --color-sidebar: var(--background);
+  --color-sidebar-foreground: var(--foreground);
+  --color-sidebar-border: var(--border);
+  --color-sidebar-accent: var(--accent);
+  --color-sidebar-accent-foreground: var(--accent-foreground);
+  --color-sidebar-primary: var(--primary);
+  --color-sidebar-primary-foreground: var(--primary-foreground);
+  --color-sidebar-ring: var(--ring);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  color-scheme: light;
+  --background: #fbfcfd;
+  --foreground: #141a24;
+  --card: #fbfcfd;
+  --card-foreground: #141a24;
+  --popover: #ffffff;
+  --popover-foreground: #141a24;
+  --primary: #141a24;
+  --primary-foreground: #fbfcfd;
+  --secondary: #eef1f5;
+  --secondary-foreground: #141a24;
+  --muted: #eef1f5;
+  --muted-foreground: #4d5766;
+  --accent: #eef1f5;
+  --accent-foreground: #141a24;
+  --destructive: #b42318;
+  --border: #d5dbe3;
+  --input: #c3cad4;
+  --ring: #1f4fbf;
+  --link: #1f4fbf;
+  --rule: #c3cad4;
+  --status-checked: #1f7a4d;
+  --status-paper: #2b5797;
+  --status-experiment: #8a5a00;
+  --status-open: #5e6672;
+  --status-false: #b42318;
+  /* Categorical series, validated (dataviz validator, light surface #fbfcfd):
+     worst adjacent CVD dE 9.1, normal-vision 19.6; slots 3-5 below 3:1, so every
+     chart ships axis labels or a table view. */
+  --chart-1: #2a78d6;
+  --chart-2: #eb6834;
+  --chart-3: #1baf7a;
+  --chart-4: #eda100;
+  --chart-5: #e87ba4;
+  --chart-6: #008300;
+  --chart-compare: #eb6834;
+  --chart-ink: #4d5766;
+  --chart-grid: #e3e7ed;
+  --radius: 0.125rem;
+  --measure: 66ch;
+  --margin-col: 15rem;
+  --gutter: 2.5rem;
+}
+
+.dark {
+  color-scheme: dark;
+  --background: #12161d;
+  --foreground: #d9dee6;
+  --card: #12161d;
+  --card-foreground: #d9dee6;
+  --popover: #181d26;
+  --popover-foreground: #d9dee6;
+  --primary: #d9dee6;
+  --primary-foreground: #12161d;
+  --secondary: #1b212b;
+  --secondary-foreground: #d9dee6;
+  --muted: #1b212b;
+  --muted-foreground: #9aa5b4;
+  --accent: #1f2631;
+  --accent-foreground: #d9dee6;
+  --destructive: #f97066;
+  --border: #2a323e;
+  --input: #3a4452;
+  --ring: #8ab4ff;
+  --link: #8ab4ff;
+  --rule: #3a4452;
+  --status-checked: #5cc58f;
+  --status-paper: #8fb1e8;
+  --status-experiment: #e0a84a;
+  --status-open: #a3abb8;
+  --status-false: #f97066;
+  /* Validated against #12161d: worst adjacent CVD dE 8.4, normal 19.3, all >= 3:1. */
+  --chart-1: #3987e5;
+  --chart-2: #d95926;
+  --chart-3: #199e70;
+  --chart-4: #c98500;
+  --chart-5: #d55181;
+  --chart-6: #008300;
+  --chart-compare: #d95926;
+  --chart-ink: #9aa5b4;
+  --chart-grid: #232a35;
+}
+
+/* Period theme: amber phosphor terminal. Monochrome by design; charts keep the
+   dark palette so data identity survives. */
+.dark[data-theme="phosphor"] {
+  --background: #0d0b07;
+  --foreground: #ffb000;
+  --card: #0d0b07;
+  --card-foreground: #ffb000;
+  --popover: #15110a;
+  --popover-foreground: #ffb000;
+  --primary: #ffb000;
+  --primary-foreground: #0d0b07;
+  --secondary: #1a150c;
+  --secondary-foreground: #ffb000;
+  --muted: #1a150c;
+  --muted-foreground: #c98a00;
+  --accent: #241c0e;
+  --accent-foreground: #ffd27a;
+  --border: #4a3812;
+  --input: #6a5018;
+  --ring: #ffd27a;
+  --link: #ffd27a;
+  --rule: #4a3812;
+  --status-checked: #ffd27a;
+  --status-paper: #ffb000;
+  --status-experiment: #c98a00;
+  --status-open: #c98a00;
+  --chart-ink: #c98a00;
+  --chart-grid: #2a210f;
+  --font-serif: "CM Web Mono", ui-monospace, monospace;
+}
+
+/* Period theme: blueprint on graph paper. */
+.dark[data-theme="blueprint"] {
+  --background: #0e2f5a;
+  --foreground: #eaf2ff;
+  --card: #0e2f5a;
+  --card-foreground: #eaf2ff;
+  --popover: #12386a;
+  --popover-foreground: #eaf2ff;
+  --primary: #eaf2ff;
+  --primary-foreground: #0e2f5a;
+  --secondary: #143e72;
+  --secondary-foreground: #eaf2ff;
+  --muted: #143e72;
+  --muted-foreground: #b5c9e6;
+  --accent: #184680;
+  --accent-foreground: #eaf2ff;
+  --border: #35609a;
+  --input: #4a74ad;
+  --ring: #ffe08a;
+  --link: #ffe08a;
+  --rule: #4a74ad;
+  --status-checked: #9be3bd;
+  --status-paper: #eaf2ff;
+  --status-experiment: #ffe08a;
+  --status-open: #b5c9e6;
+  --chart-ink: #b5c9e6;
+  --chart-grid: #1d4a82;
+}
+.dark[data-theme="blueprint"] body {
+  background-image:
+    linear-gradient(to right, rgb(234 242 255 / 0.07) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(234 242 255 / 0.07) 1px, transparent 1px),
+    linear-gradient(to right, rgb(234 242 255 / 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(234 242 255 / 0.03) 1px, transparent 1px);
+  background-size:
+    80px 80px,
+    80px 80px,
+    16px 16px,
+    16px 16px;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/60;
+  }
+  html {
+    font-family: var(--font-serif);
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+    scroll-padding-top: 4.5rem;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-size: 1.125rem;
+    line-height: 1.55;
+    font-variant-numeric: oldstyle-nums proportional-nums;
+    font-kerning: normal;
+    font-feature-settings: "liga" 1;
+  }
+  @media (min-width: 48rem) {
+    body {
+      font-size: 1.1875rem;
+    }
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--link) 28%, transparent);
+    color: inherit;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  a {
+    color: var(--link);
+    text-decoration-line: underline;
+    text-decoration-thickness: 0.06em;
+    text-underline-offset: 0.18em;
+    text-decoration-color: color-mix(in oklab, var(--link) 45%, transparent);
+  }
+  a:hover {
+    text-decoration-color: currentColor;
+  }
+  html {
+    scrollbar-color: var(--input) transparent;
+    scrollbar-width: thin;
+  }
+  input,
+  textarea {
+    caret-color: var(--link);
+  }
+  code,
+  kbd,
+  pre,
+  samp {
+    font-family: var(--font-mono);
+    font-variant-numeric: lining-nums tabular-nums;
+  }
+  table {
+    font-variant-numeric: lining-nums tabular-nums;
+  }
+  /* Controls speak sans, like a TeX document's marginal apparatus. */
+  button,
+  input,
+  select,
+  textarea,
+  [role="tab"],
+  [role="menuitem"],
+  [role="option"],
+  [data-slot="badge"],
+  [data-slot="tooltip-content"],
+  [data-slot="select-trigger"] {
+    font-family: var(--font-sans);
+    font-variant-numeric: lining-nums tabular-nums;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Utilities                                                           */
+/* ------------------------------------------------------------------ */
+
+@utility sc {
+  font-variant-caps: small-caps;
+  letter-spacing: 0.03em;
+}
+@utility asc {
+  /* acronyms: all small caps (c2sc + smcp) */
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.04em;
+}
+@utility lining {
+  font-variant-numeric: lining-nums tabular-nums;
+}
+@utility measure {
+  max-width: var(--measure);
+}
+
