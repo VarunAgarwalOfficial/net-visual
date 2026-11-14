@@ -34,6 +34,12 @@ Each tool aims at five layers of understanding:
 The Lab tab poses tasks and checks your answer against the simulation in the
 browser. No server is involved.
 
+For teaching, every tool has three more actions. "Copy link to this moment"
+stores the settings, your packet edits and the clock in the URL. "SVG" and
+"TikZ" export the sequence diagram up to the current moment as a figure; the
+TikZ file is a standalone document that compiles with `pdflatex`. "Present"
+puts the tool full screen and larger, without the article.
+
 ## How it works
 
 - `crates/netsim` is the simulation library: a SplitMix64 generator, an event
@@ -49,7 +55,8 @@ browser. No server is involved.
   tour and labs.
 - `src/net-visual/components` holds the shared pieces: the transport
   controls, the sequence diagram, the line chart, the RFC-style header
-  diagram, the literate source view and the lab panel.
+  diagram, the literate source view, the lab panel, the figure exporters and
+  the teacher actions.
 - `src/app` is a small stand-alone host, used for development and browser
   checks.
 
@@ -73,8 +80,9 @@ npm run lint      # eslint, prettier, clippy, rustfmt
 ```
 
 The Rust tests check each model against its closed form or the textbook
-figure it reproduces. The Node tests load the compiled module and run every
-preset and lab start state through it.
+figure it reproduces. The Node tests load the compiled module, run every
+preset and lab start state through it, check that the guided tour stops where
+its text says, and compile an exported TikZ figure when `pdflatex` is present.
 
 ## Mounting in the website
 

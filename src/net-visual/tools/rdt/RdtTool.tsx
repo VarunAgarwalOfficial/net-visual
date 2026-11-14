@@ -1,5 +1,5 @@
-import { memo, useEffect, useMemo, useState } from "react"
-import { Link2, ZoomIn, ZoomOut } from "lucide-react"
+import { memo, useEffect, useMemo, useRef, useState } from "react"
+import { ZoomIn, ZoomOut } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -28,6 +28,7 @@ import { HeaderDiagram, type HeaderField } from "../../components/HeaderDiagram"
 import { LabPanel } from "../../components/LabPanel"
 import { Ladder, type LadderFlight, type LadderMark } from "../../components/Ladder"
 import { LiterateSource } from "../../components/LiterateSource"
+import { ToolActions } from "../../components/ToolActions"
 import { Transport } from "../../components/Transport"
 import { formatTime, timelineKeys, useTimeline } from "../../components/timeline"
 import { RdtAnalysis, RdtFrontier, RdtIntro, RdtInternals } from "./RdtArticle"
@@ -84,7 +85,7 @@ function RdtLoaded({ sim }: { sim: Netsim }) {
   const [follow, setFollow] = useState(true)
   const [tab, setTab] = useState("state")
   const [tour, setTour] = useState<number | null>(null)
-  const [copied, setCopied] = useState(false)
+  const root = useRef<HTMLElement>(null)
 
   const source = useMemo(() => sim.call<string>("rdt", "source"), [sim])
   const stepTitles = useMemo(() => new Map([...source.matchAll(STEP_RE)].map((m) => [m[1], m[2]])), [source])
@@ -171,24 +172,13 @@ function RdtLoaded({ sim }: { sim: Netsim }) {
     setSelected(id)
   }
 
-  const share = async () => {
-    const url = linkFor("rdt", { p: params, t: Math.round(tl.t) } satisfies Shared)
-    window.history.replaceState(null, "", url)
-    try {
-      await navigator.clipboard.writeText(url)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1600)
-    } catch {
-      setCopied(false)
-    }
-  }
-
   const protocol = protocolName(params)
   const presetInfo = PRESETS.find((x) => x.id === preset)
 
   return (
     <section
-      className="nv-tool space-y-5"
+      ref={root}
+      className="nv-tool space-y-5 [&.nv-present]:[zoom:1.2] [&.nv-present]:overflow-auto [&.nv-present]:bg-background [&.nv-present]:p-6"
       onKeyDown={(e) => {
         if (timelineKeys(tl, e)) {
           e.preventDefault()
@@ -232,10 +222,18 @@ function RdtLoaded({ sim }: { sim: Netsim }) {
         <Button variant={tour === null ? "outline" : "secondary"} onClick={() => goTour(tour === null ? 0 : null)}>
           {tour === null ? "Guided tour" : "End tour"}
         </Button>
-        <Button variant="outline" onClick={share}>
-          <Link2 data-icon="inline-start" />
-          {copied ? "Link copied" : "Copy link to this moment"}
-        </Button>
+        <ToolActions
+          name={`rdt-${preset || "custom"}`}
+          root={root}
+          link={() => linkFor("rdt", { p: params, t: Math.round(tl.t) } satisfies Shared)}
+          figure={() => ({
+            lanes: ["Sender", "Receiver"],
+            flights: ladderFlights,
+            marks,
+            upTo: tl.t,
+            caption: `${protocol}, N = ${params.window}, sequence numbers mod ${m}, at ${formatTime(tl.t)}`,
+          })}
+        />
       </div>
 
       {tour !== null ? (

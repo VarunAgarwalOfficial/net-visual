@@ -1,5 +1,5 @@
 import { Suspense, useEffect, useState } from "react"
-import { Moon, Presentation, Sun } from "lucide-react"
+import { Moon, Sun } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -14,7 +14,6 @@ const route = () => window.location.hash.slice(1).split("?")[0]
 export function App() {
   const [id, setId] = useState(route)
   const [dark, setDark] = useState(() => document.documentElement.classList.contains("dark"))
-  const [present, setPresent] = useState(false)
 
   useEffect(() => {
     const on = () => setId(route())
@@ -29,10 +28,6 @@ export function App() {
       // Private browsing: the choice lasts for this page only.
     }
   }, [dark])
-  useEffect(() => {
-    document.documentElement.classList.toggle("nv-present", present)
-    document.documentElement.style.fontSize = present ? "125%" : ""
-  }, [present])
 
   const tool = TOOLS.find((t) => t.id === id)
 
@@ -48,16 +43,6 @@ export function App() {
               {t.title}
             </a>
           ))}
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-pressed={present}
-            aria-label="Presentation mode"
-            title="Presentation mode: larger, without the article"
-            onClick={() => setPresent(!present)}
-          >
-            <Presentation />
-          </Button>
           <Button variant="ghost" size="icon-sm" aria-label={dark ? "Use light theme" : "Use dark theme"} onClick={() => setDark(!dark)}>
             {dark ? <Sun /> : <Moon />}
           </Button>
