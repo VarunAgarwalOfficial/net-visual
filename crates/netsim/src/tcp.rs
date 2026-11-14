@@ -185,6 +185,8 @@ pub struct Flight {
     /// Segment number for data, the next expected segment for an ACK.
     pub seg: u64,
     pub retx: bool,
+    /// Which transmission of this segment it is, from 1; 0 for an ACK.
+    pub occurrence: u32,
     pub t_start: u64,
     pub t_sent: u64,
     pub t_arrive: u64,
@@ -306,6 +308,9 @@ pub struct Run {
     pub totals: Totals,
     pub theory: Theory,
     pub duration_us: u64,
+    /// The trace (events and flights) is complete from the start of the
+    /// detail window up to this time; it stops early if it reaches the caps.
+    pub trace_end: u64,
 }
 
 /// One Reno flow, drop-tail buffer, no other loss. The window climbs one
@@ -422,6 +427,8 @@ struct Sim<'a> {
     flights: Vec<Flight>,
     events: Vec<Event>,
     detail: (u64, u64),
+    /// Set when the trace reached its caps: the last instant fully recorded.
+    capped: Option<u64>,
 }
 
 pub const MAX_EVENTS: usize = 6000;
@@ -497,6 +504,7 @@ pub fn run(p: &Params) -> Run {
         flights: Vec::new(),
         events: Vec::new(),
         detail: p.detail.unwrap_or((0, u64::MAX)),
+        capped: None,
     };
     for (i, f) in p.flows.iter().enumerate() {
         sim.queue.push(f.start_us, Ev::Start(i));
@@ -551,12 +559,26 @@ impl Sim<'_> {
         }
     }
 
-    fn in_detail(&self) -> bool {
-        self.now >= self.detail.0 && self.now <= self.detail.1
+    /// Whether flow `f`'s next event or packet goes into the trace. Only flow
+    /// 0 inside the detail window is traced. When either cap is about to be
+    /// reached the trace stops for good, and the instant it stopped in is cut
+    /// off in `finish`, so what remains is complete up to `trace_end`.
+    fn recording(&mut self, f: usize) -> bool {
+        if f != 0 || self.capped.is_some() {
+            return false;
+        }
+        if self.now < self.detail.0 || self.now > self.detail.1 {
+            return false;
+        }
+        if self.events.len() + 1 >= MAX_EVENTS || self.flights.len() + 2 >= MAX_FLIGHTS {
+            self.capped = Some(self.now.saturating_sub(1));
+            return false;
+        }
+        true
     }
 
     fn note(&mut self, f: usize, step: &'static str, text: String, flight: Option<usize>) {
-        if f == 0 && self.in_detail() && self.events.len() < MAX_EVENTS {
+        if self.recording(f) {
             let state = self.state();
             self.events.push(Event {
                 t: self.now,
@@ -650,13 +672,15 @@ impl Sim<'_> {
         let at = (now + jitter).max(s.last_access);
         s.last_access = at;
         let need_timer = s.timer_at.is_none();
-        let flight = if f == 0 && self.in_detail() && self.flights.len() < MAX_FLIGHTS {
+        let occurrence = s.sends[i] as u32;
+        let flight = if self.recording(f) {
             let id = self.flights.len();
             self.flights.push(Flight {
                 id,
                 ack: false,
                 seg,
                 retx,
+                occurrence,
                 t_start: now,
                 t_sent: now + tx,
                 t_arrive: u64::MAX,
@@ -813,13 +837,14 @@ impl Sim<'_> {
             fl.t_arrive = now;
             fl.fate = fate;
         }
-        let ack_flight = if f == 0 && self.in_detail() && self.flights.len() < MAX_FLIGHTS {
+        let ack_flight = if self.recording(f) {
             let id = self.flights.len();
             self.flights.push(Flight {
                 id,
                 ack: true,
                 seg: ack,
                 retx: false,
+                occurrence: 0,
                 t_start: now,
                 t_sent: now,
                 t_arrive: back,
@@ -1248,6 +1273,21 @@ impl Sim<'_> {
             1.0
         };
         let theory = self.theory(&flows[0]);
+        let trace_end = match self.capped {
+            Some(t) => {
+                // Cut the instant the caps were reached in, and forget where
+                // the packets of that instant went.
+                self.events.retain(|e| e.t <= t);
+                self.flights.retain(|f| f.t_start <= t);
+                for e in &mut self.events {
+                    if e.flight.is_some_and(|id| id >= self.flights.len()) {
+                        e.flight = None;
+                    }
+                }
+                t
+            }
+            None => self.detail.1.min(end),
+        };
         Run {
             series,
             queue: decimate(std::mem::take(&mut self.queue_series), MAX_POINTS),
@@ -1263,6 +1303,7 @@ impl Sim<'_> {
             },
             theory,
             duration_us: end,
+            trace_end,
         }
     }
 
@@ -1539,5 +1580,46 @@ mod tests {
         let r = run(&p);
         let (a, b) = (r.totals.flows[0].goodput_bps, r.totals.flows[1].goodput_bps);
         assert!(a > 1.5 * b, "{a} {b}");
+    }
+
+    /// The page asks for the trace a window at a time, stopping the run soon
+    /// after the window. That must give exactly the events of the full run.
+    #[test]
+    fn a_detail_window_repeats_the_full_trace() {
+        let mut p = base(Algo::NewReno);
+        p.loss = 0.002;
+        p.duration_us = 20_000_000;
+        let full = run(&p);
+        assert!(
+            full.trace_end < p.duration_us,
+            "a long run should reach the caps"
+        );
+        assert_eq!(
+            full.events.last().map(|e| e.t <= full.trace_end),
+            Some(true)
+        );
+        let (from, to) = (full.trace_end / 2, full.trace_end * 3 / 4);
+        p.detail = Some((from, to));
+        p.duration_us = to + 400_000;
+        let part = run(&p);
+        assert_eq!(part.trace_end, to);
+        let key = |e: &Event| {
+            (
+                e.t,
+                e.step,
+                e.text.clone(),
+                e.state.cwnd.to_bits(),
+                e.state.una,
+            )
+        };
+        let want: Vec<_> = full
+            .events
+            .iter()
+            .filter(|e| e.t >= from && e.t <= to)
+            .map(key)
+            .collect();
+        let got: Vec<_> = part.events.iter().map(key).collect();
+        assert!(want.len() > 100);
+        assert_eq!(got, want);
     }
 }
