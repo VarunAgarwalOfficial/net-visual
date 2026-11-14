@@ -134,6 +134,8 @@ export function Ladder(props: Props) {
                   aria-label={`${f.label}${f.lost ? ", lost" : t >= arrive ? `, ${f.fate}` : ", in flight"}`}
                   onClick={(e) => {
                     e.stopPropagation()
+                    // Keep the keyboard with the diagram, so D and the arrows act at once.
+                    e.currentTarget.focus({ preventScroll: true })
                     props.onSelect(sel ? null : f.id)
                   }}
                   onKeyDown={(e) => {

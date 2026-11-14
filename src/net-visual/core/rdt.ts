@@ -110,6 +110,10 @@ export function protocolName(p: Pick<RdtParams, "rules" | "window">): string {
 }
 
 export const runRdt = (sim: Netsim, p: RdtParams) => sim.call<RdtRun>("rdt", "run", p)
+
+/** Time of the last thing that happens in a run, lost packets included. */
+export const runDuration = (run: RdtRun) =>
+  run.flights.reduce((m, f) => Math.max(m, f.lost ? f.t_sent : f.t_arrive), run.events[run.events.length - 1]?.t ?? 1)
 export const sweepRdt = (sim: Netsim, base: RdtParams, losses: number[]) =>
   sim.call<[number, number, number, number, number, number, number][]>("rdt", "sweep", { base, losses })
 
@@ -267,7 +271,7 @@ export const TOUR: TourStep[] = [
   },
   {
     preset: "sw-lost-packet",
-    at: 0.5,
+    at: 0.34,
     text: "Now the channel loses packet 1. Nothing arrives, so nothing tells the sender. Watch the timer bar above packet 1 run out.",
   },
   {
@@ -292,7 +296,7 @@ export const TOUR: TourStep[] = [
   },
   {
     preset: "sr-dilemma",
-    at: 0.75,
+    at: 0.86,
     text: "Sequence numbers are finite. With numbers 0 to 3 and a window of 3, the receiver cannot tell a resent old packet 0 from a new one. The red box is data delivered as the wrong message.",
   },
 ]

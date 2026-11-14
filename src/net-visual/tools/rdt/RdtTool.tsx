@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { memo, useEffect, useMemo, useState } from "react"
 import { Link2, ZoomIn, ZoomOut } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -15,6 +15,7 @@ import {
   SELECTIVE_REPEAT,
   TOUR,
   protocolName,
+  runDuration,
   runRdt,
   type Flight,
   type Intervention,
@@ -58,8 +59,19 @@ function scrollWithin(el: HTMLElement | null) {
   else if (top + el.offsetHeight > box.scrollTop + box.clientHeight) box.scrollTop = top + el.offsetHeight - box.clientHeight
 }
 
-const runDuration = (run: RdtRun) =>
-  run.flights.reduce((m, f) => Math.max(m, f.lost ? f.t_sent : f.t_arrive), run.events[run.events.length - 1]?.t ?? 1)
+const toLadder = (run: RdtRun): LadderFlight[] =>
+  run.flights.map((f) => ({
+    id: f.id,
+    from: f.kind === "data" ? 0 : 1,
+    t_start: f.t_start,
+    t_sent: f.t_sent,
+    t_arrive: f.t_arrive,
+    lost: f.lost,
+    label: f.kind === "data" ? `seq ${f.wire}${f.occurrence > 1 ? "′" : ""}` : `ACK ${f.wire}`,
+    fate: f.fate === "accepted as the wrong message" ? "wrong message" : f.fate,
+    color: f.kind === "data" ? "var(--chart-1)" : "var(--chart-2)",
+    alarm: f.fate.includes("wrong"),
+  }))
 
 const STEP_RE = /([A-Z]\d+)\.\s\[([^\]]+)\]/g
 
@@ -113,6 +125,12 @@ function RdtLoaded({ sim }: { sim: Netsim }) {
     setFollow(true)
   }
 
+  const ladderFlights = useMemo(() => (run ? toLadder(run) : []), [run])
+  const marks = useMemo<LadderMark[]>(
+    () => (run ? run.events.filter((e) => e.step === "S4").map((e) => ({ t: e.t, lane: 0, text: "timeout" })) : []),
+    [run],
+  )
+
   if (!run) {
     return (
       <div className="space-y-3">
@@ -125,20 +143,6 @@ function RdtLoaded({ sim }: { sim: Netsim }) {
   const event = run.events[Math.max(0, tl.index)]
   const flight = selected !== null ? run.flights[selected] : null
   const m = 2 ** params.seq_bits
-
-  const ladderFlights: LadderFlight[] = run.flights.map((f) => ({
-    id: f.id,
-    from: f.kind === "data" ? 0 : 1,
-    t_start: f.t_start,
-    t_sent: f.t_sent,
-    t_arrive: f.t_arrive,
-    lost: f.lost,
-    label: f.kind === "data" ? `seq ${f.wire}${f.occurrence > 1 ? "′" : ""}` : `ACK ${f.wire}`,
-    fate: f.fate === "accepted as the wrong message" ? "wrong message" : f.fate,
-    color: f.kind === "data" ? "var(--chart-1)" : "var(--chart-2)",
-    alarm: f.fate.includes("wrong"),
-  }))
-  const marks: LadderMark[] = run.events.filter((e) => e.step === "S4").map((e) => ({ t: e.t, lane: 0, text: "timeout" }))
 
   const keyOf = (f: Flight) => (iv: Intervention) => iv.kind === f.kind && iv.number === f.number && iv.occurrence === f.occurrence
   const toggleDrop = (f: Flight) => {
@@ -310,7 +314,7 @@ function RdtLoaded({ sim }: { sim: Netsim }) {
         </div>
 
         <div className="min-w-0 space-y-4">
-          <div className="rounded-sm border border-border p-3" aria-live="polite">
+          <div className="rounded-sm border border-border p-3" aria-live={tl.playing ? "off" : "polite"}>
             <p className="font-sans text-xs text-muted-foreground">
               {formatTime(event.t)}, {event.who === "S" ? "sender" : "receiver"}
             </p>
@@ -330,24 +334,7 @@ function RdtLoaded({ sim }: { sim: Netsim }) {
               <TabsTrigger value="lab">Lab</TabsTrigger>
             </TabsList>
             <TabsContent value="state">
-              <ol className="relative max-h-80 overflow-auto font-sans text-sm" aria-label="Event trace">
-                {run.events.map((e, i) => (
-                  <li key={i}>
-                    <button
-                      className={cn(
-                        "grid w-full grid-cols-[4.5rem_2rem_1fr] gap-2 px-1 py-0.5 text-left hover:bg-muted",
-                        i === tl.index && "bg-[color-mix(in_oklab,var(--link)_14%,transparent)]",
-                      )}
-                      onClick={() => tl.seekIndex(i)}
-                      ref={i === tl.index ? scrollWithin : undefined}
-                    >
-                      <span className="text-muted-foreground tabular-nums">{formatTime(e.t)}</span>
-                      <b>{e.step}</b>
-                      <span>{e.text}</span>
-                    </button>
-                  </li>
-                ))}
-              </ol>
+              <TraceList events={run.events} index={tl.index} onSeek={tl.seekIndex} />
             </TabsContent>
             <TabsContent value="setup">
               <Setup p={params} set={(p) => apply(p)} />
@@ -387,15 +374,64 @@ function RdtLoaded({ sim }: { sim: Netsim }) {
         </div>
       </div>
 
-      <RdtIntro />
-      <RdtAnalysis sim={sim} p={params} run={run} />
-      <RdtFrontier />
-      <RdtInternals />
+      <Article sim={sim} p={params} run={run} />
     </section>
   )
 }
 
-function Totals({ run, p }: { run: RdtRun; p: RdtParams }) {
+// The article and the trace list are large; playback re-renders the tool many
+// times a second, so these only re-render when their own inputs change.
+const Article = memo(function Article(props: { sim: Netsim; p: RdtParams; run: RdtRun }) {
+  return (
+    <>
+      <RdtIntro />
+      <RdtAnalysis {...props} />
+      <RdtFrontier />
+      <RdtInternals />
+    </>
+  )
+})
+
+const TraceRow = memo(function TraceRow({
+  e,
+  i,
+  active,
+  onSeek,
+}: {
+  e: RdtRun["events"][number]
+  i: number
+  active: boolean
+  onSeek(i: number): void
+}) {
+  return (
+    <li>
+      <button
+        className={cn(
+          "grid w-full grid-cols-[4.5rem_2rem_1fr] gap-2 px-1 py-0.5 text-left hover:bg-muted",
+          active && "bg-[color-mix(in_oklab,var(--link)_14%,transparent)]",
+        )}
+        onClick={() => onSeek(i)}
+        ref={active ? scrollWithin : undefined}
+      >
+        <span className="text-muted-foreground tabular-nums">{formatTime(e.t)}</span>
+        <b>{e.step}</b>
+        <span>{e.text}</span>
+      </button>
+    </li>
+  )
+})
+
+const TraceList = memo(function TraceList({ events, index, onSeek }: { events: RdtRun["events"]; index: number; onSeek(i: number): void }) {
+  return (
+    <ol className="relative max-h-80 overflow-auto font-sans text-sm" aria-label="Event trace">
+      {events.map((e, i) => (
+        <TraceRow key={i} e={e} i={i} active={i === index} onSeek={onSeek} />
+      ))}
+    </ol>
+  )
+})
+
+const Totals = memo(function Totals({ run, p }: { run: RdtRun; p: RdtParams }) {
   const T = run.totals
   const items: [string, string][] = [
     ["finished at", T.finished ? formatTime(T.completion_us) : "not finished"],
@@ -415,7 +451,7 @@ function Totals({ run, p }: { run: RdtRun; p: RdtParams }) {
       ))}
     </dl>
   )
-}
+})
 
 const RATES = [1e4, 5.6e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10]
 const rateLabel = (r: number) => (r >= 1e9 ? `${r / 1e9} Gb/s` : r >= 1e6 ? `${r / 1e6} Mb/s` : `${r / 1e3} kb/s`)
@@ -438,6 +474,7 @@ function Setup({ p, set }: { p: RdtParams; set(p: RdtParams): void }) {
         <ToggleGroup
           type="single"
           variant="outline"
+          aria-label="Protocol"
           value={p.window === 1 && value === "gbn" ? "sw" : value}
           onValueChange={(v) => {
             if (v === "sw") set({ ...p, rules: GO_BACK_N, window: 1 })
@@ -451,9 +488,12 @@ function Setup({ p, set }: { p: RdtParams; set(p: RdtParams): void }) {
         </ToggleGroup>
       </div>
       <fieldset className="space-y-3 rounded-sm border border-border p-3">
-        <legend className="px-1 font-sans text-xs text-muted-foreground">The protocol as four rules (mix them freely)</legend>
+        <legend className="px-1 font-sans text-xs text-muted-foreground">
+          The protocol as four rules: all off is Go-Back-N, all on is Selective Repeat, and any mix runs
+        </legend>
         <ParamSwitch
           label="Receiver"
+          name="Receiver buffers out-of-order packets"
           checked={p.rules.buffer}
           onChange={(v) => set({ ...p, rules: { ...p.rules, buffer: v } })}
           on="buffers out-of-order packets"
@@ -461,24 +501,27 @@ function Setup({ p, set }: { p: RdtParams; set(p: RdtParams): void }) {
         />
         <ParamSwitch
           label="ACKs"
-          checked={p.rules.ack === "cumulative"}
-          onChange={(v) => set({ ...p, rules: { ...p.rules, ack: v ? "cumulative" : "individual" } })}
-          on="cumulative: everything up to n"
-          off="individual: packet n"
+          name="Acknowledge each packet individually"
+          checked={p.rules.ack === "individual"}
+          onChange={(v) => set({ ...p, rules: { ...p.rules, ack: v ? "individual" : "cumulative" } })}
+          on="individual: packet n"
+          off="cumulative: everything up to n"
         />
         <ParamSwitch
           label="Timers"
-          checked={p.rules.timer === "single"}
-          onChange={(v) => set({ ...p, rules: { ...p.rules, timer: v ? "single" : "each" } })}
-          on="one, for the oldest packet"
-          off="one per packet"
+          name="A timer for each packet"
+          checked={p.rules.timer === "each"}
+          onChange={(v) => set({ ...p, rules: { ...p.rules, timer: v ? "each" : "single" } })}
+          on="one per packet"
+          off="one, for the oldest packet"
         />
         <ParamSwitch
           label="On timeout"
-          checked={p.rules.resend === "all"}
-          onChange={(v) => set({ ...p, rules: { ...p.rules, resend: v ? "all" : "one" } })}
-          on="resend every outstanding packet"
-          off="resend only that packet"
+          name="On timeout, resend only that packet"
+          checked={p.rules.resend === "one"}
+          onChange={(v) => set({ ...p, rules: { ...p.rules, resend: v ? "one" : "all" } })}
+          on="resend only that packet"
+          off="resend every outstanding packet"
         />
       </fieldset>
       <ParamSlider label="Window N" value={p.window} min={1} max={64} onChange={(v) => set({ ...p, window: v })} />

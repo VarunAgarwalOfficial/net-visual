@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 
 import type { RdtParams, Snapshot } from "../../core/rdt"
 
@@ -30,6 +30,12 @@ export function WindowView({ p, s, t, onPick }: { p: RdtParams; s: Snapshot; t: 
   const width = Math.max(560, n * (BOX + GAP) + 40)
   const strip = useRef<HTMLDivElement>(null)
   const x = (i: number) => 20 + i * (BOX + GAP)
+  // Only the boxes near the visible part of the strip are drawn, so a run of
+  // thousands of messages still plays smoothly.
+  const [left, setLeft] = useState(0)
+  const first = Math.max(0, Math.floor((left - 20) / (BOX + GAP)) - 8)
+  const last = Math.min(n, Math.ceil((left + 1600) / (BOX + GAP)) + 8)
+  const shown = Array.from({ length: Math.max(0, last - first) }, (_, k) => first + k)
 
   useEffect(() => {
     const el = strip.current
@@ -45,7 +51,7 @@ export function WindowView({ p, s, t, onPick }: { p: RdtParams; s: Snapshot; t: 
 
   return (
     <div className="font-sans lining">
-      <div ref={strip} className="overflow-x-auto">
+      <div ref={strip} className="overflow-x-auto" onScroll={(e) => setLeft(e.currentTarget.scrollLeft)}>
         <svg
           width={width}
           height={214}
@@ -66,7 +72,7 @@ export function WindowView({ p, s, t, onPick }: { p: RdtParams; s: Snapshot; t: 
             rx={2}
             style={{ transition: "x 180ms ease-out" }}
           />
-          {Array.from({ length: n }, (_, i) => {
+          {shown.map((i) => {
             const st = SENDER[s.sender[i]] ?? SENDER["."]
             const exp = timer.get(i)
             const left = exp !== undefined ? Math.max(0, Math.min(1, (exp - t) / p.timeout_us)) : null
@@ -104,7 +110,7 @@ export function WindowView({ p, s, t, onPick }: { p: RdtParams; s: Snapshot; t: 
             strokeWidth={1.5}
             rx={2}
           />
-          {Array.from({ length: n }, (_, i) => {
+          {shown.map((i) => {
             const st = RECEIVER[s.receiver[i]] ?? RECEIVER["."]
             const solid = s.receiver[i] === "d" || s.receiver[i] === "x"
             return (

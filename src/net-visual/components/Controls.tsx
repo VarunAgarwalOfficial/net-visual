@@ -82,14 +82,20 @@ export function ParamSlider({
   )
 }
 
+/**
+ * A rule that is either on or off. `name` is the stable accessible name (what
+ * "on" means); the line under the label says what the current setting does.
+ */
 export function ParamSwitch({
   label,
+  name,
   checked,
   onChange,
   on,
   off,
 }: {
   label: string
+  name: string
   checked: boolean
   onChange(v: boolean): void
   on: string
@@ -100,9 +106,11 @@ export function ParamSwitch({
     <div className="flex items-center justify-between gap-3 font-sans text-sm">
       <label htmlFor={id}>
         {label}
-        <span className="block text-xs text-muted-foreground">{checked ? on : off}</span>
+        <span id={`${id}-now`} className="block text-xs text-muted-foreground">
+          {checked ? on : off}
+        </span>
       </label>
-      <Switch id={id} checked={checked} onCheckedChange={onChange} />
+      <Switch id={id} aria-label={name} aria-describedby={`${id}-now`} checked={checked} onCheckedChange={onChange} />
     </div>
   )
 }
