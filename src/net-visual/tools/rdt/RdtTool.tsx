@@ -92,7 +92,7 @@ function RdtLoaded({ sim }: { sim: Netsim }) {
   const tl = useTimeline(times, duration, roundTrip / 2.5, shared?.t ?? 0)
 
   const ladderHeight = 520
-  const usPerPx = Math.min(duration, roundTrip * 3.2) / (ladderHeight - 60) / zoom
+  const usPerPx = Math.max(0.01, Math.min(duration, Math.max(roundTrip, 1) * 3.2) / (ladderHeight - 60) / zoom)
 
   const apply = (p: RdtParams, id = "") => {
     setParams(p)

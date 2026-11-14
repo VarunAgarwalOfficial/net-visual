@@ -369,6 +369,10 @@ export function RdtInternals() {
         </li>
         <li>Delay is propagation plus uniform jitter. The timeout is fixed; adaptive timeouts are in the TCP tool.</li>
         <li>The receiver delivers immediately and has unlimited buffer space, so there is no flow control.</li>
+        <li>
+          Time advances in whole microseconds, and transmission times round up, so at very high rates (40 bytes at 10 Gb/s is 32 ns) the
+          simulation is slower than the formula.
+        </li>
         <li>Utilisation counts each message's bits once, over the time to deliver them all.</li>
       </ul>
       <h3 className="pt-2 text-lg">References</h3>

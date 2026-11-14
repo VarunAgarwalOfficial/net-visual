@@ -682,6 +682,13 @@ impl Sim<'_> {
                 };
                 (fate, if run.is_empty() { "R2" } else { "R3" }, text)
             }
+            Some((k, true)) => (
+                // A real receiver does not know where the stream ends: an old
+                // packet read as a message past the last one is accepted too.
+                "accepted as the wrong message",
+                "R2",
+                format!("seq {wire} read as {k}, past the last message: buffer it (it holds message {real})"),
+            ),
             Some((k, _)) => (
                 "duplicate",
                 "R1",
@@ -767,7 +774,10 @@ impl Sim<'_> {
             self.totals.completion_us = self.now;
         }
         if self.totals.completion_us > 0 {
-            let bits = n as f64 * self.p.data_bytes as f64 * 8.0;
+            // Count only messages that reached the application as themselves:
+            // an unfinished run has delivered fewer than n.
+            let good = (self.totals.delivered - self.totals.misdelivered) as f64;
+            let bits = good * self.p.data_bytes as f64 * 8.0;
             let secs = self.totals.completion_us as f64 / 1e6;
             self.totals.goodput_bps = bits / secs;
             self.totals.utilisation = self.totals.goodput_bps / self.p.rate_bps as f64;
@@ -845,6 +855,68 @@ mod tests {
             loss_ack: 0.0,
             seed: 1,
             interventions: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn every_mix_of_rules_is_reliable_with_enough_sequence_numbers() {
+        // The four rules are offered as independent switches, so all 16
+        // protocols must deliver every message, once and in order, on a
+        // channel that loses in both directions and reorders.
+        for bits in 0..16u32 {
+            let rules = Rules {
+                buffer: bits & 1 != 0,
+                ack: if bits & 2 != 0 {
+                    AckMode::Cumulative
+                } else {
+                    AckMode::Individual
+                },
+                timer: if bits & 4 != 0 {
+                    TimerMode::Single
+                } else {
+                    TimerMode::Each
+                },
+                resend: if bits & 8 != 0 {
+                    Resend::All
+                } else {
+                    Resend::One
+                },
+            };
+            let mut p = params(rules, 8);
+            p.messages = 300;
+            p.loss_data = 0.1;
+            p.loss_ack = 0.1;
+            p.jitter_us = 2_000;
+            p.timeout_us = 30_000;
+            let r = run(&p);
+            assert!(
+                r.totals.finished && r.totals.correct,
+                "{rules:?}: {:?}",
+                r.totals
+            );
+        }
+    }
+
+    #[test]
+    fn extreme_settings_still_run() {
+        for (rate, bytes, prop) in [(10_000_000_000u64, 40u32, 0u64), (1_000, 12_000, 200_000)] {
+            let mut p = params(Rules::SELECTIVE_REPEAT, 64);
+            p.rate_bps = rate;
+            p.data_bytes = bytes;
+            p.ack_bytes = 0;
+            p.prop_us = prop;
+            p.messages = 20;
+            p.timeout_us = 1_000_000;
+            let r = run(&p);
+            // The slow link cannot finish inside the 600 s limit; it must
+            // still stop cleanly and report sane numbers.
+            assert_eq!(r.totals.misdelivered, 0);
+            assert!(
+                r.totals.utilisation <= 1.0 + 1e-9,
+                "{rate} {bytes} {prop}: {:?}",
+                r.totals
+            );
+            assert_eq!(r.totals.finished, rate > 1_000);
         }
     }
 
