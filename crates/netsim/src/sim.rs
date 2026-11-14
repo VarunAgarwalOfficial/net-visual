@@ -54,7 +54,11 @@ pub struct Queue<E> {
 
 impl<E> Default for Queue<E> {
     fn default() -> Self {
-        Queue { heap: BinaryHeap::new(), slots: Vec::new(), order: 0 }
+        Queue {
+            heap: BinaryHeap::new(),
+            slots: Vec::new(),
+            order: 0,
+        }
     }
 }
 

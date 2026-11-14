@@ -59,10 +59,18 @@ pub struct Rules {
 }
 
 impl Rules {
-    pub const GO_BACK_N: Rules =
-        Rules { buffer: false, ack: AckMode::Cumulative, timer: TimerMode::Single, resend: Resend::All };
-    pub const SELECTIVE_REPEAT: Rules =
-        Rules { buffer: true, ack: AckMode::Individual, timer: TimerMode::Each, resend: Resend::One };
+    pub const GO_BACK_N: Rules = Rules {
+        buffer: false,
+        ack: AckMode::Cumulative,
+        timer: TimerMode::Single,
+        resend: Resend::All,
+    };
+    pub const SELECTIVE_REPEAT: Rules = Rules {
+        buffer: true,
+        ack: AckMode::Individual,
+        timer: TimerMode::Each,
+        resend: Resend::One,
+    };
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Debug)]
@@ -223,7 +231,11 @@ pub fn theory(p: &Params) -> Theory {
     let pd = p.loss_data;
     let fill = 1.0 + 2.0 * a;
     let stallings_sw = (1.0 - pd) / (1.0 + 2.0 * a);
-    let stallings_sr = if n >= fill { 1.0 - pd } else { n * (1.0 - pd) / fill };
+    let stallings_sr = if n >= fill {
+        1.0 - pd
+    } else {
+        n * (1.0 - pd) / fill
+    };
     let stallings_gbn = if n >= fill {
         (1.0 - pd) / (1.0 + 2.0 * a * pd)
     } else {
@@ -318,7 +330,12 @@ pub fn run(p: &Params) -> Run {
         events: Vec::new(),
         totals: Totals::default(),
     };
-    sim.record('S', "S1", "start: the application hands over all messages".into(), None);
+    sim.record(
+        'S',
+        "S1",
+        "start: the application hands over all messages".into(),
+        None,
+    );
     sim.fill_window();
     while let Some((at, ev)) = sim.queue.pop() {
         if at > TIME_LIMIT_US {
@@ -357,7 +374,11 @@ impl Sim<'_> {
             })
             .collect();
         let mut timers: Vec<(i64, u64)> = match self.p.rules.timer {
-            TimerMode::Single => self.single_timer.iter().map(|&(i, _, at)| (i, at)).collect(),
+            TimerMode::Single => self
+                .single_timer
+                .iter()
+                .map(|&(i, _, at)| (i, at))
+                .collect(),
             TimerMode::Each => self
                 .timers
                 .iter()
@@ -379,7 +400,14 @@ impl Sim<'_> {
     fn record(&mut self, who: char, step: &'static str, text: String, flight: Option<usize>) {
         if self.events.len() < MAX_EVENTS {
             let state = self.snapshot();
-            self.events.push(Event { t: self.now, who, step, text, flight, state });
+            self.events.push(Event {
+                t: self.now,
+                who,
+                step,
+                text,
+                flight,
+                state,
+            });
         }
     }
 
@@ -387,7 +415,11 @@ impl Sim<'_> {
     /// every packet whether or not an intervention overrides them, so editing
     /// one packet never changes the luck of the packets after it.
     fn channel(&mut self, kind: Kind, number: i64, occurrence: u32) -> (bool, u64) {
-        let loss = if kind == Kind::Data { self.p.loss_data } else { self.p.loss_ack };
+        let loss = if kind == Kind::Data {
+            self.p.loss_data
+        } else {
+            self.p.loss_ack
+        };
         let mut lost = self.rng.unit() < loss;
         let mut delay = self.p.prop_us + self.rng.upto(self.p.jitter_us);
         for iv in &self.p.interventions {
@@ -425,7 +457,9 @@ impl Sim<'_> {
         if self.data_busy {
             return;
         }
-        let Some(i) = self.data_queue.pop_front() else { return };
+        let Some(i) = self.data_queue.pop_front() else {
+            return;
+        };
         if self.status[i as usize] == b'a' {
             return self.start_data();
         }
@@ -466,7 +500,13 @@ impl Sim<'_> {
                 self.generation += 1;
                 let at = self.now + self.p.timeout_us;
                 self.timers[i as usize] = Some((self.generation, at));
-                self.queue.push(at, Ev::Timeout { index: i, generation: self.generation });
+                self.queue.push(
+                    at,
+                    Ev::Timeout {
+                        index: i,
+                        generation: self.generation,
+                    },
+                );
             }
         }
         let again = if occurrence > 1 { " (again)" } else { "" };
@@ -478,7 +518,13 @@ impl Sim<'_> {
         self.generation += 1;
         let at = self.now + self.p.timeout_us;
         self.single_timer = Some((index, self.generation, at));
-        self.queue.push(at, Ev::Timeout { index, generation: self.generation });
+        self.queue.push(
+            at,
+            Ev::Timeout {
+                index,
+                generation: self.generation,
+            },
+        );
     }
 
     /// S3. [Receive ACK.] Read the number as the sender must: as the one
@@ -491,7 +537,8 @@ impl Sim<'_> {
             AckMode::Cumulative => self.base - 1,
             AckMode::Individual => self.base,
         };
-        let mut candidates = (window_lo.max(-1)..self.next).filter(|k| k.rem_euclid(self.modulus) == wire);
+        let mut candidates =
+            (window_lo.max(-1)..self.next).filter(|k| k.rem_euclid(self.modulus) == wire);
         let k = match self.p.rules.ack {
             AckMode::Cumulative => candidates.next_back(),
             AckMode::Individual => candidates.find(|&k| k >= 0 && self.status[k as usize] != b'a'),
@@ -526,6 +573,8 @@ impl Sim<'_> {
             None => format!("ACK {wire} matches nothing outstanding: ignored"),
         };
         self.record('S', "S3", text, Some(id));
+        // S5. [Done.] When the base passes the last message, every message
+        // has been delivered and acknowledged; record the completion time.
         if self.base == self.p.messages as i64 && !self.totals.finished {
             self.totals.finished = true;
             self.totals.completion_us = self.now;
@@ -553,7 +602,9 @@ impl Sim<'_> {
         self.single_timer = None;
         self.timers[index as usize] = None;
         let resend: Vec<i64> = match self.p.rules.resend {
-            Resend::All => (self.base..self.next).filter(|&j| self.status[j as usize] == b's').collect(),
+            Resend::All => (self.base..self.next)
+                .filter(|&j| self.status[j as usize] == b's')
+                .collect(),
             Resend::One => vec![index],
         };
         for &j in &resend {
@@ -563,7 +614,11 @@ impl Sim<'_> {
             }
         }
         let list: Vec<String> = resend.iter().map(|&j| self.wire(j).to_string()).collect();
-        let text = format!("timer for seq {} expires: resend {}", self.wire(index), list.join(", "));
+        let text = format!(
+            "timer for seq {} expires: resend {}",
+            self.wire(index),
+            list.join(", ")
+        );
         self.record('S', "S4", text, None);
         self.start_data();
     }
@@ -576,7 +631,11 @@ impl Sim<'_> {
     /// before rcv_base, it is old. When N > 2^(k-1) these two ranges
     /// overlap and an old packet can be taken for a new one.
     fn interpret(&self, wire: i64) -> Option<(i64, bool)> {
-        let w = if self.p.rules.buffer { self.p.window as i64 } else { 1 };
+        let w = if self.p.rules.buffer {
+            self.p.window as i64
+        } else {
+            1
+        };
         let d = (wire - self.rcv_base).rem_euclid(self.modulus);
         if d < w {
             return Some((self.rcv_base + d, true));
@@ -623,10 +682,25 @@ impl Sim<'_> {
                 };
                 (fate, if run.is_empty() { "R2" } else { "R3" }, text)
             }
-            Some((k, _)) => ("duplicate", "R1", format!("seq {wire} read as old {k}: re-acknowledge")),
+            Some((k, _)) => (
+                "duplicate",
+                "R1",
+                format!("seq {wire} read as old {k}: re-acknowledge"),
+            ),
             None => {
-                let fate = if self.p.rules.buffer { "outside window" } else { "out of order" };
-                (fate, "R1", format!("seq {wire} is not the expected {}: discard", self.wire(self.rcv_base)))
+                let fate = if self.p.rules.buffer {
+                    "outside window"
+                } else {
+                    "out of order"
+                };
+                (
+                    fate,
+                    "R1",
+                    format!(
+                        "seq {wire} is not the expected {}: discard",
+                        self.wire(self.rcv_base)
+                    ),
+                )
             }
         };
         self.flights[id].fate = fate;
@@ -658,7 +732,9 @@ impl Sim<'_> {
         if self.ack_busy {
             return;
         }
-        let Some(a) = self.ack_queue.pop_front() else { return };
+        let Some(a) = self.ack_queue.pop_front() else {
+            return;
+        };
         let count = self.ack_sends.entry(a).or_insert(0);
         *count += 1;
         let occurrence = *count;
@@ -696,7 +772,12 @@ impl Sim<'_> {
             self.totals.goodput_bps = bits / secs;
             self.totals.utilisation = self.totals.goodput_bps / self.p.rate_bps as f64;
         }
-        Run { flights: self.flights, events: self.events, totals: self.totals, theory: theory(self.p) }
+        Run {
+            flights: self.flights,
+            events: self.events,
+            totals: self.totals,
+            theory: theory(self.p),
+        }
     }
 }
 
@@ -708,14 +789,15 @@ fn ranges(items: &[usize]) -> String {
     }
 }
 
-/// Utilisation against data loss for the three classic protocols, many
-/// messages per point, for the page's sweep chart. Returns rows of
-/// (p, stop-and-wait, Go-Back-N, Selective Repeat).
-pub fn sweep(base: &Params, losses: &[f64]) -> Vec<[f64; 4]> {
+/// Utilisation against data loss for the three classic protocols, for the
+/// page's sweep chart. Each row is (p, then measured stop-and-wait, Go-Back-N
+/// and Selective Repeat, then the stop-and-wait closed form, Stallings'
+/// Go-Back-N approximation and the Selective Repeat bound min(link, window)).
+pub fn sweep(base: &Params, losses: &[f64]) -> Vec<[f64; 7]> {
     losses
         .iter()
         .map(|&loss| {
-            let mut row = [loss, 0.0, 0.0, 0.0];
+            let mut row = [loss, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
             let variants = [
                 (Rules::GO_BACK_N, 1u32),
                 (Rules::GO_BACK_N, base.window),
@@ -730,7 +812,13 @@ pub fn sweep(base: &Params, losses: &[f64]) -> Vec<[f64; 4]> {
                     interventions: Vec::new(),
                     ..base.clone()
                 };
-                row[slot + 1] = run(&p).totals.utilisation;
+                let r = run(&p);
+                row[slot + 1] = r.totals.utilisation;
+                match slot {
+                    0 => row[4] = r.theory.bound,
+                    1 => row[5] = r.theory.stallings_gbn,
+                    _ => row[6] = r.theory.bound,
+                }
             }
             row
         })
@@ -770,7 +858,10 @@ mod tests {
         assert!(run.totals.correct);
         let predicted = run.theory.bound;
         let measured = run.totals.utilisation;
-        assert!((measured / predicted - 1.0).abs() < 0.04, "{measured} vs {predicted}");
+        assert!(
+            (measured / predicted - 1.0).abs() < 0.04,
+            "{measured} vs {predicted}"
+        );
     }
 
     #[test]
@@ -778,7 +869,10 @@ mod tests {
         for window in [1, 4, 8, 20] {
             let run = run(&params(Rules::SELECTIVE_REPEAT, window));
             let predicted = run.theory.bound;
-            assert!((run.totals.utilisation / predicted - 1.0).abs() < 0.01, "N = {window}");
+            assert!(
+                (run.totals.utilisation / predicted - 1.0).abs() < 0.01,
+                "N = {window}"
+            );
         }
         // The bound is min(1, N t / RTT'), so N = 20 saturates the link.
         assert!(run(&params(Rules::GO_BACK_N, 20)).totals.utilisation > 0.99);
@@ -804,7 +898,13 @@ mod tests {
         p.seq_bits = 2;
         p.messages = 6;
         for number in 0..3 {
-            let iv = Intervention { kind: Kind::Ack, number, occurrence: 1, action: Action::Drop, delay_us: 0 };
+            let iv = Intervention {
+                kind: Kind::Ack,
+                number,
+                occurrence: 1,
+                action: Action::Drop,
+                delay_us: 0,
+            };
             p.interventions.push(iv);
         }
         let bad = run(&p);

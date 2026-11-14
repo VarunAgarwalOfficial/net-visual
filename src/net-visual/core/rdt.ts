@@ -111,7 +111,7 @@ export function protocolName(p: Pick<RdtParams, "rules" | "window">): string {
 
 export const runRdt = (sim: Netsim, p: RdtParams) => sim.call<RdtRun>("rdt", "run", p)
 export const sweepRdt = (sim: Netsim, base: RdtParams, losses: number[]) =>
-  sim.call<[number, number, number, number][]>("rdt", "sweep", { base, losses })
+  sim.call<[number, number, number, number, number, number, number][]>("rdt", "sweep", { base, losses })
 
 const drop = (kind: Kind, number: number, occurrence = 1): Intervention => ({
   kind,
@@ -308,9 +308,7 @@ export interface LabTask {
 }
 
 const sameExcept = (a: RdtParams, b: RdtParams, keys: (keyof RdtParams)[]) =>
-  (Object.keys(a) as (keyof RdtParams)[]).every(
-    (k) => keys.includes(k) || JSON.stringify(a[k]) === JSON.stringify(b[k]),
-  )
+  (Object.keys(a) as (keyof RdtParams)[]).every((k) => keys.includes(k) || JSON.stringify(a[k]) === JSON.stringify(b[k]))
 
 const fillStart: RdtParams = {
   ...BASE,
@@ -347,7 +345,7 @@ export const LABS: LabTask[] = [
       if (p.window === need)
         return {
           ok: true,
-          message: `Right: N = ${need}. Bound ${fmt(run.theory.bound)}, measured ${fmt(run.totals.utilisation)}; the measured value is lower because the last window is not full.`,
+          message: `Right: N = ${need}. Bound ${fmt(run.theory.bound)}, measured ${fmt(run.totals.utilisation)}; the measured value is lower because the run includes filling the pipe at the start and draining it at the end.`,
         }
       return {
         ok: false,
@@ -363,8 +361,7 @@ export const LABS: LabTask[] = [
     hint: "With a full window Stallings gives U_SR / U_GBN = 1 + 2ap. What is a here? Then try nearby values: one run is noisy.",
     start: divergeStart,
     check(p, _run, sim) {
-      if (!sameExcept(p, divergeStart, ["loss_data", "rules"]))
-        return { ok: false, message: "Change only the loss rate." }
+      if (!sameExcept(p, divergeStart, ["loss_data", "rules"])) return { ok: false, message: "Change only the loss rate." }
       const gbn = runRdt(sim, { ...p, rules: GO_BACK_N }).totals.utilisation
       const sr = runRdt(sim, { ...p, rules: SELECTIVE_REPEAT }).totals.utilisation
       const ratio = sr / gbn
@@ -383,8 +380,7 @@ export const LABS: LabTask[] = [
     hint: "The receiver's window after a full window is received, and the sender's window if no ACK gets back: can they share a sequence number?",
     start: { ...pipe, rules: SELECTIVE_REPEAT, seq_bits: 2, window: 2, messages: 8 },
     check(p, run) {
-      if (p.rules.buffer !== true || p.seq_bits !== 2)
-        return { ok: false, message: "Keep Selective Repeat and 2-bit sequence numbers." }
+      if (p.rules.buffer !== true || p.seq_bits !== 2) return { ok: false, message: "Keep Selective Repeat and 2-bit sequence numbers." }
       return run.totals.misdelivered > 0
         ? { ok: true, message: `Done: window ${p.window} > 2^(k-1) = 2, ${run.totals.misdelivered} message(s) delivered wrongly.` }
         : { ok: false, message: "Every message arrived as itself." }

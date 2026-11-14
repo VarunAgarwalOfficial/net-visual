@@ -112,7 +112,11 @@ fn check_rdt(p: &rdt::Params) -> Result<(), String> {
         && p.timeout_us >= 1
         && (0.0..1.0).contains(&p.loss_data)
         && (0.0..1.0).contains(&p.loss_ack);
-    if ok { Ok(()) } else { Err("parameters out of range".into()) }
+    if ok {
+        Ok(())
+    } else {
+        Err("parameters out of range".into())
+    }
 }
 
 #[cfg(test)]
@@ -122,7 +126,10 @@ mod tests {
     #[test]
     fn answers_requests_and_reports_errors() {
         let reply = handle(br#"{"tool":"rdt","op":"source"}"#);
-        assert!(reply["ok"].as_str().unwrap().contains("S1. [Fill the window.]"));
+        assert!(reply["ok"]
+            .as_str()
+            .unwrap()
+            .contains("S1. [Fill the window.]"));
         assert!(handle(b"not json")["error"].is_string());
         assert!(handle(br#"{"tool":"rdt","op":"fly"}"#)["error"].is_string());
     }
