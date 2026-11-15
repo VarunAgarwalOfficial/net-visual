@@ -49,4 +49,12 @@ export const TOOLS: ToolInfo[] = [
     layers: ["intuition", "mechanics", "analysis", "frontier", "internals"],
     Component: lazy(() => import("./link/LinkTool").then((m) => ({ default: m.LinkTool }))),
   },
+  {
+    id: "web",
+    title: "Naming and the web",
+    summary:
+      "DNS lookups on a message ladder, iterative against a recursive chain, with caches and TTLs counting down, negative caching, the shared-cache hit ratio and stale answers after a change.",
+    layers: ["intuition", "mechanics", "analysis", "frontier", "internals"],
+    Component: lazy(() => import("./web/WebTool").then((m) => ({ default: m.WebTool }))),
+  },
 ]

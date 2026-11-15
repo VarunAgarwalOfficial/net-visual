@@ -507,7 +507,9 @@ impl<'a> Sim<'a> {
         text: impl FnOnce(&Self) -> String,
     ) {
         if self.trace {
-            let text = text(self);
+            // Names end in their root dot, so a sentence that ends on a name
+            // would close with two; no domain name contains "..".
+            let text = text(self).replace("..", ".");
             self.events.push(DnsEvent {
                 t,
                 step,
