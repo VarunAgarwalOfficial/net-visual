@@ -7,6 +7,7 @@
 
 pub mod coding;
 pub mod dns;
+pub mod http;
 pub mod lan;
 pub mod link;
 pub mod queue;
