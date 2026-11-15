@@ -37,8 +37,17 @@ export function ToolActions({ link, figures, root }: { link(): string; figures: 
     const on = () => {
       if (!document.fullscreenElement) setPresent(false)
     }
+    // Where full screen is refused (iPhone Safari, some embeds) Escape
+    // fires no fullscreenchange, so it must leave presentation mode itself.
+    const key = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !document.fullscreenElement) setPresent(false)
+    }
     document.addEventListener("fullscreenchange", on)
-    return () => document.removeEventListener("fullscreenchange", on)
+    document.addEventListener("keydown", key)
+    return () => {
+      document.removeEventListener("fullscreenchange", on)
+      document.removeEventListener("keydown", key)
+    }
   }, [])
 
   const share = async () => {
