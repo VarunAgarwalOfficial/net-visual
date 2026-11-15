@@ -10,7 +10,7 @@ use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
-use netsim::{link, queue, rdt, routing, tcp};
+use netsim::{coding, lan, link, queue, rdt, routing, stp, tcp};
 
 /// Reserves `len` bytes and returns their address.
 #[no_mangle]
@@ -68,6 +68,9 @@ fn source(tool: &str) -> Option<&'static str> {
         "routing" => Some(include_str!("../../netsim/src/routing.rs")),
         "queue" => Some(include_str!("../../netsim/src/queue.rs")),
         "link" => Some(include_str!("../../netsim/src/link.rs")),
+        "lan" => Some(include_str!("../../netsim/src/lan.rs")),
+        "stp" => Some(include_str!("../../netsim/src/stp.rs")),
+        "coding" => Some(include_str!("../../netsim/src/coding.rs")),
         _ => None,
     }
 }
@@ -180,6 +183,31 @@ pub fn handle(bytes: &[u8]) -> Value {
                 let p: link::CaParams = parse(request.params)?;
                 check_ca(&p)?;
                 json!(link::ca_run(&p))
+            }
+            ("link", "switch") => {
+                let p: lan::SwitchParams = parse(request.params)?;
+                check_switch(&p)?;
+                json!(lan::switch_run(&p)?)
+            }
+            ("link", "stp") => {
+                let p: stp::StpParams = parse(request.params)?;
+                check_stp(&p)?;
+                json!(stp::stp_run(&p)?)
+            }
+            ("link", "crc") => {
+                let p: coding::CrcParams = parse(request.params)?;
+                in_range(
+                    p.message.len() <= 96
+                        && (2..=33).contains(&p.generator.len())
+                        && p.flips.len() <= 128
+                        && p.text.chars().count() <= 256,
+                )?;
+                json!(coding::crc_run(&p)?)
+            }
+            ("link", "hamming") => {
+                let p: coding::HammingParams = parse(request.params)?;
+                in_range((2..=5).contains(&p.r) && p.flips.len() <= 8)?;
+                json!(coding::hamming_run(&p)?)
             }
             (tool, op) => return Err(format!("unknown request {tool}/{op}")),
         })
@@ -358,6 +386,42 @@ fn check_cd(p: &link::CdParams, bits: f64) -> Result<(), String> {
             && p.backoff_cap <= 16
             && p.duration_ns >= 1
             && p.duration_ns as f64 * p.rate_bps as f64 / 1e9 <= bits,
+    )
+}
+
+fn short_name(name: &str) -> bool {
+    (1..=12).contains(&name.chars().count())
+}
+
+/// Learning switches: two dozen nodes, forty frames and at most 5000 link
+/// transmissions, which also ends a storm.
+fn check_switch(p: &lan::SwitchParams) -> Result<(), String> {
+    in_range(
+        (2..=24).contains(&p.nodes.len())
+            && p.nodes.iter().all(|v| short_name(&v.name))
+            && p.links.len() <= 40
+            && (1..=40).contains(&p.frames.len())
+            && p.frames.iter().all(|f| f.at_us <= 1_000_000_000)
+            && (1..=1_000_000_000).contains(&p.aging_us)
+            && (1..=1_000_000).contains(&p.hop_us)
+            && (1..=5000).contains(&p.max_sends),
+    )
+}
+
+/// The spanning tree: sixteen bridges, timers in 802.1D's ranges (hello 1 to
+/// 10 s, maximum age 6 to 40 s, forward delay 4 to 30 s) and ten minutes.
+fn check_stp(p: &stp::StpParams) -> Result<(), String> {
+    in_range(
+        (2..=16).contains(&p.bridges.len())
+            && p.bridges.iter().all(|b| short_name(&b.name))
+            && (1..=32).contains(&p.links.len())
+            && p.links.iter().all(|l| l.cost <= 200_000_000)
+            && (1000..=10_000).contains(&p.hello_ms)
+            && (6000..=40_000).contains(&p.max_age_ms)
+            && (4000..=30_000).contains(&p.forward_delay_ms)
+            && (1..=100).contains(&p.delay_ms)
+            && (1..=600_000).contains(&p.until_ms)
+            && p.failure.as_ref().is_none_or(|f| f.at_ms <= p.until_ms),
     )
 }
 
