@@ -233,6 +233,7 @@ export function Graph({
               onClick={() => onNode(i)}
               onKeyDown={press(() => onNode(i))}
             >
+              {/* The destination's word sits a little right of centre and further out, clear of the arrows coming in. */}
               {(changed.has(i) || actor === i) && !dijkstra && (
                 <circle cx={x} cy={y} r={r + 7 * k} className={changed.has(i) ? "fill-chart-4/35" : "fill-muted"} />
               )}
@@ -249,8 +250,8 @@ export function Graph({
                 {name}
               </text>
               <text
-                x={x}
-                y={labelY(fig, i, y, r, k)}
+                x={isDest && !dijkstra ? x + Math.max(0, Math.min(12 * k, W + 20 - x - 28 * k)) : x}
+                y={labelY(fig, i, y, r, k) + (isDest && !dijkstra ? (labelY(fig, i, y, r, k) > y ? 12 : -12) * k : 0)}
                 textAnchor="middle"
                 fontSize={12 * k}
                 className="fill-muted-foreground stroke-background tabular-nums lining"

@@ -283,6 +283,18 @@ export function LineChart(props: Props) {
                 faint: the rest of the run, not reached yet
               </text>
             )}
+            {asKey && (
+              // A plain ground under the key, so no line runs through its words.
+              <rect
+                x={m.l + 4}
+                y={m.t + 15}
+                width={Math.min(w - 8, 34 + 5.6 * Math.max(...keyRows.map((k) => (k.note ?? k.s.label).length)))}
+                height={keyRows.length * 14 + 4}
+                fill="var(--background)"
+                fillOpacity={0.9}
+                pointerEvents="none"
+              />
+            )}
             {asKey &&
               keyRows.map(({ s, row, note }) => (
                 <g key={`key${row}`} pointerEvents="none">

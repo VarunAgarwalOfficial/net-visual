@@ -313,7 +313,16 @@ function RoutingLoaded({ sim }: { sim: Netsim }) {
       />
 
       <figure className="space-y-3">
-        {!started && <p className="font-sans text-sm font-semibold">Nothing has been exchanged yet: this is the start.</p>}
+        <p className="flex flex-wrap items-center gap-x-4 gap-y-1 font-sans text-sm">
+          {!started && <strong className="font-semibold">Nothing has been exchanged yet: this is the start.</strong>}
+          <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+            <svg width="28" height="10" aria-hidden="true" className="shrink-0">
+              <line x1="1" y1="5" x2="20" y2="5" className="stroke-chart-1" strokeWidth="3" />
+              <path d="M19,0 L28,5 L19,10 z" className="fill-chart-1" />
+            </svg>
+            blue arrow: the next router on the way to {D}
+          </span>
+        </p>
         <Graph
           fig={fig}
           messages={wire}
@@ -347,13 +356,6 @@ function RoutingLoaded({ sim }: { sim: Netsim }) {
             )}
           </p>
           <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5">
-              <svg width="28" height="10" aria-hidden="true" className="shrink-0">
-                <line x1="1" y1="5" x2="20" y2="5" className="stroke-chart-1" strokeWidth="3" />
-                <path d="M19,0 L28,5 L19,10 z" className="fill-chart-1" />
-              </svg>
-              blue arrow: the next router on the way to {D}
-            </span>
             <span>cost ∞: no route known yet</span>
             <span>number on a line: that link&apos;s cost</span>
           </p>

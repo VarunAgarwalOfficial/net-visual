@@ -352,10 +352,11 @@ pictures start on the first screen but run past its bottom.
 
 ## Third cold-read pass (six items, last pass)
 
-Routing: a bold "Nothing has been exchanged yet: this is the start" line
-above the graph at load; the destination's neighbours are labelled
-"cost N, direct link"; the method note and a key (blue arrow, cost ∞,
-link number) sit under the graph; the destination chooser under that;
+Routing: above the graph, a bold "Nothing has been exchanged yet: this
+is the start" (at load) and the blue-arrow key; the destination's
+neighbours are labelled "cost N, direct link"; "destination" sits right
+of and below z, clear of the arrows; the method note and the cost ∞ and
+link-number keys sit under the graph, then the destination chooser;
 graph text scales up on phones (k = 760 / width, at most 2.3). Keys in
 the pictures: queue ("Each blue block is one packet", link line names
 rate and discipline), ALOHA (stations, colours, vulnerable window, air),
@@ -365,13 +366,15 @@ the columns). Player: a sentence names the slider's round knob; the web
 player counts milliseconds (`inMs`); routing's counter says what a round
 is (`timeIs`). Phone layout: queue's path figure has a narrow layout;
 TCP's chart shows its key top-left early in the run (`keyEarly`, notes
-per series) instead of line-end labels, and the origin zeros are apart.
+per series, on a plain ground) instead of line-end labels, and the
+origin zeros are apart.
 Terms glossed at first use: stop-and-wait, sequence number, ALOHA,
 station, router, Mb/s, TCP, Reno/Tahoe after a loss, slow-start
 threshold, acknowledgement, resolver, root, com, net. Header: one row,
 tools in a closed "The six tools" list. Left: at 390 the routing, rdt,
 web, TCP and link pictures still run past the first screen (their top
-part and Play show together).
+part and Play show together); the HTTP view at 390 and the blue "1" on
+u-x in dark mode (not reproduced) were not examined further.
 
 ## Next
 
