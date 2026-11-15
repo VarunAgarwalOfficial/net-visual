@@ -34,6 +34,13 @@
   to scenarios, three theorems with proofs and live numbers, a buffer
   sweep, six rated exercises, frontier, internals, simplifications and
   references.
+- Concept notes for the RDT and TCP tools written in the owner's vault
+  (outside this repo), computer-networks folder: Bandwidth-delay product,
+  Reliable data transfer, Stop-and-wait protocol, Sliding-window protocols,
+  TCP retransmission timeout, TCP congestion control, AIMD and fairness,
+  TCP sawtooth and buffer sizing, Mathis square-root law, CUBIC congestion
+  control, and the map note Computer networks. The tools' articles keep
+  only tool-specific material.
 
 ## Next
 
