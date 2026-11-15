@@ -6,6 +6,7 @@
 //! reproduces the same run on any machine.
 
 pub mod coding;
+pub mod dns;
 pub mod lan;
 pub mod link;
 pub mod queue;
