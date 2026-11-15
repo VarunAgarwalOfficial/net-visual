@@ -57,8 +57,27 @@
   labs, the Bellman-Ford terms replayed from the trace (tested against
   every table).
 
+- Routing tool, all five layers: graph with every vector on the wire
+  (poisoned and lost ones marked), next hops towards a chosen destination
+  with forwarding loops in red, click-to-edit links (cost, fail, repair at
+  t); Bellman-Ford card for any router with each term's source and time;
+  tables, trace, Dijkstra step table over the graph, setup, literate source,
+  four labs; staircase chart of every router's cost with the infinity line,
+  in rounds when jitter is 0; nine scenarios after K&R and RFC 2453, tour,
+  share links, SVG and TikZ of graph and chart; article with misconceptions,
+  hard cases, four theorems with proofs and live numbers, five exercises,
+  frontier (RIP, OSPF/IS-IS, DUAL, Babel, DSDV, BGP, LFA, SDN),
+  internals, simplifications and references.
+- Browser pass on routing at 1440 and 390, light and dark: graph text
+  scales up on narrow screens, router labels move off their links, vectors
+  drawn mid-link, chart infinity labelled.
+- Vault notes for routing: Distance-vector routing, Count to infinity,
+  Link-state routing; map note updated.
+
 ## Next
 
-1. Routing tool UI: graph, vectors, Bellman-Ford card, staircase chart,
-   Dijkstra table, setup, labs, article; vault notes for routing.
-2. Browser pass on routing at 1440 and 390, light and dark.
+1. Link-state flooding as a model (LSAs with sequence numbers, transient
+   loops while databases differ), so both algorithms run on the wire.
+2. Periodic RIP timers (30 s updates, 180 s timeout) and split horizon
+   without poison as options.
+3. Further tools after routing: e.g. ARP and switching, or BGP policy.
