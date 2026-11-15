@@ -80,7 +80,7 @@ export function alohaFigure(p: AlohaParams, run: AlohaRun, t: number, w: number)
     const [a, b] = p.slotted ? [focus.start_us, focus.end_us] : [focus.start_us - F, focus.end_us]
     if (b > t0 && a < t1) {
       shapes.push({ kind: "rect", x: X(a), y: top, w: X(b) - X(a), h: n * rowH, fill: "muted", opacity: 0.14 })
-      const label = p.slotted ? `#${focus.id}: only this slot is vulnerable` : `#${focus.id}: vulnerable for 2 frame times`
+      const label = p.slotted ? `frame #${focus.id}: only this slot is vulnerable` : `frame #${focus.id}: vulnerable for 2 frame times`
       const mid = (X(a) + X(b)) / 2
       shapes.push(
         text(Math.min(right, Math.max(left, mid)), top - 6, label, {
@@ -131,7 +131,8 @@ export function alohaFigure(p: AlohaParams, run: AlohaRun, t: number, w: number)
 
   const every = (right - left) / (span / F) < 34 ? 2 : 1
   for (let k = Math.ceil(t0 / F); k * F <= t1; k++)
-    if (k % every === 0) shapes.push(text(X(k * F), h - 4, fmtTime(k * F, "aloha"), { anchor: "middle", size: 11 }))
+    if (k % every === 0)
+      shapes.push(text(X(k * F), h - 4, fmtTime(k * F, "aloha"), { anchor: X(k * F) > right - 16 ? "end" : "middle", size: 11 }))
   if (t >= t0 && t <= t1) shapes.push({ kind: "line", x1: X(t), y1: top - 2, x2: X(t), y2: chanY + chanH + 2, stroke: "ink", width: 1.5 })
 
   return { w, h, shapes, caption: "", onAir, delivered, garbled }

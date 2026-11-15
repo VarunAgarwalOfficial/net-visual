@@ -137,8 +137,8 @@ export function LinkMechanics() {
   return (
     <Layer id="link-mechanics" layer="Mechanics" title="The three rules, step by step">
       <p>
-        The trace names each step by its letter, and the Source tab shades the code behind it. Each model is a pure function of its settings
-        and a seed: the same settings replay the same run.
+        The trace names each step by its letter, and the program under Go deeper shades the code behind it. Each model is a pure function of
+        its settings and a seed: the same settings replay the same run.
       </p>
       <h3 className="pt-2 text-lg">ALOHA</h3>
       <ol className="list-decimal space-y-2 pl-5">

@@ -266,13 +266,13 @@ export interface CaRun {
 export type Mode = "aloha" | "csmacd" | "csmaca" | "switch" | "stp" | "crc" | "hamming"
 
 export const MODES: { id: Mode; title: string; group: "access" | "lan" | "errors" }[] = [
-  { id: "aloha", title: "ALOHA", group: "access" },
-  { id: "csmacd", title: "CSMA/CD", group: "access" },
-  { id: "csmaca", title: "CSMA/CA", group: "access" },
-  { id: "switch", title: "Switch learning", group: "lan" },
-  { id: "stp", title: "Spanning tree", group: "lan" },
-  { id: "crc", title: "CRC", group: "errors" },
-  { id: "hamming", title: "Hamming", group: "errors" },
+  { id: "aloha", title: "Send whenever ready (ALOHA)", group: "access" },
+  { id: "csmacd", title: "Listen first, stop on a collision (CSMA/CD, wired Ethernet)", group: "access" },
+  { id: "csmaca", title: "Listen first, then wait a random time (CSMA/CA, Wi-Fi)", group: "access" },
+  { id: "switch", title: "Switches learn where hosts are", group: "lan" },
+  { id: "stp", title: "Bridges switch off loops (spanning tree)", group: "lan" },
+  { id: "crc", title: "Catching errors (cyclic redundancy check, CRC)", group: "errors" },
+  { id: "hamming", title: "Correcting errors (Hamming codes)", group: "errors" },
 ]
 
 export type LinkParams =
@@ -618,25 +618,25 @@ export const PRESETS: Preset[] = [
   {
     id: "pure",
     mode: "aloha",
-    title: "Pure ALOHA at G = 0.5",
+    title: "Pure ALOHA: frames sent at any moment, half a frame per frame time",
     source: "Abramson 1970; Kurose and Ross, Section 6.3.2",
-    note: "Six stations send 1 ms frames whenever they like, half a frame per frame time between them. A frame is lost if any other starts within one frame time either side of it, a window of two frame times, so S = G e^(−2G) = 0.184 with many stations. Forty frame times is a small sample; the S against G tab runs 20,000 per point.",
+    note: "Six stations send 1 ms frames whenever they like, half a frame per frame time between them. A frame is lost if any other starts within one frame time either side of it, a window of two frame times. So with many stations, at best only 18.4% of the time carries a frame that gets through. Forty frame times is a small sample; the chart of throughput against load, under Go deeper, runs 20,000 per point.",
     params: aloha({}),
   },
   {
     id: "slotted",
     mode: "aloha",
-    title: "Slotted ALOHA at G = 1",
+    title: "Slotted ALOHA: frames start only at fixed times, one per slot",
     source: "Roberts 1972; Kurose and Ross, Section 6.3.2",
-    note: "The same stations, but frames may start only on slot boundaries. Two frames now collide only if they pick the same slot, so the vulnerable window halves to one frame time and S = G e^(−G), at most 1/e = 0.368 at G = 1. Watch for empty slots and collided ones: at the peak, about 37% of slots carry a frame, 37% are empty and 26% are wasted on collisions.",
+    note: "The same stations, but frames may start only on slot boundaries. Two frames now collide only if they pick the same slot, so the vulnerable window halves to one frame time, and the share of time that carries a frame that gets through doubles: at best 36.8%, at one frame per slot. Watch for empty slots and collided ones: at the peak, about 37% of slots carry a frame, 37% are empty and 26% are wasted on collisions.",
     params: aloha({ slotted: true, g: 1 }),
   },
   {
     id: "overload",
     mode: "aloha",
-    title: "Pure ALOHA overloaded, G = 2",
+    title: "Pure ALOHA overloaded: two frames per frame time",
     source: "Abramson 1970",
-    note: "Twice as many attempts as frame times. Nearly every frame overlaps another and S falls to G e^(−4) = 0.037: offering more load past the peak delivers less. A real ALOHA network with retransmissions can slide into this state and stay there unless stations back off.",
+    note: "Twice as many attempts as frame times. Nearly every frame overlaps another and only 3.7% of the time carries a frame that gets through: offering more load past the peak delivers less. A real ALOHA network with retransmissions can slide into this state and stay there unless stations back off.",
     params: aloha({ g: 2 }),
   },
   {
@@ -690,7 +690,7 @@ export const PRESETS: Preset[] = [
   {
     id: "ca-hidden-rts",
     mode: "csmaca",
-    title: "Hidden terminals with RTS/CTS",
+    title: "Hidden terminals, with a request and permission to send first (RTS/CTS)",
     source: "Karn 1990 (MACA); Bharghavan et al. 1994 (MACAW); IEEE 802.11-2020, Section 10.3.2.4",
     note: "The same nodes, with every data frame preceded by a 20-byte RTS and answered by a 14-byte CTS from B. C cannot hear A's RTS but does hear B's CTS, and its duration field keeps C quiet until the ACK is over. Collisions now hit the short RTS frames instead of the data. A few data frames are still lost: C may be sending its own RTS while B's CTS is on the air, so it misses the CTS and later talks over A's data. Over these 100 ms A wins almost every exchange: once C has lost a few RTS frames its window is wide, and its counter, frozen through each of A's exchanges, drains only in the short gaps between them. Over a second the two share more evenly.",
     params: ca(CA_HIDDEN_RTS),
@@ -706,7 +706,7 @@ export const PRESETS: Preset[] = [
   {
     id: "ca-nav",
     mode: "csmaca",
-    title: "Virtual carrier sense: the NAV",
+    title: "Staying quiet for a time another node has reserved (the NAV)",
     source: "IEEE 802.11-2020, Sections 10.3.2.4 and 10.3.1.2.1",
     note: "A sends two frames to B with RTS/CTS. D hears only A; C hears only B. Each frame carries a duration field: how much longer the exchange will hold the medium. D sets its NAV from A's RTS, C from B's CTS, and both NAVs end exactly as the ACK does, although neither can hear the whole exchange.",
     params: ca(CA_NAV),
@@ -786,7 +786,7 @@ export const PRESETS: Preset[] = [
   {
     id: "crc-division",
     mode: "crc",
-    title: "A CRC by long division",
+    title: "A cyclic redundancy check (CRC) by long division",
     source: "Peterson and Brown 1961; Tanenbaum and Wetherall, Section 3.2.2",
     note: "The message 1101011011 with generator x⁴ + x + 1 (10011). Append four zeros, one per power of the generator, and divide in GF(2), where subtraction is exclusive or: at each step where the leading bit is 1, exclusive-or the generator in beneath it. The remainder, 1110, replaces the zeros. The receiver divides the whole codeword by the same generator and gets zero.",
     params: crc({}),
@@ -802,7 +802,7 @@ export const PRESETS: Preset[] = [
   {
     id: "crc-burst",
     mode: "crc",
-    title: "A burst no longer than r is always caught",
+    title: "A run of errors no longer than the check is always caught",
     source: "Peterson and Brown 1961, Theorem 4",
     note: "Four adjacent bits flipped. A burst of length b is x^i B(x) with B of degree b − 1 and a constant term. G(x) has a constant term too, so it shares no factor with x^i, and it cannot divide B(x), whose degree is lower than G's. So every burst of length r or less leaves a remainder. The Properties tab counts every burst for this generator.",
     params: crc({ flips: burst(5, 4) }),
@@ -810,7 +810,7 @@ export const PRESETS: Preset[] = [
   {
     id: "crc-8",
     mode: "crc",
-    title: 'CRC-8 of "123456789"',
+    title: 'The standard 8-bit CRC of "123456789"',
     source: "Williams 1993; ITU-T I.432.1",
     note: "The nine ASCII characters 123456789, 72 bits, divided by x⁸ + x² + x + 1. This CRC starts from zero and is neither reflected nor complemented, so plain long division gives the published check value 0xF4 directly. CRC-32 starts its register at all ones, reflects each byte and complements the result; the table beneath lists all three standard CRCs of the same text.",
     params: crc({ message: asciiBits("123456789"), generator: gen("crc8") }),
@@ -818,7 +818,7 @@ export const PRESETS: Preset[] = [
   {
     id: "hamming-74",
     mode: "hamming",
-    title: "Hamming (7,4) corrects one flipped bit",
+    title: "A Hamming code, 4 data bits sent as 7, corrects one flipped bit",
     source: "Hamming 1950; MacKay, Information Theory, Inference, and Learning Algorithms, Section 1.2",
     note: "Parity bits sit at positions 1, 2 and 4; the data at 3, 5, 6 and 7. Parity bit p checks every position whose number, written in binary, has p's bit set, and makes their sum even. Bit 5 is flipped in transit. The checks that now fail are 1 and 4, and 1 + 4 = 5: the syndrome is the binary number of the flipped position.",
     params: ham({ flips: [5] }),
@@ -834,7 +834,7 @@ export const PRESETS: Preset[] = [
   {
     id: "secded",
     mode: "hamming",
-    title: "SECDED: one more parity bit tells one error from two",
+    title: "One more parity bit tells one error from two (SECDED)",
     source: "Hamming 1950; Hsiao 1970",
     note: "The (8,4) extended code adds bit 0, the parity of all seven others. The same two flips give syndrome 6, but the overall parity is even, which one error could not cause, so the decoder reports the block instead of miscorrecting it. Minimum distance 4: correct one error and detect two. ECC memory uses codes of this kind, such as (72,64).",
     params: ham({ secded: true, flips: [3, 5] }),
@@ -842,7 +842,7 @@ export const PRESETS: Preset[] = [
   {
     id: "hamming-15",
     mode: "hamming",
-    title: "Hamming (15,11)",
+    title: "A Hamming code, 11 data bits sent as 15",
     source: "Hamming 1950",
     note: "Four parity bits at 1, 2, 4 and 8 protect eleven data bits, so overhead falls from 3/7 to 4/15. The syndrome still names the flipped position, here 11 = 8 + 2 + 1. The price: one error in 15 bits is corrected, against one in 7.",
     params: ham({ r: 4, data: "10110011101", flips: [11] }),
@@ -905,7 +905,7 @@ export const TOUR: TourStep[] = [
   {
     preset: "learn",
     at: 20,
-    text: "A learning switch: S1 has learned A's port from the frame's source address, but does not know C, so it floods. The tables beside the figure fill as frames pass; nobody configured them.",
+    text: "A learning switch: S1 has learned A's port from the frame's source address, but does not know C, so it floods. The switch tables under Go deeper fill as frames pass; nobody configured them.",
   },
   {
     preset: "learn",

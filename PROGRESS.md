@@ -288,7 +288,14 @@ disclosures, TourAndSharing, "Read about it".
   view, settings, trace, labs, source behind disclosures; preset titles
   and notes with abbreviations and symbols spelled out; figure labels in
   words (source, send, travel, first come first served).
-- [ ] link, web (shell and obvious labels only)
+- [x] link: shell order; the seven protocol buttons became groups in the
+  example picker; captions name every mark (S1, #0, air, NAV, R/D/A,
+  BPDU, link costs, bridge IDs, M(x), G(x), syndrome); formulas moved out
+  of the ALOHA notes and chart titles; the ALOHA channel is empty before
+  the first event; Transport takes `clock={false}` for the coding modes,
+  which count steps, not time. Mode view, chart, formulas, totals,
+  settings, trace, labs, source behind disclosures.
+- [ ] web (shell and obvious labels only)
 - Smooth scrolls everywhere go through `scrollBehavior()`.
 - The dev server must not run through /tmp/unsw-reorg/build: that wrapper
   holds a machine-wide lock for as long as the command runs. Start it with

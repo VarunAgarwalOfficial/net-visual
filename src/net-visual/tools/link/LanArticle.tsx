@@ -112,7 +112,7 @@ export function LanMechanics() {
         the time (step S2). It then looks up d (S3). If T[d] = p<sub>in</sub> it filters; if T[d] is another port it forwards out of that
         port alone; if d is unknown or the broadcast address, it floods out of every port except p<sub>in</sub>. An entry not refreshed
         within the ageing time is removed (S6); 802.1D's default is 300 s. Hubs repeat signals and learn nothing (S8). The model's steps are
-        the comments in lan.rs, shown in the Source tab.
+        the comments in lan.rs, shown under Go deeper.
       </p>
       <h3 className="pt-2 text-lg">The spanning tree</h3>
       <p>
@@ -205,9 +205,9 @@ export function LanAnalysis() {
       <p>
         With r check bits and a generator that has a constant term, every burst of length at most r is detected. Of the bursts of length
         exactly r + 1, which have both ends fixed at 1 and r − 1 free bits inside, only the one equal to G is missed: a fraction 2
-        <sup>−(r−1)</sup>. Of longer bursts, a fraction 2<sup>−r</sup> is missed. The CRC tab's chart counts these by brute force for the
-        chosen generator. For CRC-32 that is about one long burst in 4.3 billion. Some guarantees depend on the frame length: CRC-32 catches
-        every error of up to three bits only in frames shorter than about 11,450 bytes (Koopman, 2002).
+        <sup>−(r−1)</sup>. Of longer bursts, a fraction 2<sup>−r</sup> is missed. The chart under Go deeper counts these by brute force for
+        the chosen generator. For CRC-32 that is about one long burst in 4.3 billion. Some guarantees depend on the frame length: CRC-32
+        catches every error of up to three bits only in frames shorter than about 11,450 bytes (Koopman, 2002).
       </p>
       <h3 className="pt-2 text-lg">What a Hamming code buys</h3>
       <p>With bits flipped independently with probability q, a (7,4) block is decoded wrongly when two or more bits flip:</p>
@@ -255,7 +255,7 @@ export function LanAnalysis() {
           }
         >
           In the five-bridge scenario, with the costs shown in the picture, work out the root, every root port, and which three ports block.
-          Then check against the Ports tab.
+          Then check against the list of each bridge's ports under Go deeper.
         </Exercise>
         <Exercise
           rating="20"

@@ -450,7 +450,7 @@ export function modeChart(sim: Netsim, p: LinkParams, r: LinkRun): LinkChart {
     const sw = alohaSweeps(sim)
     const gs = grid(0, 3, 120)
     return {
-      title: "Throughput S against offered load G",
+      title: "Share of time carrying a good frame, against frames offered per frame time",
       series: [
         { id: "pl", label: "pure: G e^(−2G)", color: "var(--chart-1)", kind: "line", points: gs.map((g) => [g, alohaLimit(false, g)]) },
         { id: "sl", label: "slotted: G e^(−G)", color: "var(--chart-2)", kind: "line", points: gs.map((g) => [g, alohaLimit(true, g)]) },
@@ -515,7 +515,7 @@ export function modeChart(sim: Netsim, p: LinkParams, r: LinkRun): LinkChart {
         points: [[Math.log10(r.run.stats.a), r.run.stats.efficiency]],
       })
     return {
-      title: "Efficiency against a = τ / frame time",
+      title: "Efficiency against the cable's delay as a share of a frame's time",
       series,
       xLabel: "a (log scale)",
       yLabel: "efficiency",

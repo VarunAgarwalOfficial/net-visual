@@ -16,12 +16,15 @@ export function Transport({
   events,
   format = formatTime,
   noun = "event",
+  clock = true,
 }: {
   tl: Timeline
   events: number | null
   format?: (t: number) => string
   /** What one step is, for the counter: "event", "step". */
   noun?: string
+  /** False where the clock only counts steps, so the counter is not said twice. */
+  clock?: boolean
 }) {
   const atEnd = tl.t >= tl.duration && tl.duration > 0
   return (
@@ -60,8 +63,8 @@ export function Transport({
         />
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-sans text-sm text-muted-foreground lining">
           <span className="tabular-nums" aria-live="off">
-            {format(tl.t)} of {format(tl.duration)}
-            {events !== null && `, ${noun} ${Math.max(0, tl.index + 1)} of ${events}`}
+            {clock && `${format(tl.t)} of ${format(tl.duration)}`}
+            {events !== null && `${clock ? ", " : ""}${noun} ${Math.max(0, tl.index + 1)} of ${events}`}
           </span>
           <label className="flex items-center gap-1.5">
             Speed

@@ -1,17 +1,23 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 
-import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { chartExports } from "../../components/figure"
 import { LabPanel } from "../../components/LabPanel"
 import { LineChart, useWidth } from "../../components/LineChart"
 import { LiterateSource } from "../../components/LiterateSource"
-import { ToolActions } from "../../components/ToolActions"
 import { TraceList } from "../../components/TraceList"
 import { Transport } from "../../components/Transport"
-import { scrollBehavior } from "../../components/ToolFrame"
+import {
+  DeeperHeading,
+  Disclosure,
+  ExampleIntro,
+  Readouts,
+  StepCard,
+  TourAndSharing,
+  TourCard,
+  scrollBehavior,
+  sourceLine,
+} from "../../components/ToolFrame"
 import { keepFocus, timelineKeys, useTimeline } from "../../components/timeline"
 import {
   LABS,
@@ -102,15 +108,27 @@ export function LinkTool() {
 }
 
 const STEP_RE = /([A-Z]\d+)\.\s\[([^\]]+)\]/g
-/** The tab that belongs to each mode. */
-const MODE_TAB: Record<Mode, { id: string; title: string }> = {
-  aloha: { id: "frames", title: "Frames" },
-  csmacd: { id: "backoff", title: "Backoff" },
-  csmaca: { id: "stations", title: "Stations" },
-  switch: { id: "tables", title: "Tables" },
-  stp: { id: "ports", title: "Ports" },
-  crc: { id: "props", title: "Properties" },
-  hamming: { id: "syndrome", title: "Syndrome" },
+/** The deeper view that belongs to each mode, named for what it shows. */
+const MODE_VIEW: Record<Mode, { title: string; note: string }> = {
+  aloha: { title: "Each frame, and what hit it", note: "One row per frame: who sent it, when, and whether another frame overlapped it." },
+  csmacd: {
+    title: "Each station's backoff",
+    note: "After each collision, how many slot times each station chose to wait, and from how many choices.",
+  },
+  csmaca: {
+    title: "Each station's state",
+    note: "Per station: frames sent and lost, and the reservations (NAV, network allocation vector) that held it silent.",
+  },
+  switch: { title: "Each switch's table", note: "What each switch has learned so far: which port leads to which host." },
+  stp: { title: "Each bridge's ports", note: "Each port's role and state, as the bridges settle on a tree." },
+  crc: {
+    title: "What this check can and cannot catch",
+    note: "Which kinds of error this generator always detects, and which it can miss.",
+  },
+  hamming: {
+    title: "The syndrome, worked out",
+    note: "Each parity check recomputed at the receiver, and the bit position the failed checks point to.",
+  },
 }
 /** Stable time formatters, so the memoised trace rows do not re-render. */
 const FORMAT: Record<Mode, (t: number) => string> = {
@@ -127,17 +145,17 @@ const SLICE = 200
 
 const HELP: Record<Mode, string> = {
   aloha:
-    "One row per station, time left to right. A frame is drawn as it is sent: solid when it got through, red when another frame overlapped it. The shaded band is the latest frame's vulnerable window: any other start inside it destroys the frame.",
+    "One row per station (S1, S2 and so on), time left to right. A frame is drawn as it is sent, with its number (#0 is the first): solid when it got through, red when another frame overlapped it. The bottom row, air, is the channel as a receiver hears it, every frame at once. The shaded band is the latest frame's vulnerable window: any other start inside it destroys the frame.",
   csmacd:
     "Position along the cable across, time down. Each transmission spreads both ways along the cable at the speed of the signal, so it fills a widening band; a station hears another only once that band reaches its line. Red is the jam after a collision is heard.",
   csmaca:
-    "The map shows who hears whom (dashed lines join nodes in range) and, while a frame is on the air, its sender's range. Below, one lane per node: frames on the air, red when lost at their receiver, and dashed bars where the node's NAV holds it silent.",
+    "The map shows who hears whom (dashed lines join stations in range) and, while a frame is on the air, its sender's range. Below, one lane per station, time left to right: frames on the air, red when lost at their receiver, and dashed bars where a reservation it overheard (the network allocation vector, NAV) holds it silent.",
   switch:
     "Switches are rectangles, hubs dashed, hosts circles; the small numbers are port numbers. Each dot is one copy of a frame on its link, coloured by frame. The node that acted last is ringed, and a red bar marks a port the spanning tree blocks.",
-  stp: "Each bridge shows its ID and what it believes: that it is the root, or its cost to the root it believes in. Port markers give the role (R root, D designated, A alternate) in the colour of the state. Small squares are BPDUs in flight; heavy links forward.",
-  crc: "The long division as written by hand: the dividend, then each subtraction of the generator under the leftmost remaining 1 and what it leaves. The quotient grows on top. In the receiver's half, flipped bits are red.",
+  stp: "Each bridge shows its ID and what it believes: that it is the root of the tree, or its cost to the root it believes in. Each port carries a letter for its role: R, root port (its way towards the root); D, designated port (the one that serves that link); A, alternate (a spare, kept blocked). Its colour gives the state. Small squares are bridge messages (BPDUs, bridge protocol data units) in flight; heavy links forward frames. The number on each link is its cost. A bridge's ID is its priority, a dot, then the end of its hardware address; the lowest ID should end up as root. A dashed box marks the bridge that acted last.",
+  crc: "The long division as written by hand: the message with zeros added (the dividend), then each subtraction of the generator under the leftmost remaining 1, and what it leaves. Subtracting is exclusive or: bits that differ give 1. The quotient grows on top, and what is left at the end is the check value. In the receiver's half, flipped bits are red. In the heading, M(x) is the message and G(x) the generator, each a row of bits read as a polynomial; multiplying by x to a power adds that many zeros.",
   hamming:
-    "One box per position; parity positions are tinted, and the binary under each number says which checks cover it. The dots below mark each check's positions. The checks light up as they are computed and rechecked, and the syndrome points at the bit the decoder blames.",
+    "One box per bit position, numbered from 1; the tinted boxes are parity bits. The binary under each number says which checks cover it: a 1 in the last place means check 1, and so on. The dots below mark each check's positions. The checks light up as they are computed and rechecked, and the syndrome (the failed checks, read as a binary number) points at the bit the decoder blames.",
 }
 
 function rateFor(p: LinkParams, duration: number): number {
@@ -157,7 +175,7 @@ function figureFor(p: LinkParams, r: LinkRun, t: number, index: number, w: numbe
   }
   if (p.mode === "csmacd" && r.mode === "csmacd") {
     const f = cdFigure(p.cd, r.run, t, w)
-    return { fig: f, label: `Space-time diagram of the cable: ${f.collisions} collisions so far` }
+    return { fig: f, label: `${f.collisions} collision${f.collisions === 1 ? "" : "s"} on the cable so far` }
   }
   if (p.mode === "csmaca" && r.mode === "csmaca") {
     const f = caFigure(p.ca, r.run, t, w)
@@ -165,17 +183,21 @@ function figureFor(p: LinkParams, r: LinkRun, t: number, index: number, w: numbe
   }
   if (p.mode === "switch" && r.mode === "switch") {
     const f = switchFigure(p.sw, r.run, t, index, w)
-    return { fig: f, label: `The LAN: ${f.onWire} copies of frames on links` }
+    return { fig: f, label: `${f.onWire} cop${f.onWire === 1 ? "y" : "ies"} of frames on the links now` }
   }
   if (p.mode === "stp" && r.mode === "stp") {
     const f = stpFigure(p.stp, r.run, t, index, w)
     const agree = f.roots === 1 ? "all agree on the root" : `${f.roots} different roots believed`
     return {
       fig: f,
-      label: `The bridges: ${f.forwarding} ports forwarding, ${f.waiting} listening or learning, ${f.blocking} blocking; ${agree}`,
+      label: `${f.forwarding} ports forwarding, ${f.waiting} listening or learning, ${f.blocking} blocking; ${agree}`,
     }
   }
-  if (p.mode === "crc" && r.mode === "crc") return { fig: crcFigure(p.crc, r.run, index, w), label: "Long division over GF(2)" }
+  if (p.mode === "crc" && r.mode === "crc")
+    return {
+      fig: crcFigure(p.crc, r.run, index, w),
+      label: "Long division of bits, where subtracting is exclusive or (XOR) and nothing carries",
+    }
   if (p.mode === "hamming" && r.mode === "hamming") {
     const f = hammingFigure(p.ham, r.run, index, w)
     return { fig: f, label: `Hamming codeword by position${f.flipped.length ? `, bits ${f.flipped.join(", ")} flipped` : ""}` }
@@ -251,7 +273,6 @@ function LinkLoaded({ sim }: { sim: Netsim }) {
   const first = PRESETS[0]
   const [params, setParams] = useState<LinkParams>(shared?.p ?? first.params)
   const [preset, setPreset] = useState<string>(shared ? "" : first.id)
-  const [tab, setTab] = useState("trace")
   const [tour, setTour] = useState<number | null>(null)
   const root = useRef<HTMLElement>(null)
   const [figBox, width] = useWidth<HTMLDivElement>()
@@ -283,7 +304,9 @@ function LinkLoaded({ sim }: { sim: Netsim }) {
   const index = Math.max(0, tl.index)
   const event = run.run.events[index]
 
-  const { fig, label } = useMemo(() => figureFor(p, run, tl.t, index, Math.max(320, Math.round(width))), [p, run, tl.t, index, width])
+  // Before the first event the channel is drawn empty, not with the first frame already on it.
+  const figT = tl.index < 0 && p.mode === "aloha" ? -Infinity : tl.t
+  const { fig, label } = useMemo(() => figureFor(p, run, figT, index, Math.max(320, Math.round(width))), [p, run, figT, index, width])
   const chart = useMemo(() => chartFor(sim, p, run), [sim, p, run])
 
   const trace = useMemo(() => run.run.events.map((e, i) => ({ t: e.t, step: e.step, text: textFor(p, run, i) })), [p, run])
@@ -291,7 +314,6 @@ function LinkLoaded({ sim }: { sim: Netsim }) {
   const traceSlice = useMemo(() => trace.slice(offset, offset + 3 * SLICE), [trace, offset])
 
   const apply = (next: LinkParams, id = "") => {
-    if (next.mode !== params.mode && tab === MODE_TAB[params.mode].id) setTab(MODE_TAB[next.mode].id)
     setParams(next)
     setPreset(id)
     keepFocus(root)
@@ -322,117 +344,107 @@ function LinkLoaded({ sim }: { sim: Netsim }) {
   const presetInfo = PRESETS.find((q) => q.id === preset)
   const title = presetInfo?.title ?? "Your own setup"
   const caption = `${title}, at ${fmt(tl.t)}`
-  const choices = PRESETS.filter((pr) => pr.mode === mode)
+  const started = tl.index >= 0 && !!event
+  const coding = mode === "crc" || mode === "hamming"
+  const stepTitle = started ? (stepTitles.get(event.step) ?? "").replace(/\.$/, "") : ""
+  const who = started ? whoFor(p, run, index) : ""
 
   return (
     <section
       ref={root}
       tabIndex={-1}
-      className="nv-tool space-y-5 outline-none [&.nv-present]:[zoom:1.2] [&.nv-present]:overflow-auto [&.nv-present]:bg-background [&.nv-present]:p-6"
+      aria-label="Link layer and wireless"
+      className="nv-tool max-w-4xl space-y-6 outline-none [&.nv-present]:max-w-none [&.nv-present]:[zoom:1.2] [&.nv-present]:overflow-auto [&.nv-present]:bg-background [&.nv-present]:p-6"
       onKeyDown={(e) => {
         if (timelineKeys(tl, e)) e.preventDefault()
       }}
     >
-      <ToggleGroup
-        type="single"
-        variant="outline"
-        aria-label="Which protocol"
-        value={mode}
-        onValueChange={(v) => {
-          if (!v) return
-          load(PRESETS.find((pr) => pr.mode === v)!.id)
-          setTour(null)
-        }}
-        className="flex-wrap"
-      >
-        {MODES.map((m) => (
-          <ToggleGroupItem key={m.id} value={m.id} className="px-3">
-            {m.title}
-          </ToggleGroupItem>
-        ))}
-      </ToggleGroup>
+      {tour !== null && <TourCard index={tour} steps={TOUR} go={goTour} playing={tl.playing} toggle={tl.toggle} />}
 
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="min-w-56 flex-1">
-          <label className="mb-1 block font-sans text-xs text-muted-foreground" htmlFor="link-preset">
-            Scenario
-          </label>
-          <Select value={preset || "custom"} onValueChange={(id) => load(id)}>
-            <SelectTrigger id="link-preset" className="w-full max-w-md">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {choices.map((pr) => (
-                <SelectItem key={pr.id} value={pr.id}>
-                  {pr.title}
-                </SelectItem>
-              ))}
-              <SelectItem value="custom" disabled>
-                Your own setup
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <Button variant={tour === null ? "outline" : "secondary"} onClick={() => goTour(tour === null ? 0 : null)}>
-          {tour === null ? "Guided tour" : "End tour"}
-        </Button>
-        <ToolActions
-          root={root}
-          link={() => linkFor("link", { p, t: Math.round(tl.t) } satisfies Shared)}
-          figures={[
-            {
-              label: FIGURE_LABEL[mode],
-              stem: `link-${preset || "custom"}-figure`,
-              svg: () => figSvg({ ...fig, caption }),
-              tikz: () => figTikz({ ...fig, caption }),
-            },
-            {
-              label: chart.title,
-              stem: `link-${preset || "custom"}-chart`,
-              ...chartExports(() => chartFigure(chart, `${title}: ${chart.title.toLowerCase()}`)),
-            },
-          ]}
-        />
-      </div>
-
-      {tour !== null ? (
-        <div className="rounded-sm border border-border bg-muted/40 p-4" aria-live="polite">
-          <p className="font-sans text-xs text-muted-foreground">
-            Tour, {tour + 1} of {TOUR.length}
-          </p>
-          <p className="mt-1 max-w-[70ch]">{TOUR[tour].text}</p>
-          <div className="mt-3 flex gap-2">
-            <Button size="sm" variant="outline" disabled={tour === 0} onClick={() => goTour(tour - 1)}>
-              Back
-            </Button>
-            <Button size="sm" onClick={() => goTour(tour + 1 < TOUR.length ? tour + 1 : null)}>
-              {tour + 1 < TOUR.length ? "Next" : "Finish"}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => tl.toggle()}>
-              {tl.playing ? "Pause" : "Play from here"}
-            </Button>
-          </div>
-        </div>
-      ) : (
-        presetInfo && (
-          <p className="max-w-[70ch] text-[0.98rem]">
-            {presetInfo.note} <span className="text-muted-foreground">({presetInfo.source}.)</span>
-          </p>
-        )
-      )}
+      <ExampleIntro
+        title={title}
+        note={
+          presetInfo?.note ??
+          `Your own settings for: ${MODES.find((m) => m.id === mode)?.title}. Open "Change the settings" below to see them.`
+        }
+      />
       {error && (
         <p role="alert" className="font-sans text-sm text-destructive">
           That setting cannot run ({error}); the run shown is the last one that could.
         </p>
       )}
 
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-        <div className="min-w-0 space-y-3">
-          <div ref={figBox}>
-            <ShapeView fig={fig} label={`${caption}. ${label}`} />
-          </div>
-          <p className="font-sans text-xs text-muted-foreground">{HELP[mode]} Space plays, arrow keys step, Home and End jump.</p>
-          <Transport tl={tl} events={run.run.events.length} format={fmt} />
+      <Transport tl={tl} events={run.run.events.length} format={fmt} noun={coding ? "step" : "event"} clock={!coding} />
+
+      <figure className="space-y-2">
+        <figcaption className="max-w-[70ch] font-sans text-sm text-muted-foreground">{HELP[mode]}</figcaption>
+        <div ref={figBox}>
+          <ShapeView fig={fig} label={`${caption}. ${label}`} />
+        </div>
+      </figure>
+
+      <StepCard
+        live={!tl.playing}
+        when={started ? `At ${fmt(event.t)}${who ? `, ${who}` : ""}` : null}
+        title={stepTitle || undefined}
+        text={started ? textFor(p, run, index) : undefined}
+        empty={
+          <>
+            Nothing has happened yet. Press <b>Play</b> to run the example, or <b>Next {coding ? "step" : "event"}</b> to go one{" "}
+            {coding ? "step" : "event"} at a time (the arrow keys do the same).
+          </>
+        }
+      />
+
+      <Readouts
+        caption="So far"
+        cols={2}
+        items={[
+          ...(coding ? [] : [["Simulated time", fmt(tl.t)] as [string, string]]),
+          [coding ? "Steps done" : "Events so far", `${started ? tl.index + 1 : 0} of ${run.run.events.length}`],
+        ]}
+      />
+      {!coding && started && <p className="max-w-[70ch] font-sans text-sm">{label[0].toUpperCase() + label.slice(1)}.</p>}
+
+      <div className="space-y-2">
+        <label className="block text-lg" htmlFor="link-preset">
+          Try another example
+        </label>
+        <Select
+          value={preset || "custom"}
+          onValueChange={(id) => {
+            setTour(null)
+            load(id)
+          }}
+        >
+          <SelectTrigger
+            id="link-preset"
+            className="h-auto min-h-9 w-full max-w-xl text-left whitespace-normal [&_[data-slot=select-value]]:line-clamp-none"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {MODES.map((m) => (
+              <SelectGroup key={m.id}>
+                <SelectLabel>{m.title}</SelectLabel>
+                {PRESETS.filter((pr) => pr.mode === m.id).map((pr) => (
+                  <SelectItem key={pr.id} value={pr.id}>
+                    {pr.title}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            ))}
+            <SelectItem value="custom" disabled>
+              Your own setup
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        {presetInfo && <p className="font-sans text-sm text-muted-foreground">{sourceLine(presetInfo.source)}</p>}
+      </div>
+
+      <div>
+        <DeeperHeading />
+        <Disclosure title={chart.title} note="The whole run as a chart. Where it runs over time, select a point to jump there.">
           <LineChart
             title={chart.title}
             series={chart.series}
@@ -444,89 +456,90 @@ function LinkLoaded({ sim }: { sim: Netsim }) {
             yDomain={chart.yDomain}
             height={220}
             cursor={chart.timed ? tl.t : undefined}
+            upTo={chart.timed ? tl.t : undefined}
             onSeek={chart.timed ? (t) => tl.seek(t) : undefined}
             overlay={(s) => <RefLines s={s} refs={chart.refs} />}
           />
-        </div>
-
-        <div className="min-w-0 space-y-4">
-          {event && (
-            <div className="rounded-sm border border-border p-3" aria-live={tl.playing ? "off" : "polite"}>
-              <p className="font-sans text-xs text-muted-foreground">
-                {fmt(event.t)}, {whoFor(p, run, index)}
-              </p>
-              <p className="mt-0.5">
-                <b className="lining">{event.step}.</b> [{stepTitles.get(event.step) ?? ""}] {textFor(p, run, index)}
-              </p>
-            </div>
-          )}
-          <ModeTotals p={p} r={run} />
+        </Disclosure>
+        <Disclosure title={MODE_VIEW[mode].title} note={MODE_VIEW[mode].note}>
+          {run.mode === "aloha" && <AlohaFrames run={run.run} t={tl.t} />}
+          {p.mode === "csmacd" && run.mode === "csmacd" && <CdBackoffs p={p.cd} run={run.run} t={tl.t} />}
+          {p.mode === "csmaca" && run.mode === "csmaca" && <CaStations p={p.ca} run={run.run} t={tl.t} />}
+          {p.mode === "switch" && run.mode === "switch" && <SwitchTables p={p.sw} run={run.run} index={index} />}
+          {p.mode === "stp" && run.mode === "stp" && <StpPorts p={p.stp} run={run.run} index={index} />}
+          {p.mode === "crc" && run.mode === "crc" && <CrcProps p={p.crc} run={run.run} />}
+          {p.mode === "hamming" && run.mode === "hamming" && <HammingSyndrome p={p.ham} run={run.run} />}
+        </Disclosure>
+        <Disclosure
+          title="The formulas, with this run's numbers"
+          note="What theory predicts for this example, set beside what the run did."
+        >
           <ModeEquations p={p} r={run} t={tl.t} index={index} />
-
-          <Tabs value={tab} onValueChange={setTab}>
-            <TabsList className="flex-wrap">
-              <TabsTrigger value="trace">Trace</TabsTrigger>
-              <TabsTrigger value={MODE_TAB[mode].id}>{MODE_TAB[mode].title}</TabsTrigger>
-              <TabsTrigger value="setup">Setup</TabsTrigger>
-              <TabsTrigger value="source">Source</TabsTrigger>
-              <TabsTrigger value="lab">Lab</TabsTrigger>
-            </TabsList>
-            <TabsContent value="trace">
-              <TraceList events={traceSlice} index={tl.index - offset} onSeek={(i) => tl.seekIndex(i + offset)} format={fmt} />
-              {run.run.events.length > traceSlice.length && (
-                <p className="mt-1 font-sans text-xs text-muted-foreground">
-                  Events {offset + 1} to {offset + traceSlice.length} of {run.run.events.length}; the list follows the clock.
-                </p>
-              )}
-            </TabsContent>
-            <TabsContent value="frames">{tab === "frames" && run.mode === "aloha" && <AlohaFrames run={run.run} t={tl.t} />}</TabsContent>
-            <TabsContent value="backoff">
-              {tab === "backoff" && p.mode === "csmacd" && run.mode === "csmacd" && <CdBackoffs p={p.cd} run={run.run} t={tl.t} />}
-            </TabsContent>
-            <TabsContent value="stations">
-              {tab === "stations" && p.mode === "csmaca" && run.mode === "csmaca" && <CaStations p={p.ca} run={run.run} t={tl.t} />}
-            </TabsContent>
-            <TabsContent value="tables">
-              {tab === "tables" && p.mode === "switch" && run.mode === "switch" && <SwitchTables p={p.sw} run={run.run} index={index} />}
-            </TabsContent>
-            <TabsContent value="ports">
-              {tab === "ports" && p.mode === "stp" && run.mode === "stp" && <StpPorts p={p.stp} run={run.run} index={index} />}
-            </TabsContent>
-            <TabsContent value="props">
-              {tab === "props" && p.mode === "crc" && run.mode === "crc" && <CrcProps p={p.crc} run={run.run} />}
-            </TabsContent>
-            <TabsContent value="syndrome">
-              {tab === "syndrome" && p.mode === "hamming" && run.mode === "hamming" && <HammingSyndrome p={p.ham} run={run.run} />}
-            </TabsContent>
-            <TabsContent value="setup">
-              <ModeSetup p={params} r={run} set={(next) => apply(next)} />
-            </TabsContent>
-            <TabsContent value="source">
-              <p className="mb-2 font-sans text-xs text-muted-foreground">
-                The Rust that produced this run (crates/netsim/src/{SOURCE[mode].file}), compiled into the page. The step behind the current
-                event is shaded.
-              </p>
-              <LiterateSource source={source} active={tab === "source" && event ? event.step : null} className="max-h-[32rem]" />
-            </TabsContent>
-            <TabsContent value="lab" forceMount className="data-[state=inactive]:hidden">
-              <LabPanel
-                labs={LABS}
-                load={(start) => {
-                  // Lab starts are copies, so match a scenario by its settings.
-                  const key = JSON.stringify(start)
-                  const pr = PRESETS.find((q) => q.mode === start.mode && JSON.stringify(q.params) === key)
-                  apply(start, pr?.id ?? "")
-                  setTour(null)
-                  tl.home()
-                }}
-                check={(lab) => LABS.find((l) => l.id === lab.id)!.check(p, run)}
-              />
-            </TabsContent>
-          </Tabs>
-        </div>
+        </Disclosure>
+        <Disclosure title="What the whole run comes to" note="Totals for the full run, from start to end.">
+          <ModeTotals p={p} r={run} />
+        </Disclosure>
+        <Disclosure title="Change the settings" note="Every setting of this example, which you can change; the run follows at once.">
+          <ModeSetup p={params} r={run} set={(next) => apply(next)} />
+        </Disclosure>
+        <Disclosure title="Every step, as a list" note="Each event of the run in order. Select one to jump there.">
+          <TraceList events={traceSlice} index={tl.index - offset} onSeek={(i) => tl.seekIndex(i + offset)} format={fmt} />
+          {run.run.events.length > traceSlice.length && (
+            <p className="mt-1 font-sans text-xs text-muted-foreground">
+              Events {offset + 1} to {offset + traceSlice.length} of {run.run.events.length}; the list follows the clock.
+            </p>
+          )}
+        </Disclosure>
+        <Disclosure title="Exercises this page can check" note="Short tasks; each says whether the run on screen meets it." keepMounted>
+          <LabPanel
+            labs={LABS}
+            load={(start) => {
+              // Lab starts are copies, so match a scenario by its settings.
+              const key = JSON.stringify(start)
+              const pr = PRESETS.find((q) => q.mode === start.mode && JSON.stringify(q.params) === key)
+              apply(start, pr?.id ?? "")
+              setTour(null)
+              tl.home()
+            }}
+            check={(lab) => LABS.find((l) => l.id === lab.id)!.check(p, run)}
+          />
+        </Disclosure>
+        <Disclosure
+          title="The program that produced this run"
+          note="The Rust code behind the simulation, with the step behind the current event shaded."
+        >
+          <p className="mb-2 font-sans text-xs text-muted-foreground">
+            From crates/netsim/src/{SOURCE[mode].file}, compiled into the page. Each step has a letter and number, such as E1; the list of
+            steps above uses the same names.
+          </p>
+          <LiterateSource source={source} active={started ? event.step : null} className="max-h-[32rem]" />
+        </Disclosure>
+        <TourAndSharing
+          root={root}
+          tour={tour}
+          stops={TOUR.length}
+          startTour={() => goTour(0)}
+          link={() => linkFor("link", { p, t: Math.round(tl.t) } satisfies Shared)}
+          figures={[
+            {
+              label: FIGURE_LABEL[mode].toLowerCase(),
+              stem: `link-${preset || "custom"}-figure`,
+              svg: () => figSvg({ ...fig, caption }),
+              tikz: () => figTikz({ ...fig, caption }),
+            },
+            {
+              label: `the chart: ${chart.title.toLowerCase()}`,
+              stem: `link-${preset || "custom"}-chart`,
+              ...chartExports(() => chartFigure(chart, `${title}: ${chart.title.toLowerCase()}`)),
+            },
+          ]}
+        />
       </div>
 
-      <Article sim={sim} onLoad={onLoad} lanFirst={MODES.find((m) => m.id === mode)?.group !== "access"} />
+      <div>
+        <DeeperHeading>Read about it</DeeperHeading>
+        <Article sim={sim} onLoad={onLoad} lanFirst={MODES.find((m) => m.id === mode)?.group !== "access"} />
+      </div>
     </section>
   )
 }
