@@ -115,6 +115,15 @@ export function Ladder(props: Props) {
   )
   const yt = y(t)
   const tickStep = niceStep(usPerPx * 80)
+  // Words left of the first lane (an arrival there, or a timer mark): where one would meet a
+  // tick's number, the number gives way and its grid line stays.
+  const leftWords = [
+    ...visible
+      .filter((f) => xs[1 - f.from] === xs[0] && !f.lost && t >= f.t_arrive && labelled.arrive.has(f.id))
+      .map((f) => ({ y: y(f.t_arrive), w: 0.5 * 17 * f.fate.length })),
+    ...marks.filter((mk) => mk.lane === 0 && mk.t <= t).map((mk) => ({ y: y(mk.t), w: 0.5 * 17 * mk.text.length + 2 })),
+  ].map((l) => ({ y: l.y, left: xs[0] - 6 - l.w }))
+  const tickFree = (v: number, text: string) => !leftWords.some((l) => Math.abs(l.y - y(v)) < 19 && l.left < 4 + 0.55 * 17 * text.length)
   // One unit down the whole axis, named once at its head.
   const unit = runUnit(props.duration)
 
@@ -158,14 +167,19 @@ export function Ladder(props: Props) {
             (_, i) => (Math.ceil(origin / tickStep) + i) * tickStep,
           )
             .filter((v) => v >= lo && v <= hi)
-            .map((v) => (
-              <g key={v}>
-                <line x1={xs[0]} x2={xs[1]} y1={y(v)} y2={y(v)} stroke="var(--chart-grid)" />
-                <text x={4} y={y(v)} dy="0.32em" fontSize="17" fill="var(--chart-ink)" className="font-sans">
-                  {inUnit(v, { ...unit, digits: 3 })}
-                </text>
-              </g>
-            ))}
+            .map((v) => {
+              const text = inUnit(v, { ...unit, digits: 3 })
+              return (
+                <g key={v}>
+                  <line x1={xs[0]} x2={xs[1]} y1={y(v)} y2={y(v)} stroke="var(--chart-grid)" />
+                  {tickFree(v, text) && (
+                    <text x={4} y={y(v)} dy="0.32em" fontSize="17" fill="var(--chart-ink)" className="font-sans">
+                      {text}
+                    </text>
+                  )}
+                </g>
+              )
+            })}
           {t < 0 &&
             props.empty?.map((line, i) => (
               <text

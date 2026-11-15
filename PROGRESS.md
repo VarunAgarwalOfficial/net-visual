@@ -497,7 +497,7 @@ Contrast (WCAG 2 relative luminance, computed from the token hexes by
 | fg / mark | 12.55 | 9.39 |
 | muted / mark | 4.92 | 4.80 |
 | fg / code-bg | 13.77 | 12.38 |
-| meaning / code-bg (lowest) | 4.49 (amber) | 6.09 |
+| meaning / code-bg (lowest) | 4.49 (amber; no text is drawn so) | 6.09 |
 
 | green / mark, amber / mark (light) | 4.497, 4.10 | 5.12, 5.30 |
 
@@ -533,24 +533,44 @@ last filled shape under it, or its halo) and reports anything under
 - routing: message boxes covered link costs ("3" on "cost 10"),
   router labels and each other. Each message is placed beside its
   link by searching both sides and positions along it for a spot
-  clear of costs, routers, router labels and other messages; below
-  520px the network keeps 520px and scrolls sideways in its box.
+  clear of costs, routers, router labels, other messages and the
+  picture's edge, a little further out if need be; where none is clear
+  it is drawn as a dot on its link without its label (or not drawn).
+  Below 600px the network is stretched up to 2.3 times in height
+  instead of scrolling sideways; flooding (link state) lets the picture
+  grow to 80% of the window's height; LSAs going the same way on a link
+  share one box ("u #1 +2"). The destination's word moves off any link
+  cost.
 - link: ALOHA ticks "11"/"14" overlapped "ms" (first tick now starts
   left-aligned) and the vulnerable-window note ran off the left at 390
   (wraps to two lines, kept inside). STP and switch pictures crowded at
   390 (IDs past the boxes, "4" on "D", port numbers on each other): the
   LAN pictures keep 720px and scroll sideways below it, parallel links
-  sit 22 units apart, bridge boxes are 76 units wide.
-- queue and web: clean.
+  sit 22 units apart, bridge boxes are 76 units wide; the ring round the
+  bridge that acted last is drawn under its port markers.
+- queue: clean; by eye, a lone "source" touched "process" at 390, so it
+  goes above its block there. web: clean.
+
+A sweep (`sweep.sh`: Next through the whole run, the text check at
+every step) then found three more: the rdt ladder at 390 drew
+"accepted" on the "150" tick at the end of the run (a tick's number
+now gives way to a word left of the first lane; its grid line stays);
+the tcp chart's "faint: the rest of the run" note ran into the "25"
+tick at 390 (two lines on a narrow plot, on a halo); and the routing
+presets with a flood of messages (link state, six routers with a
+failure) put boxes on costs and each other.
 
 After the fixes all six tools are clean at load and mid-run at both
-widths (no clipped text, no overlaps, nothing under 4.5), and full
-Next sweeps of routing (72 steps) and the STP presets are clean. What
-remains: in routing at 390 and in the LAN pictures below 720px, labels
-at the right edge are cut by the sideways scroll box until scrolled
-(reported as "scrollEdge"); lines still pass behind some halo'd labels
-(tcp "slow-start threshold", "packet lost"), which the check does not
-count.
+widths (no clipped text, no overlaps, nothing under 4.5), as are Next
+sweeps of rdt, tcp, queue and web (60 steps), all 13 routing presets
+to the end at 390 and 1440, and the STP presets. What remains: at 390
+some routing messages have no clear place and are drawn as a dot on
+their link without their label (link state up to 6 at once, six
+routers with a failure up to 2; none at 1440); LAN pictures keep 720px
+and scroll sideways below it, so labels at the right edge are cut by
+the scroll box until scrolled ("scrollEdge"); lines still pass behind
+some halo'd labels (tcp "slow-start threshold", "packet lost"), which
+the check does not count.
 
 ## Next
 

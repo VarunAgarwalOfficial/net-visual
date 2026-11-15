@@ -241,6 +241,13 @@ export function stpFigure(p: StpParams, run: StpRun, t: number, index: number, w
     shown++
   }
 
+  // The bridge that acted last is ringed, under its port markers.
+  const last = run.events[index]
+  if (last && last.bridge >= 0 && last.bridge < pos.length) {
+    const c = pos[last.bridge]
+    shapes.push({ kind: "rect", x: c.x - hw - 5, y: c.y - hh - 5, w: 2 * hw + 10, h: 2 * hh + 10, stroke: "ink", dashed: true })
+  }
+
   // Port markers: the role's letter on the state's colour.
   p.bridges.forEach((_, b) => {
     for (const pv of views[b].ports) {
@@ -253,14 +260,11 @@ export function stpFigure(p: StpParams, run: StpRun, t: number, index: number, w
     }
   })
 
-  const e = run.events[index]
   const roots = new Set(views.map((v) => v.root))
   p.bridges.forEach((br, b) => {
     const c = pos[b]
     const v = views[b]
     const isRoot = v.root === br.id
-    if (e && e.bridge === b)
-      shapes.push({ kind: "rect", x: c.x - hw - 5, y: c.y - hh - 5, w: 2 * hw + 10, h: 2 * hh + 10, stroke: "ink", dashed: true })
     shapes.push({ kind: "rect", x: c.x - hw, y: c.y - hh, w: 2 * hw, h: 2 * hh, fill: "surface", stroke: "ink" })
     // Name, ID, and what the bridge believes: that it is the root, or its cost to the root it believes in.
     shapes.push(text(c.x, c.y - 9, br.name, { fill: "ink", bold: true, size: 12 }))

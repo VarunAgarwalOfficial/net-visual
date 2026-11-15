@@ -192,7 +192,8 @@ export function pathShapes(fig: PathFigure, k = 1, narrow = false): Shape[] {
     const name = n === 1 ? "source" : f.name
     let from: number
     if (below) {
-      out.push({ kind: "text", x: 4, y: y + 9 + 14 * k, text: name, size: fs(12), anchor: "start", fill: "ink" })
+      // A lone source's word goes above its block, clear of "process" on the line below.
+      out.push({ kind: "text", x: 4, y: n === 1 ? y - 13 : y + 9 + 14 * k, text: name, size: fs(12), anchor: "start", fill: "ink" })
       from = 28
     } else {
       out.push({ kind: "text", x: 30, y: y + 4, text: name, size: fs(12), anchor: "start", fill: "ink" })

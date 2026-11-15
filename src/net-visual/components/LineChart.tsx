@@ -206,7 +206,9 @@ export function LineChart(props: Props) {
   const keyWidth = Math.min(w - 8, 40 + 7.4 * Math.max(0, ...keyRows.map((k) => keyText(k).length)))
   // The note on the faint part sits top right, or under the key where the key reaches it.
   const noteY = asKey && m.l + 4 + keyWidth > m.l + w - 310 ? m.t + 15 + keyRows.length * 22 + 26 : m.t + 16
-  const noteFits = noteY < m.t + h - 8
+  // On a narrow plot the note takes two lines, so it stays clear of the axis numbers.
+  const noteWrap = w < 340
+  const noteFits = noteY + (noteWrap ? 22 : 0) < m.t + h - 8
 
   const move = (e: React.PointerEvent<SVGSVGElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
@@ -340,8 +342,27 @@ export function LineChart(props: Props) {
               <line x1={sx(cursor)} x2={sx(cursor)} y1={m.t} y2={m.t + h} stroke="var(--foreground)" />
             )}
             {ahead !== null && m.l + w - ahead > 150 && noteFits && (
-              <text x={m.l + w - 4} y={noteY} textAnchor="end" fontSize="17" fill="var(--chart-ink)">
-                faint: the rest of the run, not reached yet
+              <text
+                x={m.l + w - 4}
+                y={noteY}
+                textAnchor="end"
+                fontSize="17"
+                fill="var(--chart-ink)"
+                stroke="var(--background)"
+                strokeWidth={4}
+                strokeLinejoin="round"
+                paintOrder="stroke"
+              >
+                {noteWrap ? (
+                  <>
+                    <tspan>faint: the rest of the run,</tspan>
+                    <tspan x={m.l + w - 4} dy="22">
+                      not reached yet
+                    </tspan>
+                  </>
+                ) : (
+                  "faint: the rest of the run, not reached yet"
+                )}
               </text>
             )}
             {(asKey ? [] : labels).map((l) => (

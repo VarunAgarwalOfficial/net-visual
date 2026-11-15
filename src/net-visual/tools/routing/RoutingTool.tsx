@@ -175,6 +175,19 @@ function RoutingLoaded({ sim }: { sim: Netsim }) {
     return out
   }, [run])
 
+  // The most messages on the wire at once in this run: a run that floods the links gets a taller picture, for all of it.
+  const crowded = useMemo(() => {
+    const ends = run.messages.flatMap((m) => [
+      [m.t_send, 1],
+      [m.t_arrive, -1],
+    ])
+    ends.sort((a, b) => a[0] - b[0] || a[1] - b[1])
+    let n = 0
+    let most = 0
+    for (const [, d] of ends) most = Math.max(most, (n += d))
+    return most > 24
+  }, [run])
+
   const wire: WireMessage[] = []
   const onLink = new Map<string, WireMessage>()
   for (const m of run.messages) {
@@ -183,9 +196,9 @@ function RoutingLoaded({ sim }: { sim: Netsim }) {
     if (arrived !== undefined ? arrived <= index : tl.t >= m.t_arrive) continue
     const frac = Math.min(1, Math.max(0, (tl.t - m.t_send) / Math.max(1, m.t_arrive - m.t_send)))
     const label = m.lsa ? `${p.nodes[m.lsa.origin]} #${m.lsa.seq}` : m.omitted.includes(d) ? "–" : showDist(m.vector[d], p.infinity)
-    // Flooding puts several LSAs on a link at once: draw them as one box with a count.
+    // Flooding puts several LSAs on a link at once: draw those going the same way as one box with a count.
     const prev = m.lsa ? onLink.get(`${m.from}-${m.to}`) : undefined
-    if (prev && Math.abs(prev.frac - frac) < 0.08 && prev.lost === m.lost) {
+    if (prev && prev.lost === m.lost) {
       const more = prev.label.match(/ \+(\d+)$/)
       prev.label = more ? prev.label.replace(/\d+$/, String(Number(more[1]) + 1)) : `${prev.label} +1`
       continue
@@ -334,6 +347,7 @@ function RoutingLoaded({ sim }: { sim: Netsim }) {
           selected={picked ? x : null}
           link={link}
           dijkstra={overlay}
+          crowded={ls || crowded}
           onNode={(i) => (dijOpen ? setDijSource(i) : setRouter(i))}
           onLink={(a, b) => setLink(link && link[0] === a && link[1] === b ? null : [a, b])}
         />
