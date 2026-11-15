@@ -36,7 +36,7 @@ function build(run: TcpRun, compare: TcpRun | null, cmp: Algo | null, p: TcpPara
   const top = (bdp <= 2 * cwndMax ? Math.max(cwndMax, bdp) : cwndMax) * 1.08
   const series: Series[] = run.series.map((s, i) => ({
     id: `cwnd${i}`,
-    label: `cwnd, ${flowLabel(p, i)}`,
+    label: `window, ${flowLabel(p, i)}`,
     color: FLOW_COLORS[i],
     kind: "step",
     points: s.cwnd,
@@ -44,7 +44,7 @@ function build(run: TcpRun, compare: TcpRun | null, cmp: Algo | null, p: TcpPara
   if (compare && cmp)
     series.push({
       id: "compare",
-      label: `cwnd, ${algoName(cmp)} on the same path`,
+      label: `window, ${algoName(cmp)} on the same path (dashed)`,
       color: COMPARE_COLOR,
       kind: "step",
       points: compare.series[0].cwnd,
@@ -53,7 +53,8 @@ function build(run: TcpRun, compare: TcpRun | null, cmp: Algo | null, p: TcpPara
   if (p.flows.length === 1) {
     // Before the first loss ssthresh may be effectively infinite; draw it from where it fits.
     const ss = toEnd(run.series[0].ssthresh, p.duration_us).filter(([, v]) => v <= top)
-    if (ss.length) series.push({ id: "ssthresh", label: "ssthresh", color: SSTHRESH_COLOR, kind: "step", points: ss, dashed: true })
+    if (ss.length)
+      series.push({ id: "ssthresh", label: "slow-start threshold (dashed)", color: SSTHRESH_COLOR, kind: "step", points: ss, dashed: true })
   }
   return { series, top }
 }
@@ -82,7 +83,7 @@ export const CwndChart = memo(function CwndChart({
   onSeek(t: number): void
 }) {
   const { series, top } = useMemo(() => build(run, compare, cmp, p), [run, compare, cmp, p])
-  const marks = useMemo(() => {
+  const all = useMemo(() => {
     const s = run.series[0]
     const at = (time: number) => valueAt(s.cwnd, time - 1)
     return {
@@ -91,20 +92,28 @@ export const CwndChart = memo(function CwndChart({
       drops: run.series.map((f) => thinMarks(f.marks, "drop", 1500).map((m) => m.t)),
     }
   }, [run])
+  // Only what has happened by the clock is marked; the rest of the run is not known yet.
+  const marks = {
+    fast: all.fast.filter(([x]) => x <= t),
+    timeout: all.timeout.filter(([x]) => x <= t),
+    drops: all.drops.map((ts) => ts.filter((x) => x <= t)),
+  }
+  const firstDrop = marks.drops.flat().reduce((a, b) => Math.min(a, b), Infinity)
   const { bdp_pkts: bdp, pipe_pkts: pipe } = run.theory
   return (
     <div>
       <LineChart
-        title="Congestion window"
+        title="Congestion window: how many packets the sender may have on the way"
         series={series}
-        xLabel="time (s)"
-        yLabel="segments"
+        xLabel="simulated time (s)"
+        yLabel="packets"
         xFormat={seconds}
         yFormat={(y) => (y >= 100 ? y.toFixed(0) : String(Number(y.toFixed(1))))}
         xDomain={[0, p.duration_us]}
         yDomain={[0, top]}
         height={280}
         cursor={t}
+        upTo={t}
         onSeek={onSeek}
       >
         {({ sx, sy, left, right, top: y0, bottom }) => (
@@ -119,9 +128,14 @@ export const CwndChart = memo(function CwndChart({
                 fillOpacity={0.07}
               />
             )}
+            {band && (
+              <text x={sx(band[0]) + 4} y={y0 + 12} fontSize="10.5" fill="var(--chart-ink)">
+                shaded: in the sequence diagram
+              </text>
+            )}
             {[
-              [bdp, `BDP ${bdp.toFixed(0)}`],
-              [pipe, `BDP + B + 1 = ${pipe.toFixed(0)}`],
+              [bdp, `the path holds ${bdp.toFixed(0)} (bandwidth-delay product)`],
+              [pipe, `path and router buffer full: ${pipe.toFixed(0)}`],
             ].map(([v, text]) =>
               (v as number) <= top ? (
                 <g key={text}>
@@ -139,6 +153,47 @@ export const CwndChart = memo(function CwndChart({
                 stroke={FLOW_COLORS[i]}
                 strokeOpacity={0.7}
               />
+            ))}
+            {firstDrop < Infinity && (
+              <text
+                x={sx(firstDrop) + 5}
+                y={bottom - 4}
+                fontSize="10.5"
+                fill="var(--chart-ink)"
+                stroke="var(--background)"
+                strokeWidth={3}
+                paintOrder="stroke"
+              >
+                {marks.drops.length > 1 ? "packet lost (ticks, one row per flow)" : "packet lost (ticks)"}
+              </text>
+            )}
+            {marks.fast.slice(0, 1).map(([x, y]) => (
+              <text
+                key="fast-label"
+                x={sx(x) + 7}
+                y={sy(y) - 12}
+                fontSize="10.5"
+                fill="var(--foreground)"
+                stroke="var(--background)"
+                strokeWidth={3}
+                paintOrder="stroke"
+              >
+                fast retransmit
+              </text>
+            ))}
+            {marks.timeout.slice(0, 1).map(([x, y]) => (
+              <text
+                key="timeout-label"
+                x={sx(x) + 7}
+                y={sy(y) - 3}
+                fontSize="10.5"
+                fill="var(--destructive)"
+                stroke="var(--background)"
+                strokeWidth={3}
+                paintOrder="stroke"
+              >
+                timer ran out
+              </text>
             ))}
             {marks.fast.map(([x, y], i) => (
               <path
@@ -164,27 +219,6 @@ export const CwndChart = memo(function CwndChart({
           </g>
         )}
       </LineChart>
-      <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 font-sans text-xs text-muted-foreground">
-        <span className="flex items-center gap-1">
-          <svg width="10" height="9" aria-hidden>
-            <path d="M1,1h8l-4,7z" fill="var(--foreground)" />
-          </svg>
-          fast retransmit
-        </span>
-        <span className="flex items-center gap-1">
-          <svg width="10" height="10" aria-hidden>
-            <rect x="1" y="1" width="8" height="8" fill="none" stroke="var(--destructive)" strokeWidth="2" />
-          </svg>
-          timeout
-        </span>
-        <span className="flex items-center gap-1">
-          <svg width="6" height="10" aria-hidden>
-            <path d="M3,10v-8" stroke="var(--chart-1)" />
-          </svg>
-          drop (along the bottom)
-        </span>
-        {band && <span>shaded: the stretch the ladder shows; click the chart to move there</span>}
-      </p>
     </div>
   )
 })
@@ -194,7 +228,7 @@ export function cwndFigure(run: TcpRun, compare: TcpRun | null, cmp: Algo | null
   const { series, top } = build(run, compare, cmp, p)
   return {
     xLabel: "time (s)",
-    yLabel: "congestion window (segments)",
+    yLabel: "congestion window (packets)",
     xFormat: seconds,
     yFormat: (y) => y.toFixed(0),
     xDomain: [0, p.duration_us],

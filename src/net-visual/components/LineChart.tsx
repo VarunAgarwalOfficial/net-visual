@@ -214,7 +214,7 @@ export function LineChart(props: Props) {
             <text x={m.l + w / 2} y={height - 4} textAnchor="middle" fontSize="12" fill="var(--chart-ink)">
               {xLabel}
             </text>
-            <text transform={`translate(12 ${m.t + h / 2}) rotate(-90)`} textAnchor="middle" fontSize="12" fill="var(--chart-ink)">
+            <text transform={`translate(15 ${m.t + h / 2}) rotate(-90)`} textAnchor="middle" fontSize="12" fill="var(--chart-ink)">
               {yLabel}
             </text>
             {typeof props.children === "function"

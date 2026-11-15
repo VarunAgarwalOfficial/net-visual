@@ -268,7 +268,13 @@ disclosures, TourAndSharing, "Read about it".
 
 - [x] rdt: plain step sentences (`tools/rdt/plain.ts`), preset titles and
   notes rewritten, window view labelled in place, ladder labels in words.
-- [ ] tcp (deep)  - [ ] routing (deep)
+- [x] tcp: plain step sentences (`tools/tcp/plain.ts`), preset titles,
+  notes and tour words rewritten; the window chart is the picture (faint
+  ahead of the clock, marks only up to it, labels on the chart); ladder,
+  state diagram, queue and round-trip charts, phase plane, CUBIC curve,
+  formulas and run averages behind disclosures. The chart's shaded band
+  shows only while the sequence diagram is open.
+- [ ] routing (deep)
 - [ ] queue, link, web (shell and obvious labels only)
 - [ ] impeccable detect on changed files; final captures.
 

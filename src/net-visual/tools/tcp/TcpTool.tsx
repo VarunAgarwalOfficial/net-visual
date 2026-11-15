@@ -1,14 +1,22 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { ZoomIn, ZoomOut } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { chartExports, ladderExports } from "../../components/figure"
 import { LabPanel } from "../../components/LabPanel"
 import { Ladder, type LadderFlight, type LadderMark } from "../../components/Ladder"
 import { LiterateSource } from "../../components/LiterateSource"
-import { ToolActions } from "../../components/ToolActions"
+import {
+  DeeperHeading,
+  Disclosure,
+  ExampleIntro,
+  Readouts,
+  StepCard,
+  TourAndSharing,
+  TourCard,
+  scrollBehavior,
+  sourceLine,
+} from "../../components/ToolFrame"
 import { TraceList } from "../../components/TraceList"
 import { Transport } from "../../components/Transport"
 import { formatTime, keepFocus, lastAtOrBefore, timelineKeys, useTimeline, type Timeline } from "../../components/timeline"
@@ -38,6 +46,7 @@ import { CongestionFsm } from "./CongestionFsm"
 import { TcpAnalysis, TcpFrontier, TcpInternals, TcpIntro } from "./TcpArticle"
 import { CwndChart, cwndFigure, flowLabel } from "./CwndChart"
 import { TcpPacket } from "./TcpPacket"
+import { packets, plainTcp } from "./plain"
 import { TcpSetup } from "./TcpSetup"
 import { CubicCurve, Dumbbell, LiveEquations, PhasePlane, QueueChart, RttChart } from "./TcpViews"
 
@@ -59,8 +68,7 @@ export function TcpTool() {
   return <TcpLoaded sim={sim} />
 }
 
-const STEP_RE = /([A-Z]\d+)\.\s\[([^\]]+)\]/g
-const LADDER_HEIGHT = 560
+const LADDER_HEIGHT = 480
 /** Rows of the trace drawn at once, centred on the current event. */
 const TRACE_ROWS = 400
 
@@ -77,11 +85,22 @@ function toLadder(run: TcpRun, rtt: number): LadderFlight[] {
     t_sent: f.t_sent,
     t_arrive: f.lost || f.t_arrive > 1e15 ? f.t_sent + rtt / 2 : f.t_arrive,
     lost: f.lost,
-    label: f.ack ? `ACK ${f.seg}` : `seg ${f.seg}${f.occurrence > 1 ? "′" : ""}`,
-    fate: f.fate || "in flight",
+    label: f.ack ? `ACK ${f.seg}` : `packet ${f.seg}${f.occurrence > 1 ? ", again" : ""}`,
+    fate: FATES[f.fate] ?? (f.fate || "on the way"),
     color: f.ack ? (f.fate === "duplicate ACK" ? "var(--chart-4)" : "var(--chart-2)") : "var(--chart-1)",
     alarm: f.fate === "duplicate, already had it",
   }))
+}
+
+// What happened to a packet, in a few words that fit beside the lane.
+const FATES: Record<string, string> = {
+  "duplicate ACK": "repeated ACK",
+  "buffered out of order": "kept, out of order",
+  "duplicate, already had it": "a copy",
+  "dropped as scripted": "lost (on purpose)",
+  "dropped: every n-th packet": "lost",
+  "dropped at random": "lost",
+  "dropped: queue full": "lost: buffer full",
 }
 
 interface Pick {
@@ -94,7 +113,7 @@ const pickOf = (f: Flight): Pick => ({ ack: f.ack, seg: f.seg, occurrence: f.occ
 const matches = (k: Pick) => (f: Flight) =>
   f.ack === k.ack && f.seg === k.seg && (f.ack ? f.t_start === k.t : f.occurrence === k.occurrence)
 
-const PHASE = { S: "slow start", A: "congestion avoidance", R: "fast recovery" } as const
+const PHASE = { S: "slow start (growing fast)", A: "congestion avoidance (growing slowly)", R: "fast recovery (repairing a loss)" } as const
 
 function TcpLoaded({ sim }: { sim: Netsim }) {
   const shared = useMemo(() => readHash<Shared>("tcp"), [])
@@ -111,14 +130,13 @@ function TcpLoaded({ sim }: { sim: Netsim }) {
   const [pick, setPick] = useState<Pick | null>(null)
   const [zoom, setZoom] = useState(1)
   const [follow, setFollow] = useState(true)
-  const [tab, setTab] = useState("trace")
+  const [ladderOpen, setLadderOpen] = useState(false)
   const [tour, setTour] = useState<number | null>(null)
   // A step that left the window, waiting for the next window's trace.
   const pending = useRef<{ dir: 1 | -1; at: number; from: TcpRun } | null>(null)
   const root = useRef<HTMLElement>(null)
 
   const source = useMemo(() => sim.call<string>("tcp", "source"), [sim])
-  const stepTitles = useMemo(() => new Map([...source.matchAll(STEP_RE)].map((m) => [m[1], m[2]])), [source])
 
   const result = useMemo<{ run: TcpRun } | { error: string }>(() => {
     try {
@@ -224,7 +242,7 @@ function TcpLoaded({ sim }: { sim: Netsim }) {
   })
   const onLoad = useCallback((id: string) => {
     loader.current(id)
-    root.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+    root.current?.scrollIntoView({ behavior: scrollBehavior(), block: "start" })
   }, [])
 
   const goTour = (i: number | null) => {
@@ -246,7 +264,7 @@ function TcpLoaded({ sim }: { sim: Netsim }) {
       detail
         ? detail.events
             .filter((e) => e.step === "T1" || e.step === "F1")
-            .map((e) => ({ t: e.t, lane: 0, text: e.step === "T1" ? "timeout" : "fast retransmit" }))
+            .map((e) => ({ t: e.t, lane: 0, text: e.step === "T1" ? "timer ran out" : "fast retransmit" }))
         : [],
     [detail],
   )
@@ -284,12 +302,17 @@ function TcpLoaded({ sim }: { sim: Netsim }) {
   const presetInfo = PRESETS.find((x) => x.id === preset)
   const traceFrom = Math.max(0, Math.min(tl.index - TRACE_ROWS / 2, times.length - TRACE_ROWS))
   const caption = `${params.flows.map((_, i) => flowLabel(params, i)).join("; ")}; ${mbps(params.rate_bps)}, B = ${params.buffer_pkts}`
+  const plain = event ? plainTcp(event, params) : null
+  const many = params.flows.length > 1
+  const sofar = overview.series[0].marks.filter((m) => m.t <= tl.t && m.t > 0)
+  const count = (k: string) => sofar.filter((m) => m.kind === k).length
 
   return (
     <section
       ref={root}
       tabIndex={-1}
-      className="nv-tool space-y-5 outline-none [&.nv-present]:[zoom:1.2] [&.nv-present]:overflow-auto [&.nv-present]:bg-background [&.nv-present]:p-6"
+      aria-label="TCP congestion control"
+      className="nv-tool max-w-4xl space-y-6 outline-none [&.nv-present]:max-w-none [&.nv-present]:[zoom:1.2] [&.nv-present]:overflow-auto [&.nv-present]:bg-background [&.nv-present]:p-6"
       onKeyDown={(e) => {
         if (timelineKeys(tlx, e)) {
           e.preventDefault()
@@ -300,41 +323,249 @@ function TcpLoaded({ sim }: { sim: Netsim }) {
         } else if (e.key === "Escape") setPick(null)
       }}
     >
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="min-w-56 flex-1">
-          <label className="mb-1 block font-sans text-xs text-muted-foreground" htmlFor="tcp-preset">
-            Scenario
-          </label>
-          <Select value={preset || "custom"} onValueChange={loadPreset}>
-            <SelectTrigger id="tcp-preset" className="w-full max-w-md">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {PRESETS.map((pr) => (
-                <SelectItem key={pr.id} value={pr.id}>
-                  {pr.title}
-                </SelectItem>
-              ))}
-              <SelectItem value="custom" disabled>
-                Your own settings
+      {tour !== null && <TourCard index={tour} steps={TOUR} go={goTour} playing={tl.playing} toggle={tlx.toggle} />}
+
+      <ExampleIntro
+        title={presetInfo?.title ?? "Your own settings"}
+        note={
+          presetInfo?.note ??
+          `${params.flows.map((_, i) => flowLabel(params, i)).join("; ")} on a ${mbps(params.rate_bps)} link whose router holds ${params.buffer_pkts} waiting packets. Open "Change the settings" below to see the rest.`
+        }
+      />
+
+      <Transport tl={tlx} events={null} />
+
+      <figure className="space-y-2">
+        <figcaption className="max-w-[70ch] font-sans text-sm text-muted-foreground">
+          Time runs left to right. The solid line is the {many ? "senders' windows" : "sender's window"}: when it is higher, more packets
+          are on the way at once and the sender goes faster. The upright line is now; the faint part is still to come. Select a point on the
+          chart to jump there.
+        </figcaption>
+        <CwndChart
+          run={overview}
+          compare={compare}
+          cmp={cmp}
+          p={params}
+          t={tl.t}
+          band={ladderOpen && detail ? [model.w.from, detail.trace_end] : null}
+          onSeek={seekTo}
+        />
+      </figure>
+
+      <StepCard
+        live={!tl.playing}
+        when={event ? `At ${formatTime(event.t)}${many ? ", the first sender" : ""}` : null}
+        title={plain?.title}
+        text={plain?.text}
+        why={plain?.why}
+        empty={
+          tl.t > 0 && !inside ? (
+            <>Playing too fast to follow each packet. Pause, or lower the speed, to see each event.</>
+          ) : tl.t > 0 ? (
+            <>No event{many ? " of the first sender" : ""} yet at this moment.</>
+          ) : (
+            <>
+              Nothing has happened yet. Press <b>Play</b> to run the example, or <b>Next event</b> to go one event at a time (the arrow keys
+              do the same).
+            </>
+          )
+        }
+      />
+
+      <StateView s={event?.state ?? null} run={overview} t={tl.t} p={params} />
+
+      <Readouts
+        caption="So far"
+        cols={4}
+        items={[
+          ["Simulated time", formatTime(tl.t)],
+          [`Packets lost${many ? ", first sender" : ""}`, String(count("drop"))],
+          ["Resent after three repeated ACKs (fast retransmit)", String(count("fast"))],
+          ["Times the timer ran out", String(count("timeout"))],
+        ]}
+      />
+
+      <div className="space-y-2">
+        <label className="block text-lg" htmlFor="tcp-preset">
+          Try another example
+        </label>
+        <Select value={preset || "custom"} onValueChange={loadPreset}>
+          <SelectTrigger
+            id="tcp-preset"
+            className="h-auto min-h-9 w-full max-w-xl text-left whitespace-normal [&_[data-slot=select-value]]:line-clamp-none"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {PRESETS.map((pr) => (
+              <SelectItem key={pr.id} value={pr.id}>
+                {pr.title}
               </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <Button variant={tour === null ? "outline" : "secondary"} onClick={() => goTour(tour === null ? 0 : null)}>
-          {tour === null ? "Guided tour" : "End tour"}
-        </Button>
-        <ToolActions
+            ))}
+            <SelectItem value="custom" disabled>
+              Your own settings
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        {presetInfo && <p className="font-sans text-sm text-muted-foreground">{sourceLine(presetInfo.source)}</p>}
+      </div>
+
+      <div>
+        <DeeperHeading />
+        <Disclosure
+          title={many ? "Each packet of the first sender, as a sequence diagram" : "Each packet, as a sequence diagram"}
+          note="Time runs down the page: packets go from sender to receiver, acknowledgements come back. Select a packet to see its header or drop it."
+          open={ladderOpen}
+          onOpenChange={setLadderOpen}
+        >
+          <div className="space-y-2">
+            <p className="max-w-[70ch] font-sans text-sm text-muted-foreground">
+              A band from the sender is a packet, named by its number; a band back is an acknowledgement (ACK), named by the next packet the
+              receiver expects. A repeated ACK is amber. A red cross is a lost packet. The dotted line is now
+              {inside ? "" : racing ? "; the diagram catches up when you pause" : ""}. On the chart above, the shaded stretch is the part
+              shown here.
+            </p>
+            <div onWheel={() => setFollow(false)} onTouchMove={() => setFollow(false)}>
+              <Ladder
+                lanes={["Sender", "Receiver"]}
+                flights={ladderFlights}
+                marks={ladderMarks}
+                t={tl.index >= 0 || tl.t > 0 ? tl.t : -1}
+                start={ladderStart}
+                duration={hi}
+                usPerPx={usPerPx}
+                selected={flight?.id ?? null}
+                onSelect={(id) => {
+                  const f = id !== null && detail ? detail.flights[id] : null
+                  setPick(f ? pickOf(f) : null)
+                }}
+                follow={follow}
+                height={LADDER_HEIGHT}
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-sans text-sm text-muted-foreground">
+              <span className="mr-auto">Select a packet to see its header. Press D to drop it, or to undo your drop.</span>
+              <Button variant="ghost" size="xs" onClick={() => setZoom(zoom / 1.6)}>
+                Show more time
+              </Button>
+              <Button variant="ghost" size="xs" onClick={() => setZoom(zoom * 1.6)}>
+                Show less time
+              </Button>
+            </div>
+            {flight && (
+              <div className="space-y-2 border-t border-border pt-3">
+                <div className="flex items-baseline justify-between gap-2">
+                  <h3 className="text-lg">The selected packet</h3>
+                  <Button variant="ghost" size="xs" onClick={() => setPick(null)}>
+                    Close
+                  </Button>
+                </div>
+                <TcpPacket f={flight} p={params} scripted={scripted(flight)} onToggle={() => toggleDrop(flight)} />
+              </div>
+            )}
+          </div>
+        </Disclosure>
+        <Disclosure
+          title="Which mode the sender is in"
+          note="The three modes as a diagram, with the one it is in now filled and the move it just made drawn heavier."
+        >
+          <p className="mb-2 max-w-[70ch] font-sans text-sm text-muted-foreground">
+            On the diagram, cwnd is the congestion window and ssthresh the slow-start threshold, both in packets; a dup ACK is a repeated
+            acknowledgement; recover is the highest packet sent when the loss was found.
+          </p>
+          <CongestionFsm event={event} before={before} algo={params.flows[0].algo} />
+        </Disclosure>
+        <Disclosure
+          title="The router's queue and the round-trip time"
+          note="The path drawn with the packets waiting at the router now, and how the queue and the round trip change over the run."
+        >
+          <div className="space-y-5">
+            <Dumbbell run={overview} p={params} t={tl.t} />
+            <QueueChart run={overview} p={params} t={tl.t} onSeek={seekTo} />
+            <RttChart run={overview} p={params} t={tl.t} onSeek={seekTo} />
+          </div>
+        </Disclosure>
+        {many && (
+          <Disclosure
+            title="The senders' rates against each other"
+            note="One sender's rate across, the other's up, with the line where they are equal."
+          >
+            <PhasePlane run={overview} p={params} t={tl.t} />
+          </Disclosure>
+        )}
+        {params.flows[0].algo === "cubic" && (
+          <Disclosure
+            title="CUBIC's curve since the last loss"
+            note="The window CUBIC aims for, second by second, since it last cut its window."
+          >
+            {event && event.state.w_max > 0 ? (
+              <CubicCurve s={event.state} />
+            ) : (
+              <p className="font-sans text-sm text-muted-foreground">No loss yet, so there is no curve. Play on until the first loss.</p>
+            )}
+          </Disclosure>
+        )}
+        <Disclosure
+          title="The formulas, with this moment's numbers"
+          note="Round trip, rate, timer, the sawtooth, the square-root law and CUBIC's curve, each with the numbers from now."
+        >
+          <LiveEquations run={overview} p={params} s={event?.state ?? null} t={tl.t} />
+        </Disclosure>
+        <Disclosure title="What the whole run averages" note="Measured over the second half of the run, after the start-up.">
+          <Totals run={overview} p={params} />
+        </Disclosure>
+        <Disclosure
+          title="Change the settings"
+          note="The senders and their rules, the link's speed, the router's buffer, losses, and a second rule drawn dashed for comparison."
+        >
+          <TcpSetup p={params} set={(p) => apply(p)} cmp={cmp} setCmp={setCmp} />
+        </Disclosure>
+        <Disclosure
+          title={many ? "Every step of the first sender near now, as a list" : "Every step near now, as a list"}
+          note="The simulation's own log, with the step codes used in the program. Select a line to go to that moment."
+        >
+          <TraceList
+            events={detail?.events.slice(traceFrom, traceFrom + TRACE_ROWS) ?? []}
+            index={tl.index - traceFrom}
+            onSeek={(i) => tl.seekIndex(i + traceFrom)}
+          />
+        </Disclosure>
+        <Disclosure
+          title="Exercises this page can check"
+          note="Short tasks, from recall to investigation. The page checks your answer against the run."
+          keepMounted
+        >
+          <LabPanel
+            labs={LABS}
+            load={(p) => {
+              apply(p, "", 0)
+              setCmp(null)
+              tl.home()
+            }}
+            check={(lab) => LABS.find((l) => l.id === lab.id)!.check(params, overview, sim)}
+          />
+        </Disclosure>
+        <Disclosure
+          title="The program that produced this run"
+          note="The Rust source, compiled into the page. The step behind the current event is shaded."
+        >
+          <p className="mb-2 font-sans text-xs text-muted-foreground">crates/netsim/src/tcp.rs</p>
+          <LiterateSource source={source} active={event?.step ?? ""} className="max-h-[32rem]" />
+        </Disclosure>
+        <TourAndSharing
           root={root}
+          tour={tour}
+          stops={TOUR.length}
+          startTour={() => goTour(0)}
           link={() => linkFor("tcp", { p: params, t: Math.round(tl.t), cmp } satisfies Shared)}
           figures={[
             {
-              label: "Window chart",
+              label: "the window chart",
               stem: `tcp-${preset || "custom"}-cwnd`,
               ...chartExports(() => cwndFigure(overview, compare, cmp, params, caption)),
             },
             {
-              label: "Sequence diagram, last two round trips",
+              label: "the sequence diagram, last two round trips",
               stem: `tcp-${preset || "custom"}-ladder`,
               ...ladderExports({
                 lanes: ["Sender", "Receiver"],
@@ -349,167 +580,10 @@ function TcpLoaded({ sim }: { sim: Netsim }) {
         />
       </div>
 
-      {tour !== null ? (
-        <div className="rounded-sm border border-border bg-muted/40 p-4" aria-live="polite">
-          <p className="font-sans text-xs text-muted-foreground">
-            Tour, {tour + 1} of {TOUR.length}
-          </p>
-          <p className="mt-1 max-w-[70ch]">{TOUR[tour].text}</p>
-          <div className="mt-3 flex gap-2">
-            <Button size="sm" variant="outline" disabled={tour === 0} onClick={() => goTour(tour - 1)}>
-              Back
-            </Button>
-            <Button size="sm" onClick={() => goTour(tour + 1 < TOUR.length ? tour + 1 : null)}>
-              {tour + 1 < TOUR.length ? "Next" : "Finish"}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => tlx.toggle()}>
-              {tl.playing ? "Pause" : "Play from here"}
-            </Button>
-          </div>
-        </div>
-      ) : (
-        presetInfo && (
-          <p className="max-w-[70ch] text-[0.98rem]">
-            {presetInfo.note} <span className="text-muted-foreground">({presetInfo.source}.)</span>
-          </p>
-        )
-      )}
-
-      <CwndChart
-        run={overview}
-        compare={compare}
-        cmp={cmp}
-        p={params}
-        t={tl.t}
-        band={detail ? [model.w.from, detail.trace_end] : null}
-        onSeek={seekTo}
-      />
-      <Transport tl={tlx} events={null} />
-
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <div className="space-y-3">
-          <div className="flex items-center justify-between font-sans text-sm text-muted-foreground">
-            <span>Flow 1, every packet{inside ? "" : racing ? " (catches up when paused)" : ""}</span>
-            <span className="flex items-center gap-0.5">
-              <Button variant="ghost" size="icon-sm" aria-label="Zoom out in time" onClick={() => setZoom(zoom / 1.6)}>
-                <ZoomOut />
-              </Button>
-              <Button variant="ghost" size="icon-sm" aria-label="Zoom in in time" onClick={() => setZoom(zoom * 1.6)}>
-                <ZoomIn />
-              </Button>
-            </span>
-          </div>
-          <div onWheel={() => setFollow(false)} onTouchMove={() => setFollow(false)}>
-            <Ladder
-              lanes={["Sender", "Receiver"]}
-              flights={ladderFlights}
-              marks={ladderMarks}
-              t={tl.t}
-              start={ladderStart}
-              duration={hi}
-              usPerPx={usPerPx}
-              selected={flight?.id ?? null}
-              onSelect={(id) => {
-                const f = id !== null && detail ? detail.flights[id] : null
-                setPick(f ? pickOf(f) : null)
-                if (f) setTab("packet")
-              }}
-              follow={follow}
-              height={LADDER_HEIGHT}
-            />
-          </div>
-          <p className="font-sans text-xs text-muted-foreground">
-            Click a segment to see its header; press <kbd>D</kbd> to drop it, or to undo your drop. Duplicate ACKs are amber. Space plays,
-            arrow keys step through events, Home and End jump.
-          </p>
-        </div>
-
-        <div className="min-w-0 space-y-4">
-          <div className="rounded-sm border border-border p-3" aria-live={tl.playing ? "off" : "polite"}>
-            {event ? (
-              <>
-                <p className="font-sans text-xs text-muted-foreground">{formatTime(event.t)}, flow 1</p>
-                <p className="mt-0.5">
-                  <b className="lining">{event.step}.</b> [{stepTitles.get(event.step) ?? ""}] {event.text}
-                </p>
-              </>
-            ) : (
-              <p className="font-sans text-sm text-muted-foreground">
-                {formatTime(tl.t)}: no event of flow 1 yet{tl.playing ? "; pause to step through events" : ""}.
-              </p>
-            )}
-          </div>
-          <CongestionFsm event={event} before={before} algo={params.flows[0].algo} />
-          <StateView s={event?.state ?? null} run={overview} t={tl.t} p={params} />
-          <Totals run={overview} p={params} />
-
-          <Tabs value={tab} onValueChange={setTab}>
-            <TabsList className="flex-wrap">
-              <TabsTrigger value="trace">Trace</TabsTrigger>
-              <TabsTrigger value="setup">Setup</TabsTrigger>
-              <TabsTrigger value="packet">Packet</TabsTrigger>
-              <TabsTrigger value="source">Source</TabsTrigger>
-              <TabsTrigger value="lab">Lab</TabsTrigger>
-            </TabsList>
-            <TabsContent value="trace">
-              <p className="mb-1 font-sans text-xs text-muted-foreground">
-                Every step flow 1 took near this moment, lettered as in the source. Click a row to go there.
-              </p>
-              <TraceList
-                events={detail?.events.slice(traceFrom, traceFrom + TRACE_ROWS) ?? []}
-                index={tl.index - traceFrom}
-                onSeek={(i) => tl.seekIndex(i + traceFrom)}
-              />
-            </TabsContent>
-            <TabsContent value="setup">
-              <TcpSetup p={params} set={(p) => apply(p)} cmp={cmp} setCmp={setCmp} />
-            </TabsContent>
-            <TabsContent value="packet">
-              {flight ? (
-                <TcpPacket f={flight} p={params} scripted={scripted(flight)} onToggle={() => toggleDrop(flight)} />
-              ) : (
-                <p className="text-muted-foreground">Click a packet in the ladder to see its header.</p>
-              )}
-            </TabsContent>
-            <TabsContent value="source">
-              <p className="mb-2 font-sans text-xs text-muted-foreground">
-                The Rust that produced this run (crates/netsim/src/tcp.rs), compiled into the page. The step behind the current event is
-                shaded.
-              </p>
-              <LiterateSource source={source} active={event?.step ?? ""} className="max-h-[32rem]" />
-            </TabsContent>
-            <TabsContent value="lab" forceMount className="data-[state=inactive]:hidden">
-              <LabPanel
-                labs={LABS}
-                load={(p) => {
-                  apply(p, "", 0)
-                  setCmp(null)
-                  tl.home()
-                }}
-                check={(lab) => LABS.find((l) => l.id === lab.id)!.check(params, overview, sim)}
-              />
-            </TabsContent>
-          </Tabs>
-        </div>
+      <div>
+        <DeeperHeading>Read about it</DeeperHeading>
+        <Article sim={sim} p={params} run={overview} onLoad={onLoad} />
       </div>
-
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <div className="min-w-0 space-y-5">
-          <Dumbbell run={overview} p={params} t={tl.t} />
-          <QueueChart run={overview} p={params} t={tl.t} onSeek={seekTo} />
-          <RttChart run={overview} p={params} t={tl.t} onSeek={seekTo} />
-        </div>
-        <div className="min-w-0 space-y-5">
-          {params.flows.length > 1 && <PhasePlane run={overview} p={params} t={tl.t} />}
-          {params.flows[0].algo === "cubic" && event && event.state.w_max > 0 && <CubicCurve s={event.state} />}
-          <section aria-label="Equations with this run's numbers">
-            <h3 className="mb-1 font-sans text-sm text-muted-foreground">The formulas, with this moment's numbers</h3>
-            <LiveEquations run={overview} p={params} s={event?.state ?? null} t={tl.t} />
-          </section>
-        </div>
-      </div>
-
-      <Article sim={sim} p={params} run={overview} onLoad={onLoad} />
     </section>
   )
 }
@@ -528,74 +602,68 @@ const Article = memo(function Article(props: { sim: Netsim; p: TcpParams; run: T
 })
 
 const us = (v: number) => formatTime(Math.max(0, v))
-const num = (v: number) => (v >= 1e8 ? "∞" : v >= 100 ? v.toFixed(0) : String(Number(v.toFixed(2))))
 
-/** The sender's variables at the current event (or, between windows, from the curves). */
+/** The sender's variables at the current event (or, between windows, from the curves), each named in full with its unit. */
 function StateView({ s, run, t, p }: { s: State | null; run: TcpRun; t: number; p: TcpParams }) {
   const f = run.series[0]
+  const who = p.flows.length > 1 ? "The first sender, now" : "The sender, now"
   const items: [string, string][] = s
     ? [
-        ["cwnd", num(s.cwnd)],
-        ["ssthresh", num(s.ssthresh)],
-        ["phase", PHASE[s.phase]],
-        ["oldest unACKed, next", `${s.una}, ${s.nxt}`],
-        ["in flight", String(s.nxt - s.una)],
-        ["duplicate ACKs", String(s.dupacks)],
-        ["SRTT, RTTVAR", s.srtt_us > 0 ? `${us(s.srtt_us)}, ${us(s.rttvar_us)}` : "no sample yet"],
-        ["RTO", us(s.rto_us)],
-        ["timer fires", s.timer_at === null ? "off" : formatTime(s.timer_at)],
-        ["queue at the bottleneck", `${s.queue} of ${p.buffer_pkts}`],
+        ["Congestion window (cwnd)", packets(s.cwnd)],
+        ["Slow-start threshold (ssthresh)", s.ssthresh >= 1e8 ? "not set until the first loss" : packets(s.ssthresh)],
+        ["Mode", PHASE[s.phase]],
+        ["Packets on the way, not yet acknowledged", String(s.nxt - s.una)],
+        ["Oldest unacknowledged packet, next to send", `${s.una}, ${s.nxt}`],
+        ["Repeated acknowledgements in a row", String(s.dupacks)],
+        ["Smoothed round-trip time (SRTT)", s.srtt_us > 0 ? us(s.srtt_us) : "no measurement yet"],
+        ["Round-trip variation (RTTVAR)", s.srtt_us > 0 ? us(s.rttvar_us) : "no measurement yet"],
+        ["Retransmission timeout (RTO)", us(s.rto_us)],
+        ["Timer runs out at", s.timer_at === null ? "not running" : formatTime(s.timer_at)],
+        ["Packets waiting at the router", `${s.queue} of ${p.buffer_pkts}`],
         ...(p.flows[0].algo === "cubic" && s.w_max > 0
           ? ([
-              ["CUBIC W_max, K", `${num(s.w_max)}, ${s.k.toFixed(2)} s`],
-              ["CUBIC region", { F: "Reno-friendly", C: "concave", X: "convex", "-": "not in an epoch" }[s.region]],
+              ["CUBIC: window at the last loss (W_max)", packets(s.w_max)],
+              ["CUBIC: time to get back to it (K)", `${s.k.toFixed(2)} s`],
+              [
+                "CUBIC: part of the curve",
+                { F: "as fast as Reno would be", C: "rising, slowing near W_max", X: "past W_max, speeding up", "-": "none yet" }[s.region],
+              ],
             ] as [string, string][])
           : []),
       ]
     : [
-        ["cwnd", num(valueAt(f.cwnd, t))],
-        ["ssthresh", num(valueAt(f.ssthresh, t))],
-        ["SRTT", us(valueAt(f.srtt, t))],
-        ["RTO", us(valueAt(f.rto, t))],
-        ["queue at the bottleneck", `${valueAt(run.queue, t)} of ${p.buffer_pkts}`],
+        ["Congestion window (cwnd)", packets(valueAt(f.cwnd, t))],
+        [
+          "Slow-start threshold (ssthresh)",
+          valueAt(f.ssthresh, t) >= 1e8 ? "not set until the first loss" : packets(valueAt(f.ssthresh, t)),
+        ],
+        ["Smoothed round-trip time (SRTT)", f.srtt.length && f.srtt[0][0] <= t ? us(valueAt(f.srtt, t)) : "no measurement yet"],
+        ["Retransmission timeout (RTO)", us(valueAt(f.rto, t))],
+        ["Packets waiting at the router", `${valueAt(run.queue, t)} of ${p.buffer_pkts}`],
       ]
-  return (
-    <dl className="grid grid-cols-2 gap-x-4 gap-y-1 font-sans text-sm sm:grid-cols-3">
-      {items.map(([k, v]) => (
-        <div key={k}>
-          <dt className="text-xs text-muted-foreground">{k}</dt>
-          <dd className="tabular-nums lining">{v}</dd>
-        </div>
-      ))}
-    </dl>
-  )
+  return <Readouts caption={who} items={items} />
 }
+
+const pct = (x: number) => `${(x * 100).toFixed(1)}%`
 
 /** Measured over the second half of the run, after the start-up. */
 const Totals = memo(function Totals({ run, p }: { run: TcpRun; p: TcpParams }) {
   const T = run.totals
   const items: [string, string][] = [
-    ["link utilisation", T.utilisation.toFixed(3)],
-    ...(p.flows.length === 1 ? ([["sawtooth formula", run.theory.reno_utilisation.toFixed(3)]] as [string, string][]) : []),
+    ["Share of time the link is busy", pct(T.utilisation)],
+    ...(p.flows.length === 1 ? ([["What the sawtooth formula predicts", pct(run.theory.reno_utilisation)]] as [string, string][]) : []),
     ...T.flows.map(
-      (f, i) => [p.flows.length > 1 ? `flow ${i + 1} (${algoName(p.flows[i].algo)})` : "goodput", mbps(f.goodput_bps)] as [string, string],
+      (f, i) =>
+        [
+          p.flows.length > 1 ? `Data delivered per second, sender ${i + 1} (${algoName(p.flows[i].algo)})` : "Data delivered per second",
+          mbps(f.goodput_bps),
+        ] as [string, string],
     ),
-    ...(p.flows.length > 1 ? ([["Jain's fairness index", T.jain.toFixed(3)]] as [string, string][]) : []),
-    ["fast retransmits, timeouts (whole run)", `${T.flows[0].fast_retransmits}, ${T.flows[0].timeouts}`],
-    ["mean round trip", formatTime(T.flows[0].mean_rtt_us)],
-    ["mean queue", `${T.mean_queue.toFixed(1)} packets`],
+    ...(p.flows.length > 1 ? ([["Jain's fairness index (1 means equal shares)", T.jain.toFixed(3)]] as [string, string][]) : []),
+    ["Fast retransmits, whole run", String(T.flows[0].fast_retransmits)],
+    ["Times the timer ran out, whole run", String(T.flows[0].timeouts)],
+    ["Average round trip", formatTime(T.flows[0].mean_rtt_us)],
+    ["Average packets waiting at the router", `${T.mean_queue.toFixed(1)} packets`],
   ]
-  return (
-    <div>
-      <p className="mb-1 font-sans text-xs text-muted-foreground">Measured over the second half of the run, after start-up</p>
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-1 font-sans text-sm sm:grid-cols-3">
-        {items.map(([k, v]) => (
-          <div key={k}>
-            <dt className="text-xs text-muted-foreground">{k}</dt>
-            <dd className="tabular-nums lining">{v}</dd>
-          </div>
-        ))}
-      </dl>
-    </div>
-  )
+  return <Readouts items={items} />
 })
