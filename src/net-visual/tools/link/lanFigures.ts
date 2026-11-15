@@ -14,7 +14,7 @@ import {
   type SwitchParams,
   type SwitchRun,
 } from "../../core/lan.ts"
-import { station, type Ink, type Shape, type ShapeFigure } from "./shapes.ts"
+import { type Ink, type Shape, type ShapeFigure } from "./shapes.ts"
 
 const text = (x: number, y: number, s: string, o: Partial<Extract<Shape, { kind: "text" }>> = {}): Shape => ({
   kind: "text",
@@ -125,7 +125,7 @@ export function switchFigure(p: SwitchParams, run: SwitchRun, t: number, index: 
     const s = fromA ? a : b
     const d = fromA ? b : a
     const f = Math.min(1, Math.max(0, c.f))
-    shapes.push({ kind: "circle", cx: s.x + (d.x - s.x) * f, cy: s.y + (d.y - s.y) * f, r: 4.5, fill: station(c.frame), stroke: "surface" })
+    shapes.push({ kind: "circle", cx: s.x + (d.x - s.x) * f, cy: s.y + (d.y - s.y) * f, r: 4.5, fill: "busy", stroke: "surface" })
   }
 
   const e = run.events[index]
@@ -138,7 +138,7 @@ export function switchFigure(p: SwitchParams, run: SwitchRun, t: number, index: 
         cx: c.x,
         cy: c.y,
         r: Math.max(hw, hh) + 7,
-        stroke: e.frame < p.frames.length ? station(e.frame) : "muted",
+        stroke: e.frame < p.frames.length ? "ink" : "muted",
       })
     if (n.kind === "host") shapes.push({ kind: "circle", cx: c.x, cy: c.y, r: hw, fill: "surface", stroke: "muted" })
     else
@@ -160,7 +160,13 @@ export function switchFigure(p: SwitchParams, run: SwitchRun, t: number, index: 
 // --- The spanning tree -----------------------------------------------------
 
 export const ROLE_LETTER: Record<Role, string> = { root: "R", designated: "D", alternate: "A", disabled: "×" }
-export const STATE_INK: Record<PortState, Ink> = { forwarding: "c2", learning: "c3", listening: "c3", blocking: "alarm", disabled: "muted" }
+export const STATE_INK: Record<PortState, Ink> = {
+  forwarding: "ok",
+  learning: "busy",
+  listening: "busy",
+  blocking: "alarm",
+  disabled: "muted",
+}
 
 export interface StpFigure extends ShapeFigure {
   forwarding: number
@@ -214,7 +220,7 @@ export function stpFigure(p: StpParams, run: StpRun, t: number, index: number, w
     }
   })
 
-  // BPDUs in flight, coloured by the root they claim, drawn crossing the link over 0.6 s.
+  // BPDUs in flight, drawn crossing the link over 0.6 s.
   const byId = new Map(p.bridges.map((b, i) => [b.id, i]))
   let shown = 0
   for (let i = index; i >= 0 && shown < 160; i--) {
@@ -229,7 +235,7 @@ export function stpFigure(p: StpParams, run: StpRun, t: number, index: number, w
     const f = Math.min(1, (t - e.t) / BPDU_SHOW_MS)
     const x = s.x + (d.x - s.x) * f
     const y = s.y + (d.y - s.y) * f
-    shapes.push({ kind: "rect", x: x - 4.5, y: y - 3.5, w: 9, h: 7, fill: station(byId.get(e.bpdu.v.root) ?? 0), stroke: "surface" })
+    shapes.push({ kind: "rect", x: x - 4.5, y: y - 3.5, w: 9, h: 7, fill: "busy", stroke: "surface" })
     shown++
   }
 
@@ -252,13 +258,13 @@ export function stpFigure(p: StpParams, run: StpRun, t: number, index: number, w
     const v = views[b]
     const isRoot = v.root === br.id
     if (e && e.bridge === b)
-      shapes.push({ kind: "rect", x: c.x - hw - 5, y: c.y - hh - 5, w: 2 * hw + 10, h: 2 * hh + 10, stroke: "c0", dashed: true })
-    shapes.push({ kind: "rect", x: c.x - hw, y: c.y - hh, w: 2 * hw, h: 2 * hh, fill: "surface", stroke: isRoot ? "c0" : "ink" })
+      shapes.push({ kind: "rect", x: c.x - hw - 5, y: c.y - hh - 5, w: 2 * hw + 10, h: 2 * hh + 10, stroke: "ink", dashed: true })
+    shapes.push({ kind: "rect", x: c.x - hw, y: c.y - hh, w: 2 * hw, h: 2 * hh, fill: isRoot ? "mark" : "surface", stroke: "ink" })
     // Name, ID, and what the bridge believes: that it is the root, or its cost to the root it believes in.
     shapes.push(text(c.x, c.y - 6, br.name, { fill: "ink", bold: true, size: 11.5 }))
     shapes.push(text(c.x, c.y + 5, bridgeId(br.id), { size: 8.5 }))
     const rootName = p.bridges[byId.get(v.root) ?? b].name
-    shapes.push(text(c.x, c.y + 16, isRoot ? "root" : `${v.cost} to ${rootName}`, { size: 8.5, fill: isRoot ? "c0" : "ink" }))
+    shapes.push(text(c.x, c.y + 16, isRoot ? "root" : `${v.cost} to ${rootName}`, { size: 8.5, fill: "ink", bold: isRoot }))
   })
 
   // The legend.
@@ -266,13 +272,13 @@ export function stpFigure(p: StpParams, run: StpRun, t: number, index: number, w
   const items: [Ink, string][] =
     w < 480
       ? [
-          ["c2", "forwarding"],
-          ["c3", "waiting"],
+          ["ok", "forwarding"],
+          ["busy", "waiting"],
           ["alarm", "blocking"],
         ]
       : [
-          ["c2", "forwarding"],
-          ["c3", "listening or learning"],
+          ["ok", "forwarding"],
+          ["busy", "listening or learning"],
           ["alarm", "blocking"],
           ["muted", "disabled"],
         ]

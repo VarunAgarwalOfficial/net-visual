@@ -98,15 +98,15 @@ export function crcFigure(p: CrcParams, run: CrcRun, index: number, w: number): 
   y += lh
   if (phase === "check") {
     label("sent")
-    bits(run.codeword, 0, (j) => (j >= n - r ? "c2" : "muted"))
+    bits(run.codeword, 0, (j) => (j >= n - r ? "ok" : "muted"))
     y += lh
     label("error E", "alarm")
     bits(error, 0, (_, b) => (b === "1" ? "alarm" : "muted"))
     y += lh
   }
   const q = [...inPhase].reverse().find((x) => x.quotient)?.quotient ?? ""
-  label("quotient", "c1")
-  bits(q, r, () => "c1")
+  label("quotient", "ink")
+  bits(q, r, () => "ink")
   y += lh
   const dividend = phase === "send" ? ev[0].bits : ev.find((x) => x.what === "receive")!.bits
   label(phase === "send" ? `M · x${sup(r)}` : "received")
@@ -128,11 +128,11 @@ export function crcFigure(p: CrcParams, run: CrcRun, index: number, w: number): 
     const at = x.pos!
     const current = x === e
     y += lh
-    label("⊕ G", "c1")
+    label("⊕ G", "ink")
     bits(
       g,
       at,
-      () => "c1",
+      () => "ink",
       () => current,
     )
     rule(at, at + r)
@@ -150,26 +150,26 @@ export function crcFigure(p: CrcParams, run: CrcRun, index: number, w: number): 
 
   y += lh
   if (e.what === "send") {
-    label("codeword", "c2")
+    label("codeword", "ok")
     bits(
       run.codeword,
       0,
-      (j) => (j >= n - r ? "c2" : "ink"),
+      (j) => (j >= n - r ? "ok" : "ink"),
       (j) => j >= n - r,
     )
   } else if (e.what === "accept" || e.what === "reject") {
-    label("remainder", e.what === "accept" ? "c2" : "alarm")
+    label("remainder", e.what === "accept" ? "ok" : "alarm")
     bits(
       e.bits,
       n - r,
-      () => (e.what === "accept" ? "c2" : "alarm"),
+      () => (e.what === "accept" ? "ok" : "alarm"),
       () => true,
     )
     shapes.push(
       text(colX(n - r) - cw, y, e.what === "accept" ? "zero: accept" : "non-zero: reject", {
         anchor: "end",
         size: 10.5,
-        fill: e.what === "accept" ? "c2" : "alarm",
+        fill: e.what === "accept" ? "ok" : "alarm",
       }),
     )
   } else if (e.what === "pad" || e.what === "receive") {
@@ -213,7 +213,14 @@ export function hammingFigure(p: HammingParams, run: HammingRun, index: number, 
   // Position numbers, and their binary spellings, which say which groups cover each position.
   for (const j of cols) {
     const cx = x0(j) + bw / 2
-    shapes.push(text(cx, y, String(j), { anchor: "middle", size: Math.min(10.5, fs), fill: j === 0 || isParity(j) ? "c1" : "muted" }))
+    shapes.push(
+      text(cx, y, String(j), {
+        anchor: "middle",
+        size: Math.min(10.5, fs),
+        fill: j === 0 || isParity(j) ? "ink" : "muted",
+        bold: j === 0 || isParity(j),
+      }),
+    )
     if (showBinary && j > 0)
       shapes.push(text(cx, y + 12, j.toString(2).padStart(r, "0"), { anchor: "middle", size: Math.min(8.5, fs * 0.75), mono: true }))
   }
@@ -248,19 +255,19 @@ export function hammingFigure(p: HammingParams, run: HammingRun, index: number, 
   }
   const parityBox = (j: number) => j === 0 || isParity(j)
   const tint = (j: number, base: { fill?: Ink; stroke: Ink; opacity?: number }) =>
-    covered.has(j) ? { fill: "c3" as Ink, stroke: "c3" as Ink, opacity: 0.3 } : base
+    covered.has(j) ? { fill: "mark" as Ink, stroke: "ink" as Ink } : base
 
   // Parity bits appear as each is computed; data bits are there from the start.
   row(
     "sent",
     run.codeword.map((b, j) => (parityBox(j) && !shownSent.has(j) && index < 1 + r + (p.secded ? 1 : 0) ? null : b)),
-    (j) => tint(j, parityBox(j) ? { fill: "c1", stroke: "c1", opacity: 0.14 } : { stroke: "muted" }),
+    (j) => tint(j, parityBox(j) ? { fill: "ground", stroke: "muted" } : { stroke: "muted" }),
   )
   const arrived = ev.some((x) => x.step === "H4" || x.step === "H5")
   row(
     "received",
     arrived ? received : run.codeword.map(() => null),
-    (j) => (flips.has(j) ? { fill: "alarm", stroke: "alarm", opacity: 0.25 } : tint(j, { stroke: "muted" })),
+    (j) => (flips.has(j) ? { fill: "surface", stroke: "alarm" } : tint(j, { stroke: "muted" })),
     flips.size ? "alarm" : "muted",
   )
   const fixed = run.verdict === "corrected" ? run.syndrome : null
@@ -269,7 +276,7 @@ export function hammingFigure(p: HammingParams, run: HammingRun, index: number, 
     done && run.verdict !== "detected" ? run.corrected : run.codeword.map(() => null),
     (j) =>
       done && j === fixed && run.verdict === "corrected"
-        ? { fill: run.data_ok ? "c2" : "alarm", stroke: run.data_ok ? "c2" : "alarm", opacity: 0.3 }
+        ? { fill: "surface", stroke: run.data_ok ? "ok" : "alarm" }
         : { stroke: done && run.verdict === "detected" ? "alarm" : "muted" },
   )
 
@@ -286,7 +293,7 @@ export function hammingFigure(p: HammingParams, run: HammingRun, index: number, 
     const v = rechecked.get(gr.pos)
     const active = e && e.pos === gr.pos && (e.what === "parity" || e.what === "recheck" || e.what === "overall")
     const verdict = v === undefined ? "" : v === 0 ? " ✓" : " ✗"
-    label(`${gr.name}${verdict}`, y + groupH * 0.7, v === 1 ? "alarm" : active ? "c3" : "muted")
+    label(`${gr.name}${verdict}`, y + groupH * 0.7, v === 1 ? "alarm" : active ? "ink" : "muted")
     for (const j of cols)
       if (gr.covers(j) || j === gr.pos)
         shapes.push({
@@ -294,7 +301,7 @@ export function hammingFigure(p: HammingParams, run: HammingRun, index: number, 
           cx: x0(j) + bw / 2,
           cy: y + groupH * 0.45,
           r: Math.min(4, bw * 0.18),
-          fill: j === gr.pos ? "c1" : active ? "c3" : "muted",
+          fill: j === gr.pos || active ? "ink" : "muted",
         })
     y += groupH
   }
@@ -307,7 +314,7 @@ export function hammingFigure(p: HammingParams, run: HammingRun, index: number, 
       run.syndrome === 0
         ? "syndrome 0: every group checks"
         : `syndrome ${bitsS} = ${run.syndrome}${p.secded ? `, overall parity ${run.overall ? "odd: one error" : "even: two errors"}` : ""}`
-    shapes.push(text(4, y + 16, said, { size: 11, fill: run.syndrome ? "alarm" : "c2", bold: true }))
+    shapes.push(text(4, y + 16, said, { size: 11, fill: run.syndrome ? "alarm" : "ok", bold: true }))
     if (run.syndrome > 0 && run.syndrome <= n && cols.includes(run.syndrome))
       shapes.push({
         kind: "line",

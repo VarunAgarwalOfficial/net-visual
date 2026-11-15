@@ -111,7 +111,9 @@ export function crcChart(run: CrcRun): LinkChart {
   const top = Math.max(2 ** -(r - 1), ...pts.map(([, y]) => y))
   return {
     title: "Bursts this generator misses, by burst length",
-    series: [{ id: "b", label: `fraction undetected (${run.props.n}-bit codeword)`, color: "var(--chart-1)", kind: "dots", points: pts }],
+    series: [
+      { id: "b", label: `fraction undetected (${run.props.n}-bit codeword)`, color: "var(--foreground)", kind: "dots", points: pts },
+    ],
     xLabel: "burst length (first to last flipped bit)",
     yLabel: "fraction missed",
     xFormat: (v) => String(Math.round(v)),
@@ -185,7 +187,7 @@ export function CrcProps({ p, run }: { p: CrcParams; run: CrcRun }) {
             <tr key={s.name} className="text-right">
               <td className="pr-2 text-left">{s.name}</td>
               <td className="pr-2 font-mono">{hex(s.value, s.width)}</td>
-              <td className={cn("font-mono", p.text === "123456789" && s.value === s.check && "text-[var(--chart-2)]")}>
+              <td className={cn("font-mono", p.text === "123456789" && s.value === s.check && "text-ok")}>
                 {hex(s.check, s.width)}
                 {p.text === "123456789" ? (s.value === s.check ? " ✓" : " ✗") : ""}
               </td>
@@ -228,11 +230,7 @@ function FlipBits({
             onClick={() => set(on.has(j) ? flips.filter((x) => x !== j) : [...flips, j].sort((a, c) => a - c))}
             className={cn(
               "h-7 w-6 rounded-sm border font-mono text-sm",
-              on.has(j)
-                ? "border-destructive bg-destructive/15 text-destructive"
-                : mark?.(j)
-                  ? "border-[var(--chart-1)]/60 bg-[var(--chart-1)]/10"
-                  : "border-border",
+              on.has(j) ? "border-destructive text-destructive" : mark?.(j) ? "border-border bg-mark" : "border-border",
             )}
           >
             {on.has(j) ? 1 - Number(b) : b}
@@ -439,7 +437,7 @@ export function hammingChart(p: HammingParams, run: HammingRun): LinkChart {
     {
       id: "raw",
       label: `no code: ${run.k} bits sent bare`,
-      color: "var(--chart-6)",
+      color: "var(--muted-foreground)",
       kind: "line",
       dashed: true,
       points: odds.map((o) => [o.x, lg(o.uncoded)]),
@@ -447,7 +445,7 @@ export function hammingChart(p: HammingParams, run: HammingRun): LinkChart {
     {
       id: "wrong",
       label: "coded, data wrong without warning",
-      color: "var(--chart-1)",
+      color: "var(--nv-bad)",
       kind: "line",
       points: odds.map((o) => [o.x, lg(o.wrong)]),
     },
@@ -456,7 +454,8 @@ export function hammingChart(p: HammingParams, run: HammingRun): LinkChart {
     series.push({
       id: "det",
       label: "coded, error reported",
-      color: "var(--chart-2)",
+      color: "var(--nv-again)",
+      dash: "7 3",
       kind: "line",
       points: odds.map((o) => [o.x, lg(o.detected)]),
     })
@@ -488,7 +487,7 @@ export function HammingSyndrome({ p, run }: { p: HammingParams; run: HammingRun 
             <tr className="text-right">
               <th className={cn(TH, "text-left")}>flipped bit</th>
               {Array.from({ length: n }, (_, j) => (
-                <th key={j} className={cn(TH, isParity(j + 1) && "text-[var(--chart-1)]")}>
+                <th key={j} className={cn(TH, isParity(j + 1) && "font-semibold")}>
                   {j + 1}
                 </th>
               ))}
@@ -521,7 +520,7 @@ export function HammingSyndrome({ p, run }: { p: HammingParams; run: HammingRun 
         </thead>
         <tbody>
           {run.by_weight.map((s) => (
-            <tr key={s.w} className={cn("text-right", p.flips.length === s.w && "bg-muted/60")}>
+            <tr key={s.w} className={cn("text-right", p.flips.length === s.w && "bg-mark")}>
               <td className="pr-2 text-left">{s.w}</td>
               <td className="pr-2">{s.patterns}</td>
               <td className="pr-2">{s.right}</td>

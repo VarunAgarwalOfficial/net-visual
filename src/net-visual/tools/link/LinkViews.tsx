@@ -48,9 +48,19 @@ import { CSS, type Shape, type ShapeFigure } from "./shapes"
 
 // --- The picture -----------------------------------------------------------
 
-/** Draws a shape figure in the page's theme colours. */
-export function ShapeView({ fig, label }: { fig: ShapeFigure; label: string }) {
+/**
+ * The width to lay a shape figure out at, for a box `px` wide, so that text
+ * of `base` units renders at the site's 17px once the figure is scaled to fit.
+ */
+export const figureWidth = (px: number, base: number) => Math.round((px * base) / 17)
+
+/**
+ * Draws a shape figure in the page's theme colours, `px` wide on screen. No
+ * label renders below 17px: smaller sizes are raised to that floor.
+ */
+export function ShapeView({ fig, label, px }: { fig: ShapeFigure; label: string; px: number }) {
   const id = useId().replace(/:/g, "")
+  const floor = (17 * fig.w) / Math.max(1, px)
   return (
     <svg viewBox={`0 0 ${fig.w} ${fig.h}`} width="100%" role="img" aria-label={label} className="block font-sans select-none">
       <defs>
@@ -59,13 +69,13 @@ export function ShapeView({ fig, label }: { fig: ShapeFigure; label: string }) {
         </marker>
       </defs>
       {fig.shapes.map((s, i) => (
-        <ShapeEl key={i} s={s} arrow={`url(#${id}-a)`} />
+        <ShapeEl key={i} s={s} arrow={`url(#${id}-a)`} floor={floor} />
       ))}
     </svg>
   )
 }
 
-function ShapeEl({ s, arrow }: { s: Shape; arrow: string }) {
+function ShapeEl({ s, arrow, floor }: { s: Shape; arrow: string; floor: number }) {
   const paint = (o: { fill?: keyof typeof CSS; stroke?: keyof typeof CSS; opacity?: number; dashed?: boolean }) => ({
     fill: o.fill ? CSS[o.fill] : "none",
     fillOpacity: o.opacity,
@@ -98,7 +108,7 @@ function ShapeEl({ s, arrow }: { s: Shape; arrow: string }) {
           x={s.x}
           y={s.y}
           textAnchor={s.anchor}
-          fontSize={s.size}
+          fontSize={Math.max(s.size, floor)}
           fill={CSS[s.fill]}
           fontWeight={s.bold ? 600 : undefined}
           className={cn("lining", s.fill !== "surface" && "stroke-background", s.mono && "font-mono")}
@@ -452,17 +462,32 @@ export function modeChart(sim: Netsim, p: LinkParams, r: LinkRun): LinkChart {
     return {
       title: "Share of time carrying a good frame, against frames offered per frame time",
       series: [
-        { id: "pl", label: "pure: G e^(−2G)", color: "var(--chart-1)", kind: "line", points: gs.map((g) => [g, alohaLimit(false, g)]) },
-        { id: "sl", label: "slotted: G e^(−G)", color: "var(--chart-2)", kind: "line", points: gs.map((g) => [g, alohaLimit(true, g)]) },
-        { id: "pd", label: "pure, simulated", color: "var(--chart-1)", kind: "dots", points: sw.pure.map((x) => [x.measured_g, x.s]) },
+        { id: "pl", label: "pure: G e^(−2G)", color: "var(--foreground)", kind: "line", points: gs.map((g) => [g, alohaLimit(false, g)]) },
+        {
+          id: "sl",
+          label: "slotted: G e^(−G)",
+          color: "var(--muted-foreground)",
+          kind: "line",
+          dash: "7 3",
+          points: gs.map((g) => [g, alohaLimit(true, g)]),
+        },
+        {
+          id: "pd",
+          label: "pure, simulated",
+          color: "var(--foreground)",
+          kind: "dots",
+          hollow: true,
+          points: sw.pure.map((x) => [x.measured_g, x.s]),
+        },
         {
           id: "sd",
           label: "slotted, simulated",
-          color: "var(--chart-2)",
+          color: "var(--muted-foreground)",
           kind: "dots",
+          hollow: true,
           points: sw.slotted.map((x) => [x.measured_g, x.s]),
         },
-        { id: "now", label: "this run", color: "var(--chart-3)", kind: "dots", points: [[r.run.stats.g, r.run.stats.s]] },
+        { id: "now", label: "this run", color: "var(--foreground)", kind: "dots", points: [[r.run.stats.g, r.run.stats.s]] },
       ],
       xLabel: "offered load G (frames per frame time)",
       yLabel: "S (good frames per frame time)",
@@ -486,21 +511,22 @@ export function modeChart(sim: Netsim, p: LinkParams, r: LinkRun): LinkChart {
       {
         id: "sim",
         label: "simulated: 10 busy stations",
-        color: "var(--chart-1)",
+        color: "var(--foreground)",
         kind: "dots",
+        hollow: true,
         points: sw.map((x) => [Math.log10(x.a), x.efficiency]),
       },
       {
         id: "approx",
         label: "1/(1 + 5a)",
-        color: "var(--chart-2)",
+        color: "var(--foreground)",
         kind: "line",
         points: curve.map((f) => [Math.log10(tau / f), cdApprox(tau / f)]),
       },
       {
         id: "mb",
         label: "Metcalfe and Boggs, N = 10",
-        color: "var(--chart-4)",
+        color: "var(--muted-foreground)",
         kind: "line",
         dashed: true,
         points: curve.map((f) => [Math.log10(tau / f), metcalfeBoggs(10, f, slot)]),
@@ -510,7 +536,7 @@ export function modeChart(sim: Netsim, p: LinkParams, r: LinkRun): LinkChart {
       series.push({
         id: "now",
         label: "this run",
-        color: "var(--chart-3)",
+        color: "var(--foreground)",
         kind: "dots",
         points: [[Math.log10(r.run.stats.a), r.run.stats.efficiency]],
       })
@@ -539,14 +565,15 @@ export function modeChart(sim: Netsim, p: LinkParams, r: LinkRun): LinkChart {
     const series: Series[] = p.ca.flows.map((f, i) => ({
       id: `f${i}`,
       label: `${name(f.from)} → ${name(f.to)} delivered`,
-      color: `var(--chart-${(i % 5) + 1})`,
+      color: i % 2 ? "var(--muted-foreground)" : "var(--foreground)",
+      dash: [undefined, undefined, "7 3", "7 3", "2 3"][i % 5],
       kind: "step",
       points: step(r.run.airs.filter((a) => a.kind === "ack" && a.ok && a.flow === i).map((a) => a.end_us)),
     }))
     series.push({
       id: "lost",
       label: "data frames lost",
-      color: "var(--chart-6)",
+      color: "var(--nv-bad)",
       kind: "step",
       dashed: true,
       points: step(r.run.airs.filter((a) => a.kind === "data" && !a.ok).map((a) => a.end_us)),
@@ -594,14 +621,13 @@ export function RefLines({ refs, s }: { refs: { y: number; label: string }[]; s:
             y1={s.sy(r.y)}
             y2={s.sy(r.y)}
             stroke="var(--chart-ink)"
-            strokeOpacity={0.55}
             strokeDasharray={i === 0 ? "6 4" : "2 3"}
           />
           <text
             x={s.right - 4}
             y={s.sy(r.y) - 4}
             textAnchor="end"
-            fontSize="11"
+            fontSize="17"
             fill="var(--chart-ink)"
             className="stroke-background"
             strokeWidth={4}

@@ -3,8 +3,13 @@
 // TypeScript, so the Node tests can check it.
 import { ALARM, INK, MUTED, esc, tex } from "../../components/figure.ts"
 
-/** Colours by role: c0 to c5 are the chart colours, one per station. */
-export type Ink = "ink" | "muted" | "alarm" | "surface" | "c0" | "c1" | "c2" | "c3" | "c4" | "c5"
+/**
+ * Colours by role. Besides ink, quieter ink and the page: the four meaning
+ * colours (ok got there, busy under way, again, alarm lost or wrong), the
+ * highlighter (mark: changed or current) and the code ground (a grey
+ * band). Stations are told apart by their row, place or name, not colour.
+ */
+export type Ink = "ink" | "muted" | "alarm" | "surface" | "ok" | "busy" | "again" | "mark" | "ground"
 
 export type Shape =
   | { kind: "rect"; x: number; y: number; w: number; h: number; fill?: Ink; stroke?: Ink; opacity?: number; dashed?: boolean }
@@ -30,19 +35,16 @@ export interface ShapeFigure {
   caption: string
 }
 
-export const station = (i: number): Ink => `c${i % 6}` as Ink
-
 export const CSS: Record<Ink, string> = {
   ink: "var(--foreground)",
   muted: "var(--muted-foreground)",
-  alarm: "var(--destructive)",
+  alarm: "var(--nv-bad)",
   surface: "var(--background)",
-  c0: "var(--chart-1)",
-  c1: "var(--chart-2)",
-  c2: "var(--chart-3)",
-  c3: "var(--chart-4)",
-  c4: "var(--chart-5)",
-  c5: "var(--chart-6)",
+  ok: "var(--nv-ok)",
+  busy: "var(--nv-busy)",
+  again: "var(--nv-again)",
+  mark: "var(--nv-mark)",
+  ground: "var(--muted)",
 }
 
 /** The light theme, so exports read on white paper. */
@@ -50,13 +52,12 @@ export const PAPER: Record<Ink, string> = {
   ink: INK,
   muted: MUTED,
   alarm: ALARM,
-  surface: "#ffffff",
-  c0: "#2a78d6",
-  c1: "#eb6834",
-  c2: "#1baf7a",
-  c3: "#eda100",
-  c4: "#e87ba4",
-  c5: "#008300",
+  surface: "#f6f5f2",
+  ok: "#3d6f48",
+  busy: "#6b5592",
+  again: "#8a6417",
+  mark: "#ebe1bd",
+  ground: "#ecebe6",
 }
 
 /** Clips a polygon to the band lo ≤ y ≤ hi (Sutherland and Hodgman, one edge at a time). */
@@ -89,9 +90,9 @@ export function figSvg(fig: ShapeFigure): string {
   const common = (s: { fill?: Ink; stroke?: Ink; opacity?: number; dashed?: boolean }) =>
     `fill="${fill(s.fill)}"${s.opacity !== undefined ? ` fill-opacity="${s.opacity}"` : ""} stroke="${fill(s.stroke)}"${s.dashed ? ' stroke-dasharray="3 3"' : ""}`
   const out = [
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${fig.w + 20}" height="${fig.h + 40}" viewBox="-10 -10 ${fig.w + 20} ${fig.h + 40}" font-family="'CMU Sans Serif', 'Latin Modern Sans', Helvetica, Arial, sans-serif">`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${fig.w + 20}" height="${fig.h + 40}" viewBox="-10 -10 ${fig.w + 20} ${fig.h + 40}" font-family="Newsreader, Georgia, serif">`,
     `<title>${esc(fig.caption)}</title>`,
-    `<rect x="-10" y="-10" width="100%" height="100%" fill="#ffffff"/>`,
+    `<rect x="-10" y="-10" width="100%" height="100%" fill="#f6f5f2"/>`,
     `<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="${MUTED}"/></marker></defs>`,
   ]
   for (const s of fig.shapes) {
@@ -104,7 +105,7 @@ export function figSvg(fig: ShapeFigure): string {
       )
     else
       out.push(
-        `<text x="${n1(s.x)}" y="${n1(s.y)}" text-anchor="${s.anchor}" font-size="${s.size}" fill="${P[s.fill]}"${s.bold ? ' font-weight="bold"' : ""}${s.mono ? ` font-family="'CMU Typewriter Text', 'Latin Modern Mono', Menlo, Consolas, monospace"` : ""}>${esc(s.text)}</text>`,
+        `<text x="${n1(s.x)}" y="${n1(s.y)}" text-anchor="${s.anchor}" font-size="${s.size}" fill="${P[s.fill]}"${s.bold ? ' font-weight="bold"' : ""}${s.mono ? ` font-family="'IBM Plex Mono', Menlo, monospace"` : ""}>${esc(s.text)}</text>`,
       )
   }
   out.push(

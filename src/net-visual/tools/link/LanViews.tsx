@@ -157,8 +157,8 @@ export function switchChart(sim: Netsim, p: SwitchParams, run: SwitchRun): LinkC
   }
   const label = (on: boolean) => (on ? "with the spanning tree" : "without it")
   const series: Series[] = [
-    { id: "now", label: `this run, ${label(p.stp)}`, color: "var(--chart-1)", kind: "step", points: curve(run) },
-    { id: "alt", label: label(!p.stp), color: "var(--chart-2)", kind: "step", dashed: true, points: curve(alt) },
+    { id: "now", label: `this run, ${label(p.stp)}`, color: "var(--foreground)", kind: "step", points: curve(run) },
+    { id: "alt", label: label(!p.stp), color: "var(--muted-foreground)", kind: "step", dashed: true, points: curve(alt) },
   ]
   return {
     title: "Transmissions so far",
@@ -204,7 +204,7 @@ export function SwitchTables({ p, run, index }: { p: SwitchParams; run: SwitchRu
                   {tables[i].map((e) => (
                     <tr
                       key={e.mac}
-                      className={cn("text-right", run.events[index]?.node === i && run.events[index]?.src === e.mac && "bg-muted/60")}
+                      className={cn("text-right", run.events[index]?.node === i && run.events[index]?.src === e.mac && "bg-mark")}
                     >
                       <td className="pr-2 text-left">{p.nodes[e.mac].name}</td>
                       <td className="pr-2">{e.port}</td>
@@ -505,8 +505,8 @@ export function stpChart(p: StpParams, run: StpRun): LinkChart {
   return {
     title: "Ports by state over time",
     series: [
-      { id: "fwd", label: "forwarding", color: "var(--chart-3)", kind: "step", points: close(c.forwarding) },
-      { id: "wait", label: "listening or learning", color: "var(--chart-4)", kind: "step", points: close(wait) },
+      { id: "fwd", label: "forwarding", color: "var(--nv-ok)", kind: "step", points: close(c.forwarding) },
+      { id: "wait", label: "listening or learning", color: "var(--nv-busy)", dash: "7 3", kind: "step", points: close(wait) },
       { id: "blk", label: "blocking", color: "var(--destructive)", kind: "step", dashed: true, points: close(c.blocking) },
     ],
     xLabel: "time (s)",
@@ -544,7 +544,7 @@ export function StpPorts({ p, run, index }: { p: StpParams; run: StpRun; index: 
         </thead>
         <tbody>
           {views.map((v, i) => (
-            <tr key={i} className={cn("text-right", run.events[index]?.bridge === i && "bg-muted/60")}>
+            <tr key={i} className={cn("text-right", run.events[index]?.bridge === i && "bg-mark")}>
               <td className="pr-2 text-left">{name(i)}</td>
               <td className="pr-2 text-left">{bridgeId(p.bridges[i].id)}</td>
               <td className={cn("pr-2 text-left", v.root !== p.bridges[d.root].id && "text-destructive")}>{byId(p, v.root)}</td>
@@ -556,8 +556,8 @@ export function StpPorts({ p, run, index }: { p: StpParams; run: StpRun; index: 
                     className={cn(
                       "mr-2",
                       x.state === "blocking" && "text-destructive",
-                      x.state === "forwarding" && "text-[var(--chart-3)]",
-                      (x.state === "listening" || x.state === "learning") && "text-[var(--chart-4)]",
+                      x.state === "forwarding" && "text-ok",
+                      (x.state === "listening" || x.state === "learning") && "text-busy",
                     )}
                   >
                     {x.port}:{ROLE_LETTER[x.role]} {x.state}
@@ -575,7 +575,7 @@ export function StpPorts({ p, run, index }: { p: StpParams; run: StpRun; index: 
           .filter(Boolean)
           .join(", ")}
         .{" "}
-        <span className={ok ? "text-[var(--chart-3)]" : "text-muted-foreground"}>
+        <span className={ok ? "text-ok" : "text-muted-foreground"}>
           {ok ? "The bridges' roles now match it." : "The bridges have not reached it yet."}
         </span>
       </p>

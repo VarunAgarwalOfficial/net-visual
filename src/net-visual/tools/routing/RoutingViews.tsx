@@ -60,7 +60,7 @@ export const VectorMatrix = memo(function VectorMatrix({
           </thead>
           <tbody>
             {event.dist.map((row, x) => (
-              <tr key={x} className={cn(picked && x === router && "bg-muted/60")}>
+              <tr key={x} className={cn(picked && x === router && "bg-mark")}>
                 <th scope="row" className="px-1.5 py-1 text-left font-normal">
                   <button className="px-1" onClick={() => onPick(x, dest)} aria-label={`Show router ${name(p, x)}'s table`}>
                     {name(p, x)}

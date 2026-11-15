@@ -83,6 +83,7 @@ import {
   LinkSetup,
   RefLines,
   ShapeView,
+  figureWidth,
   Totals,
   chartFigure,
   eventText,
@@ -155,13 +156,13 @@ const SLICE = 200
 
 const HELP: Record<Mode, string> = {
   aloha:
-    "One row per station (S1, S2 and so on), time left to right in milliseconds (ms). The picture shows 12 frame times at a time (8 on a phone; a frame time is how long one frame takes to send) and slides along as the run plays. A frame is drawn as a bar while it is sent, with its number (#0 is the first): in its station's colour when it got through, red when another frame overlapped it. The bottom row, air, is the channel as a receiver hears it, every frame at once. Once frames appear, a grey band marks the latest frame's vulnerable window: any other frame starting inside it destroys this one.",
+    "One row per station (S1, S2 and so on), time left to right in milliseconds (ms). The picture shows 12 frame times at a time (8 on a phone; a frame time is how long one frame takes to send) and slides along as the run plays. A frame is drawn as a bar while it is sent, with its number (#0 is the first): purple while it is sent, green when it got through, red when another frame overlapped it. The bottom row, air, is the channel as a receiver hears it, every frame at once. Once frames appear, a grey band marks the latest frame's vulnerable window: any other frame starting inside it destroys this one.",
   csmacd:
     "Position along the cable across, time down. Each transmission spreads both ways along the cable at the speed of the signal, so it fills a widening band; a station hears another only once that band reaches its line. Red is the jam after a collision is heard.",
   csmaca:
     "The map shows who hears whom (dashed lines join stations in range) and, while a frame is on the air, its sender's range. Below, one lane per station, time left to right: frames on the air, red when lost at their receiver, and dashed bars where a reservation it overheard (the network allocation vector, NAV) holds it silent.",
   switch:
-    "Switches are rectangles, hubs dashed, hosts circles; the small numbers are port numbers. Each dot is one copy of a frame on its link, coloured by frame. The node that acted last is ringed, and a red bar marks a port the spanning tree blocks.",
+    "Switches are rectangles, hubs dashed, hosts circles; the small numbers are port numbers. Each purple dot is one copy of a frame on its link. The node that acted last is ringed, and a red bar marks a port the spanning tree blocks.",
   stp: "Each bridge shows its ID and what it believes: that it is the root of the tree, or its cost to the root it believes in. Each port carries a letter for its role: R, root port (its way towards the root); D, designated port (the one that serves that link); A, alternate (a spare, kept blocked). Its colour gives the state. Small squares are bridge messages (BPDUs, bridge protocol data units) in flight; heavy links forward frames. The number on each link is its cost. A bridge's ID is its priority, a dot, then the end of its hardware address; the lowest ID should end up as root. A dashed box marks the bridge that acted last.",
   crc: "The long division as written by hand: the message with zeros added (the dividend), then each subtraction of the generator under the leftmost remaining 1, and what it leaves. Subtracting is exclusive or: bits that differ give 1. The quotient grows on top, and what is left at the end is the check value. In the receiver's half, flipped bits are red. In the heading, M(x) is the message and G(x) the generator, each a row of bits read as a polynomial; multiplying by x to a power adds that many zeros.",
   hamming:
@@ -317,7 +318,7 @@ function LinkLoaded({ sim }: { sim: Netsim }) {
 
   // Before the first event the channel is drawn empty, not with the first frame already on it.
   const figT = tl.index < 0 && p.mode === "aloha" ? -Infinity : tl.t
-  const { fig, label } = useMemo(() => figureFor(p, run, figT, index, Math.max(320, Math.round(width))), [p, run, figT, index, width])
+  const { fig, label } = useMemo(() => figureFor(p, run, figT, index, figureWidth(width, 11)), [p, run, figT, index, width])
   const chart = useMemo(() => chartFor(sim, p, run), [sim, p, run])
 
   const trace = useMemo(() => run.run.events.map((e, i) => ({ t: e.t, step: e.step, text: textFor(p, run, i) })), [p, run])
@@ -394,7 +395,7 @@ function LinkLoaded({ sim }: { sim: Netsim }) {
 
       <figure className="space-y-2">
         <div ref={figBox}>
-          <ShapeView fig={fig} label={`${caption}. ${label}`} />
+          <ShapeView fig={fig} label={`${caption}. ${label}`} px={width} />
         </div>
         <figcaption className="max-w-(--site-measure) font-sans text-sm text-muted-foreground">{HELP[mode]}</figcaption>
       </figure>

@@ -14,7 +14,7 @@ import {
   type CdParams,
   type CdRun,
 } from "../../core/link.ts"
-import { clipY, station, type Ink, type Shape, type ShapeFigure } from "./shapes.ts"
+import { clipY, type Ink, type Shape, type ShapeFigure } from "./shapes.ts"
 
 /** A window of the run that follows the clock, keeping it three quarters of the way across. */
 export function windowAt(t: number, span: number, total: number): [number, number] {
@@ -63,24 +63,44 @@ export function alohaFigure(p: AlohaParams, run: AlohaRun, t: number, w: number)
   const right = w - 8
   const n = p.stations
   // A key over the rows, so the colours and names are read in the picture, not only in the caption under it.
-  const key: { swatch: null | { fill: Ink; opacity: number }; label: string }[] = [
+  const key: { swatch: null | { fill: Ink; stroke?: Ink }; label: string }[] = [
     { swatch: null, label: `S1 to S${n}: stations, the computers sharing the channel` },
-    { swatch: { fill: station(0), opacity: 0.9 }, label: "a frame that got through (#0 is the first)" },
-    { swatch: { fill: "alarm", opacity: 0.75 }, label: "a frame lost: another overlapped it" },
-    { swatch: { fill: "muted", opacity: 0.25 }, label: "vulnerable window" },
+    { swatch: { fill: "busy" }, label: "a frame still being sent" },
+    { swatch: { fill: "ok" }, label: "a frame that got through (#0 is the first)" },
+    { swatch: { fill: "alarm" }, label: "a frame lost: another overlapped it" },
+    { swatch: { fill: "ground", stroke: "muted" }, label: "vulnerable window" },
     { swatch: null, label: "air: everything a receiver hears" },
   ]
   const keyShapes: Shape[] = []
   let kx = 4
   let ky = 12
-  for (const k of key) {
+  // A label wider than the picture (on a phone) is broken at spaces onto lines of its own.
+  const fit = Math.floor((right - 4 - 18) / 5.6)
+  const parts = key.flatMap((k) => {
+    if (k.label.length <= fit) return [k]
+    const lines: string[] = []
+    for (const word of k.label.split(" ")) {
+      const last = lines[lines.length - 1]
+      if (last !== undefined && last.length + 1 + word.length <= fit) lines[lines.length - 1] = `${last} ${word}`
+      else lines.push(word)
+    }
+    return lines.map((label, i) => ({ swatch: i ? null : k.swatch, label, indent: i > 0 && k.swatch !== null }))
+  })
+  for (const k of parts) {
+    if ("indent" in k && k.indent) {
+      kx = 4
+      ky += 15
+      keyShapes.push(text(kx + 18, ky, k.label, { size: 11, fill: "ink" }))
+      kx = right
+      continue
+    }
     const width = (k.swatch ? 20 : 0) + k.label.length * 5.6
     if (kx > 4 && kx + width > right) {
       kx = 4
       ky += 15
     }
     if (k.swatch) {
-      keyShapes.push({ kind: "rect", x: kx, y: ky - 8, w: 14, h: 9, fill: k.swatch.fill, opacity: k.swatch.opacity })
+      keyShapes.push({ kind: "rect", x: kx, y: ky - 8, w: 14, h: 9, fill: k.swatch.fill, stroke: k.swatch.stroke })
       kx += 18
     }
     keyShapes.push(text(kx, ky, k.label, { size: 11, fill: "ink" }))
@@ -103,7 +123,7 @@ export function alohaFigure(p: AlohaParams, run: AlohaRun, t: number, w: number)
   if (focus) {
     const [a, b] = p.slotted ? [focus.start_us, focus.end_us] : [focus.start_us - F, focus.end_us]
     if (b > t0 && a < t1) {
-      shapes.push({ kind: "rect", x: X(a), y: top, w: X(b) - X(a), h: n * rowH, fill: "muted", opacity: 0.14 })
+      shapes.push({ kind: "rect", x: X(a), y: top, w: X(b) - X(a), h: n * rowH, fill: "ground" })
       const label = p.slotted
         ? `only a frame in this same slot ruins frame #${focus.id}`
         : `any frame starting in this band ruins frame #${focus.id}`
@@ -144,13 +164,11 @@ export function alohaFigure(p: AlohaParams, run: AlohaRun, t: number, w: number)
       y,
       w: wd,
       h: rowH - 4,
-      fill: lost ? "alarm" : station(f.station),
-      opacity: lost ? 0.75 : done ? 0.9 : 0.5,
-      stroke: lost ? "alarm" : station(f.station),
+      fill: lost ? "alarm" : done ? "ok" : "busy",
     })
-    if (wd > 28 && rowH >= 14) shapes.push(text(x + 4, y + rowH / 2 + 1.5, `#${f.id}`, { fill: "ink", size: 11 }))
+    if (wd > 28 && rowH >= 14) shapes.push(text(x + 4, y + rowH / 2 + 1.5, `#${f.id}`, { fill: "surface", size: 11, anchor: "start" }))
     // The receiver's view: everything on one channel, overlaps in red.
-    shapes.push({ kind: "rect", x, y: chanY, w: wd, h: chanH, fill: lost ? "alarm" : station(f.station), opacity: lost ? 0.45 : 0.85 })
+    shapes.push({ kind: "rect", x, y: chanY, w: wd, h: chanH, fill: lost ? "alarm" : done ? "ok" : "busy" })
   }
   shapes.push(text(left - 6, chanY + chanH / 2 + 3.5, "air", { anchor: "end", fill: "ink", size: 11, bold: true }))
   shapes.push({ kind: "rect", x: left, y: chanY, w: right - left, h: chanH, stroke: "muted" })
@@ -170,7 +188,7 @@ export function alohaFigure(p: AlohaParams, run: AlohaRun, t: number, w: number)
     // Before the first frame: say so in the picture, and what Play will draw.
     const cy = top + (n * rowH) / 2
     const lines = ["Nothing sent yet.", "Play draws each frame as a bar", "in its station's row, and on air."]
-    shapes.push({ kind: "rect", x: (left + right) / 2 - 110, y: cy - 26, w: 220, h: 50, fill: "surface", opacity: 0.92 })
+    shapes.push({ kind: "rect", x: (left + right) / 2 - 110, y: cy - 26, w: 220, h: 50, fill: "surface" })
     lines.forEach((l, i) => shapes.push(text((left + right) / 2, cy - 10 + i * 15, l, { anchor: "middle", fill: "ink", size: 12 })))
   }
   if (t >= t0 && t <= t1) shapes.push({ kind: "line", x1: X(t), y1: top - 2, x2: X(t), y2: chanY + chanH + 2, stroke: "ink", width: 1.5 })
@@ -221,10 +239,10 @@ export function cdFigure(p: CdParams, run: CdRun, t: number, w: number): CdFigur
     shapes.push(text(left - 6, y + 3.5, `${v} µs`, { anchor: "end", size: 11 }))
   }
   shapes.push(text(4, top - 8, "time ↓", { size: 11.5 }))
-  p.stations.forEach((s, i) => {
+  p.stations.forEach((s) => {
     const x = X(s.pos_m)
     shapes.push({ kind: "line", x1: x, y1: top, x2: x, y2: top + H, stroke: "muted", width: 0.8, dashed: true })
-    shapes.push({ kind: "circle", cx: x, cy: top - 14, r: 4, fill: station(i) })
+    shapes.push({ kind: "circle", cx: x, cy: top - 14, r: 4, fill: "ink" })
     shapes.push(text(x + 7, top - 10, s.name, { fill: "ink", size: 11, bold: true }))
   })
   shapes.push(text(left, h - 4, "0 m", { size: 11 }))
@@ -246,7 +264,8 @@ export function cdFigure(p: CdParams, run: CdRun, t: number, w: number): CdFigur
   for (const tx of run.txs) {
     if (tx.start_ns > tEnd || tx.end_ns + tau < t0) continue
     const xi = p.stations[tx.station].pos_m
-    const ink = station(tx.station)
+    // Every signal is under way; the station is read from where its band starts. Bands stay translucent so overlaps show.
+    const ink: Ink = "busy"
     const cut = tx.detect_ns ?? tx.end_ns
     const body = band(xi, tx.start_ns, Math.min(cut, tEnd))
     if (body.length > 2)
@@ -381,9 +400,7 @@ export function caFigure(p: CaParams, run: CaRun, t: number, w: number): CaFigur
     shapes.push({
       kind: "poly",
       points: clipY(ring, 0, mapH),
-      fill: station(a.from),
-      opacity: 0.1,
-      stroke: station(a.from),
+      stroke: "busy",
       dashed: true,
     })
   }
@@ -410,7 +427,7 @@ export function caFigure(p: CaParams, run: CaRun, t: number, w: number): CaFigur
       y1: y1 + (y2 - y1) * k,
       x2: x2 - (x2 - x1) * k,
       y2: y2 - (y2 - y1) * k,
-      stroke: station(a.from),
+      stroke: "busy",
       width: 2.2,
       arrow: true,
     })
@@ -420,8 +437,8 @@ export function caFigure(p: CaParams, run: CaRun, t: number, w: number): CaFigur
     const [x, y] = [MX(v.x_m), MY(v.y_m)]
     // A frame overlapping another here is garbled at this node.
     if (now.onAir.some((a) => a.lost_at.includes(i) && a.end_us > t && now.onAir.length > 1))
-      shapes.push({ kind: "circle", cx: x, cy: y, r: 12, stroke: "alarm", fill: "alarm", opacity: 0.2 })
-    shapes.push({ kind: "circle", cx: x, cy: y, r: 6.5, fill: station(i), stroke: "surface" })
+      shapes.push({ kind: "circle", cx: x, cy: y, r: 12, stroke: "alarm" })
+    shapes.push({ kind: "circle", cx: x, cy: y, r: 6.5, fill: "ink", stroke: "surface" })
     shapes.push(text(x, y - 11, v.name, { anchor: "middle", fill: "ink", size: 11, bold: true }))
     const nav = now.nav.filter((q) => q.node === i).pop()
     const sending = now.onAir.some((a) => a.from === i)
@@ -433,7 +450,7 @@ export function caFigure(p: CaParams, run: CaRun, t: number, w: number): CaFigur
     if (status) shapes.push(text(x, y + 19, status, { anchor: "middle", fill: nav ? "ink" : "muted", size: 11 }))
   })
 
-  // The lanes: every frame on the air, coloured by sender, red once lost, and each NAV as a dashed bar.
+  // The lanes: every frame on the air, purple while sent, green once through, red once lost, and each NAV as a dashed bar.
   const st = run.stats
   const exchange = st.difs_us + st.data_us + p.sifs_us + st.ack_us + (p.rts ? st.rts_us + st.cts_us + 2 * p.sifs_us : 0)
   const span = Math.max(2000, 3.5 * exchange)
@@ -455,7 +472,7 @@ export function caFigure(p: CaParams, run: CaRun, t: number, w: number): CaFigur
     const x = X(q.from_us)
     const wd = X(Math.min(q.until_us, tEnd)) - x
     const y = top + q.node * rowH + 5
-    shapes.push({ kind: "rect", x, y, w: wd, h: rowH - 10, fill: "muted", opacity: 0.18, stroke: "ink", dashed: true })
+    shapes.push({ kind: "rect", x, y, w: wd, h: rowH - 10, fill: "ground", stroke: "ink", dashed: true })
     if (wd > 30) shapes.push(text(x + 4, y + rowH / 2 - 1.5, "NAV", { fill: "ink", size: 10.5 }))
   }
   for (const a of run.airs) {
@@ -470,11 +487,9 @@ export function caFigure(p: CaParams, run: CaRun, t: number, w: number): CaFigur
       y,
       w: wd,
       h: rowH - 6,
-      fill: lost ? "alarm" : station(a.from),
-      opacity: lost ? 0.7 : 0.55,
-      stroke: lost ? "alarm" : station(a.from),
+      fill: lost ? "alarm" : a.ok && a.end_us <= t ? "ok" : "busy",
     })
-    if (wd > 26) shapes.push(text(x + 3, y + rowH / 2 + 0.5, KIND_LABEL[a.kind], { fill: "ink", size: 10.5 }))
+    if (wd > 26) shapes.push(text(x + 3, y + rowH / 2 + 0.5, KIND_LABEL[a.kind], { fill: "surface", size: 10.5, anchor: "start" }))
   }
   for (const v of ticks(t0, t1, w < 520 ? 4 : 7)) shapes.push(text(X(v), h - 4, fmtTime(v, "csmaca"), { anchor: "middle", size: 11 }))
   if (t >= t0 && t <= t1) shapes.push({ kind: "line", x1: X(t), y1: top - 4, x2: X(t), y2: top + n * rowH + 2, stroke: "ink", width: 1.5 })

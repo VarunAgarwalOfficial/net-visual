@@ -7,7 +7,7 @@ import { Exercise, Layer } from "../rdt/RdtArticle"
 
 function Try({ id, onLoad, children }: { id: string; onLoad(id: string): void; children: ReactNode }) {
   return (
-    <button type="button" className="font-sans text-sm text-[var(--link)] underline underline-offset-2" onClick={() => onLoad(id)}>
+    <button type="button" className="font-sans text-sm text-link underline underline-offset-2" onClick={() => onLoad(id)}>
       {children}
     </button>
   )
