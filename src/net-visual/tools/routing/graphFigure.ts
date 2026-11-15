@@ -63,7 +63,7 @@ export function graphAt(run: RoutingRun, p: RoutingParams, i: number, dest: numb
     pos: p.pos,
     links: allPairs(p).map(([a, b]) => ({ a, b, cost: s.cost[a][b] >= 0 ? s.cost[a][b] : null })),
     tree,
-    labels: p.nodes.map((_, x) => (x === dest ? "destination" : `D = ${showDist(e.dist[x][dest], p.infinity)}`)),
+    labels: p.nodes.map((_, x) => (x === dest ? "destination" : `cost ${showDist(e.dist[x][dest], p.infinity)}`)),
     dest,
     caption: "",
   }

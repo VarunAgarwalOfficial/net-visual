@@ -22,6 +22,8 @@ export const VectorMatrix = memo(function VectorMatrix({
   epoch,
   router,
   dest,
+  started,
+  picked,
   onPick,
 }: {
   p: RoutingParams
@@ -29,20 +31,24 @@ export const VectorMatrix = memo(function VectorMatrix({
   epoch: Epoch
   router: number
   dest: number
+  /** False before the first event: nothing has changed yet, so nothing is shaded. */
+  started: boolean
+  /** Whether the reader has chosen a router; only then is its row marked. */
+  picked: boolean
   onPick(x: number, y: number): void
 }) {
-  const changed = new Set(event.changed.map(([x, y]) => `${x}-${y}`))
+  const changed = new Set(started ? event.changed.map(([x, y]) => `${x}-${y}`) : [])
   const wrong = event.dist.flatMap((row, x) => row.filter((d, y) => d !== epoch.shortest[x][y]))
   return (
     <div className="space-y-2">
       <div className="overflow-x-auto">
         <table
           className="font-sans text-sm tabular-nums lining"
-          aria-label="Distance vectors: row x is router x's cost to each destination"
+          aria-label="Every router's table: each row is one router's cost to each destination"
         >
           <thead>
             <tr>
-              <th className="px-1.5 py-1 text-left text-xs font-normal text-muted-foreground">from \ to</th>
+              <th className="px-1.5 py-1 text-left text-xs font-normal text-muted-foreground">cost from ↓ to →</th>
               {p.nodes.map((n, y) => (
                 <th key={y} scope="col" className={cn("px-1.5 py-1 font-normal", y === dest && "text-link underline underline-offset-4")}>
                   <button className="px-1" onClick={() => onPick(router, y)} aria-label={`Show routes to ${n}`}>
@@ -54,7 +60,7 @@ export const VectorMatrix = memo(function VectorMatrix({
           </thead>
           <tbody>
             {event.dist.map((row, x) => (
-              <tr key={x} className={cn(x === router && "bg-muted/60")}>
+              <tr key={x} className={cn(picked && x === router && "bg-muted/60")}>
                 <th scope="row" className="px-1.5 py-1 text-left font-normal">
                   <button className="px-1" onClick={() => onPick(x, dest)} aria-label={`Show router ${name(p, x)}'s table`}>
                     {name(p, x)}
@@ -70,7 +76,7 @@ export const VectorMatrix = memo(function VectorMatrix({
                         className={cn(
                           "block w-full min-w-11 rounded-xs px-1.5 py-1 text-center",
                           changed.has(`${x}-${y}`) && "bg-chart-4/30",
-                          x === router && y === dest && "ring-2 ring-link",
+                          picked && x === router && y === dest && "ring-2 ring-link",
                           off && "text-destructive",
                         )}
                         aria-label={`D_${name(p, x)}(${name(p, y)}) = ${showDist(d, p.infinity)}${hop >= 0 && hop !== x ? ` via ${name(p, hop)}` : ""}${off ? `; the true cost is ${showDist(epoch.shortest[x][y], p.infinity)}` : ""}`}
@@ -87,10 +93,11 @@ export const VectorMatrix = memo(function VectorMatrix({
           </tbody>
         </table>
       </div>
-      <p className="font-sans text-xs text-muted-foreground">
-        Small letters are next hops. Shaded cells changed at this event; red cells with a star do not yet match Dijkstra on the network as
-        it is now
-        {wrong.length === 0 ? " (none: every table is correct)" : ""}. Click a cell to see its equation.
+      <p className="max-w-[70ch] font-sans text-xs text-muted-foreground">
+        Each row is one router's table: its cost to reach each router named across the top, and in small letters the neighbour it sends
+        through. ∞ means it knows no route yet. Shaded cells changed at this event. A red cell with a star is not yet the true cheapest cost
+        on the network as it is now
+        {wrong.length === 0 ? " (there are none: every table is correct)" : ""}. Select a cell to show that destination on the drawing.
       </p>
     </div>
   )
@@ -105,7 +112,7 @@ export function BellmanCard({ p, s, event, x, y }: { p: RoutingParams; s: State;
   if (x === y)
     return (
       <div className="rounded-sm border border-border p-3 font-sans text-sm">
-        <Tex>{`D_{${tn(p, x)}}(${tn(p, y)}) = 0`}</Tex>: a router reaches itself for free. Pick another destination in the table.
+        {name(p, x)} is the destination itself: its cost to itself is 0. Choose another router or destination.
       </div>
     )
   const terms = bellmanTerms(s, p, x, y)
@@ -120,8 +127,10 @@ export function BellmanCard({ p, s, event, x, y }: { p: RoutingParams; s: State;
       : `D_{${X}}(${Y}) = \\min \\{ ${terms.map((t) => `${t.c} + ${td(t.dv, p.infinity)}`).join(",\\ ")} \\} = ${td(best, p.infinity)}`
   return (
     <div className="space-y-2 rounded-sm border border-border p-3 max-sm:[&_.katex-display]:text-[0.85em]">
-      <p className="font-sans text-xs text-muted-foreground">
-        Router {name(p, x)}'s cost to {name(p, y)}, from what it knows now
+      <p className="max-w-[70ch] font-sans text-sm">
+        Router {name(p, x)}'s cost to {name(p, y)}, from what it knows now. For each neighbour it adds the cost of the link to that
+        neighbour to the cost the neighbour last reported, and keeps the smallest sum. In symbols, D<sub>x</sub>(y) is x's cost to y and
+        c(x, v) is the cost of the link from x to its neighbour v; this is the Bellman-Ford equation.
       </p>
       <Tex display>{`\\begin{aligned} ${general.replace(" = ", " &= ")} \\\\ ${filled.replace(/ = /, " &= ")} \\end{aligned}`}</Tex>
       <ul className="space-y-0.5 font-sans text-sm">
@@ -175,12 +184,15 @@ export function MapCard({ p, s, event, x, y }: { p: RoutingParams; s: State; eve
   const hop = event.hop[x][y]
   return (
     <div className="space-y-2 rounded-sm border border-border p-3 font-sans text-sm">
-      <p className="text-xs text-muted-foreground">Router {name(p, x)}'s map: the newest LSA it holds from each router</p>
+      <p className="max-w-[70ch]">
+        Router {name(p, x)}'s map: the newest list of links (LSA) it holds from each router. The number counts the lists that router has
+        written; a higher one is newer.
+      </p>
       <table className="tabular-nums lining" aria-label={`Router ${name(p, x)}'s link-state database`}>
         <thead>
           <tr className="text-left text-xs text-muted-foreground">
             <th className="py-0.5 pr-3 font-normal">from</th>
-            <th className="py-0.5 pr-3 font-normal">seq</th>
+            <th className="py-0.5 pr-3 font-normal">number</th>
             <th className="py-0.5 font-normal">links it lists</th>
           </tr>
         </thead>
@@ -234,7 +246,7 @@ export function DijkstraTable({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2 font-sans text-sm">
-        <label htmlFor="dij-source">Source</label>
+        <label htmlFor="dij-source">Starting router</label>
         <select
           id="dij-source"
           className="rounded-sm border border-input bg-background px-1 py-0.5"
@@ -249,13 +261,13 @@ export function DijkstraTable({
         </select>
         <span className="ml-auto flex items-center gap-1">
           <Button size="sm" variant="outline" disabled={k === 0} onClick={() => setK(k - 1)}>
-            Back
+            Back one step
           </Button>
           <span className="px-1 tabular-nums">
             step {k} of {steps.length - 1}
           </span>
           <Button size="sm" variant="outline" disabled={k >= steps.length - 1} onClick={() => setK(k + 1)}>
-            Next
+            Next step
           </Button>
         </span>
       </div>
@@ -264,7 +276,7 @@ export function DijkstraTable({
           <thead>
             <tr className="text-left">
               <th className="px-1.5 py-1 font-normal text-muted-foreground">step</th>
-              <th className="px-1.5 py-1 font-normal text-muted-foreground">N′</th>
+              <th className="px-1.5 py-1 font-normal text-muted-foreground">N′ (settled)</th>
               {others.map((v) => (
                 <th key={v} className="px-1.5 py-1 font-normal whitespace-nowrap">
                   <Tex>{`D(${tn(p, v)}), p(${tn(p, v)})`}</Tex>
@@ -300,11 +312,12 @@ export function DijkstraTable({
       </div>
       <p className="font-sans text-sm">
         {k === 0
-          ? `Step 0 (K1): ${name(p, source)} knows only its own links.`
-          : `Step ${k} (K2, K3): add ${name(p, steps[k].added)}, the closest router not yet in N′, at cost ${steps[k].d[steps[k].added]}; then relax its links.`}{" "}
+          ? `Step 0: ${name(p, source)} starts with only its own links.`
+          : `Step ${k}: ${name(p, steps[k].added)} is the closest router not yet settled, at cost ${steps[k].d[steps[k].added]}, so it is settled; then each of its neighbours is checked for a cheaper path through it.`}{" "}
         <span className="text-muted-foreground">
-          This is the network as it stands at the current moment. A link-state router computes this table for itself after flooding has told
-          it every link.
+          N′ is the set of settled routers, whose cheapest cost is final. D(v) is the cheapest cost to v found so far and p(v) the router
+          just before v on that path. This is the network as it stands at the current moment. A link-state router computes this table for
+          itself after flooding has told it every link.
         </span>
       </p>
     </div>
@@ -333,13 +346,13 @@ export function LinkEditor({
   const [cost, setCost] = useState(costNow ?? start ?? 1)
   const at = Math.max(0, Math.round(now / 100) * 100)
   const top = p.infinity - 1
-  const label = `${name(p, a)}–${name(p, b)}`
+  const label = `${name(p, a)} to ${name(p, b)}`
   const script = (c: number | null) => set({ ...p, changes: [...p.changes, { at_us: at, a, b, cost: c }] })
   return (
     <div className="space-y-2 rounded-sm border border-link/50 p-3 font-sans text-sm">
       <div className="flex items-center justify-between gap-2">
         <p>
-          Link <b>{label}</b>: {costNow === null ? "down now" : `cost ${costNow} now`}
+          The link from <b>{label}</b>: {costNow === null ? "failed now" : `cost ${costNow} now`}
           {start !== null && start !== costNow ? `, ${start} at the start` : ""}
         </p>
         <Button size="xs" variant="ghost" onClick={close}>
@@ -347,7 +360,7 @@ export function LinkEditor({
         </Button>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <label htmlFor="link-cost">Cost</label>
+        <label htmlFor="link-cost">New cost</label>
         <input
           id="link-cost"
           type="number"

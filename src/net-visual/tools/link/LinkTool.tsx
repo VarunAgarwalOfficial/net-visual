@@ -11,6 +11,7 @@ import { LiterateSource } from "../../components/LiterateSource"
 import { ToolActions } from "../../components/ToolActions"
 import { TraceList } from "../../components/TraceList"
 import { Transport } from "../../components/Transport"
+import { scrollBehavior } from "../../components/ToolFrame"
 import { keepFocus, timelineKeys, useTimeline } from "../../components/timeline"
 import {
   LABS,
@@ -309,7 +310,7 @@ function LinkLoaded({ sim }: { sim: Netsim }) {
   })
   const onLoad = useCallback((id: string) => {
     loader.current(id)
-    root.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+    root.current?.scrollIntoView({ behavior: scrollBehavior(), block: "start" })
     root.current?.focus({ preventScroll: true })
   }, [])
   const goTour = (i: number | null) => {

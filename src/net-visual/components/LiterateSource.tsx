@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from "react"
 
 import { cn } from "@/lib/utils"
+import { scrollBehavior } from "./ToolFrame"
 
 interface Block {
   kind: "prose" | "code"
@@ -125,7 +126,7 @@ export function LiterateSource({ source, active, className }: { source: string; 
   useEffect(() => {
     if (!range || !box.current) return
     const el = box.current.querySelector<HTMLElement>(`[data-line="${range[0]}"]`)
-    if (el) box.current.scrollTo({ top: el.offsetTop - 24, behavior: "smooth" })
+    if (el) box.current.scrollTo({ top: el.offsetTop - 24, behavior: scrollBehavior() })
   }, [range])
 
   const inRange = (i: number) => range !== undefined && i >= range[0] && i <= range[1]

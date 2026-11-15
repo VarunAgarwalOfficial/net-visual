@@ -68,8 +68,8 @@ export function RoutingIntro({ onLoad }: { onLoad(id: string): void }) {
         </li>
         <li>
           <b>“Bad news is slow because messages are slow.”</b> The number of rounds depends on the costs, not on the delay: each round the
-          stale route grows by one link's cost, so the gap between 4 and 50 sets the count. Double the delay in Setup and the count of
-          rounds does not move.
+          stale route grows by one link's cost, so the gap between 4 and 50 sets the count. Double the delay in the settings under Go deeper
+          and the count of rounds does not move.
         </li>
         <li>
           <b>“Poisoned reverse cures count to infinity.”</b> It stops a router offering a route back to the neighbour it goes through, which
@@ -213,13 +213,13 @@ export function RoutingAnalysis({ p, run }: { sim: Netsim; p: RoutingParams; run
       <p className="font-sans text-sm">
         {p.algorithm === "ls" ? (
           <>
-            Your network: H = {stats.H}. This run uses link state, which the theorem is not about; switch Setup to distance vector to
-            compare.
+            Your network: H = {stats.H}. This run uses link state, which the theorem is not about; switch the settings under Go deeper to
+            distance vector to compare.
           </>
         ) : periodic(p) ? (
           <>
             Your network: H = {stats.H}. This run has RIP's timers on, so updates follow the clock rather than rounds; turn the update
-            period off in Setup to compare.
+            period off in the settings under Go deeper to compare.
           </>
         ) : p.jitter_us === 0 ? (
           <>
@@ -229,7 +229,7 @@ export function RoutingAnalysis({ p, run }: { sim: Netsim; p: RoutingParams; run
         ) : (
           <>
             Your network: H = {stats.H}. This run has unequal delays, so there are no rounds and the theorem does not apply; set the jitter
-            to 0 in Setup to compare.
+            to 0 in the settings under Go deeper to compare.
           </>
         )}
       </p>
@@ -307,7 +307,7 @@ export function RoutingAnalysis({ p, run }: { sim: Netsim; p: RoutingParams; run
             {run.messages.filter((m) => m.t_send < (run.epochs[1]?.t ?? Infinity)).length}.
           </>
         ) : (
-          <>Switch Setup to link state to count the LSAs of this network; the six-router preset sends 6 × 15 = 90.</>
+          <>Switch the settings under Go deeper to link state to count the LSAs of this network; the six-router preset sends 6 × 15 = 90.</>
         )}
       </p>
       <p>
@@ -353,7 +353,7 @@ export function RoutingAnalysis({ p, run }: { sim: Netsim; p: RoutingParams; run
           answer={
             <p>
               Z − 3 for any Z from 6 to 59: the climb runs from 6 up to Z, then z switches to its direct link and y follows. For Z = 20 that
-              is 17 updates. Set it in Setup and read the count from the chart, or from the trace.
+              is 17 updates. Set it in the settings under Go deeper and read the count from the chart, or from the trace.
             </p>
           }
         >
@@ -503,8 +503,8 @@ export function RoutingInternals() {
       <h3 className="pt-2 text-lg">Simplifications</h3>
       <ul className="list-disc space-y-1 pl-5">
         <li>
-          A router learns of a failure on its own link at once. Timers are off unless set in Setup; when on, triggered updates are not
-          rate-limited, and there is no garbage-collection or hold-down timer.
+          A router learns of a failure on its own link at once. Timers are off unless set in the settings under Go deeper; when on,
+          triggered updates are not rate-limited, and there is no garbage-collection or hold-down timer.
         </li>
         <li>
           Each distance-vector router keeps the last vector heard from every neighbour, the textbook model; RIP keeps only its best route.

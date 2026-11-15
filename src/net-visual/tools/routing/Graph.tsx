@@ -40,7 +40,7 @@ const press = (f: () => void) => (e: KeyboardEvent) => {
  * The network: links with their costs (dashed when failed), routers with
  * their cost to the chosen destination, each router's next hop towards it
  * (red where the next hops form a loop), and the vectors on the wire. With
- * the Dijkstra tab open it shows N' and the tree of predecessors instead.
+ * the Dijkstra disclosure open it shows N' and the tree of predecessors instead.
  */
 export function Graph({
   fig,
@@ -109,7 +109,7 @@ export function Graph({
               key={`${l.a}-${l.b}`}
               role="button"
               tabIndex={0}
-              aria-label={`Link ${fig.nodes[l.a]}–${fig.nodes[l.b]}, ${l.cost === null ? "failed" : `cost ${l.cost}`}. Press to change it.`}
+              aria-label={`Link between ${fig.nodes[l.a]} and ${fig.nodes[l.b]}, ${l.cost === null ? "failed" : `cost ${l.cost}`}. Press to change it.`}
               aria-pressed={!!on}
               className="cursor-pointer outline-none [&:focus-visible>line:last-of-type]:stroke-ring"
               onClick={() => onLink(l.a, l.b)}
@@ -220,14 +220,14 @@ export function Graph({
           const dLabel = dijkstra
             ? i === dijkstra.source
               ? "source"
-              : `D = ${dijkstra.d[i] >= dijkstra.infinity ? "∞" : dijkstra.d[i]}`
+              : `cost ${dijkstra.d[i] >= dijkstra.infinity ? "∞" : dijkstra.d[i]}`
             : fig.labels[i]
           return (
             <g
               key={`n${i}`}
               role="button"
               tabIndex={0}
-              aria-label={`Router ${name}, ${dLabel}. Press to look at its table.`}
+              aria-label={`Router ${name}, ${dLabel}. Press to show its working under Go deeper.`}
               aria-pressed={selected === i}
               className="cursor-pointer outline-none [&:focus-visible>circle]:stroke-ring"
               onClick={() => onNode(i)}
