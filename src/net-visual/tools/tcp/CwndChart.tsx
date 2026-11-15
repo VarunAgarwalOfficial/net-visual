@@ -9,9 +9,16 @@ export const FLOW_COLORS = ["var(--chart-1)", "var(--chart-3)", "var(--chart-4)"
 const COMPARE_COLOR = "var(--chart-2)"
 const SSTHRESH_COLOR = "var(--muted-foreground)"
 
-const seconds = (us: number) => {
+/** Microseconds as seconds, with as many decimals as the value needs (up to three; one from 10 s). */
+export const seconds = (us: number) => {
   const s = us / 1e6
-  return s >= 10 || Number.isInteger(s) ? s.toFixed(0) : s.toFixed(s >= 1 ? 1 : 2)
+  return String(Number(s.toFixed(s >= 10 ? 1 : 3)))
+}
+
+/** A step series carried on to the end of the run, so a last value that never changes is still drawn. */
+export function toEnd(points: [number, number][], end: number): [number, number][] {
+  const last = points[points.length - 1]
+  return last && last[0] < end ? [...points, [end, last[1]]] : points
 }
 
 export const flowLabel = (p: TcpParams, i: number) =>
@@ -45,7 +52,7 @@ function build(run: TcpRun, compare: TcpRun | null, cmp: Algo | null, p: TcpPara
     })
   if (p.flows.length === 1) {
     // Before the first loss ssthresh may be effectively infinite; draw it from where it fits.
-    const ss = run.series[0].ssthresh.filter(([, v]) => v <= top)
+    const ss = toEnd(run.series[0].ssthresh, p.duration_us).filter(([, v]) => v <= top)
     if (ss.length) series.push({ id: "ssthresh", label: "ssthresh", color: SSTHRESH_COLOR, kind: "step", points: ss, dashed: true })
   }
   return { series, top }

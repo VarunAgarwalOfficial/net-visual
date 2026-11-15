@@ -143,16 +143,16 @@ export function RdtAnalysis({ sim, p, run }: { sim: Netsim; p: RdtParams; run: R
         The numbers below are computed from the settings you are running, and the measured value comes from the run above. Change a setting
         and both move.
       </p>
-      <div className="overflow-x-auto rounded-sm border border-border p-4">
+      <div className="overflow-x-auto rounded-sm border border-border p-4 max-sm:p-3 max-sm:[&_.katex-display]:text-[0.85em]">
         <Tex
           display
-        >{`t = \\frac{L}{R} = \\frac{${p.data_bytes * 8}\\ \\text{bits}}{${texNum(p.rate_bps, 4)}\\ \\text{b/s}} = ${ms(th.t_data_us)}\\ \\text{ms}, \\qquad a = \\frac{d}{t} = ${texNum(a, 3)}`}</Tex>
+        >{`\\begin{aligned} t &= \\frac{L}{R} = \\frac{${p.data_bytes * 8}\\ \\text{bits}}{${texNum(p.rate_bps, 4)}\\ \\text{b/s}} = ${ms(th.t_data_us)}\\ \\text{ms}, \\\\ a &= \\frac{d}{t} = ${texNum(a, 3)} \\end{aligned}`}</Tex>
         <Tex
           display
-        >{`E[S] = \\Bigl(\\frac{1}{q} - 1\\Bigr)T + t + 2d + t_{\\text{ack}} = ${ms(th.slot_us)}\\ \\text{ms}, \\qquad q = (1-p_d)(1-p_a) = ${texNum(th.q_success, 3)}`}</Tex>
+        >{`\\begin{aligned} E[S] &= \\Bigl(\\frac{1}{q} - 1\\Bigr)T + t + 2d + t_{\\text{ack}} \\\\ &= ${ms(th.slot_us)}\\ \\text{ms}, \\\\ q &= (1-p_d)(1-p_a) = ${texNum(th.q_success, 3)} \\end{aligned}`}</Tex>
         <Tex
           display
-        >{`U \\le \\min\\Bigl(1 - p_d,\\ \\frac{N t}{E[S]}\\Bigr) = \\min(${texNum(th.link_bound, 3)},\\ ${texNum(th.window_bound, 3)}) = ${texNum(th.bound, 3)}`}</Tex>
+        >{`\\begin{aligned} U &\\le \\min\\Bigl(1 - p_d,\\ \\frac{N t}{E[S]}\\Bigr) \\\\ &= \\min(${texNum(th.link_bound, 3)},\\ ${texNum(th.window_bound, 3)}) = ${texNum(th.bound, 3)} \\end{aligned}`}</Tex>
         <p className="mt-2 font-sans text-sm">
           {protocol}, N = {p.window}: measured utilisation <b className="tabular-nums">{fmt(T.utilisation)}</b>
           {T.finished ? "" : " (the run hit its time limit)"}, bound <b className="tabular-nums">{fmt(th.bound)}</b>. Stallings' formulas

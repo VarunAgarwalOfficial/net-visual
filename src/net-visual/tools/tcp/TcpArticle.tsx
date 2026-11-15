@@ -188,10 +188,10 @@ export function TcpAnalysis({ sim, p, run }: { sim: Netsim; p: TcpParams; run: T
         Every number below is computed from the settings you are running; the measured values come from the run above, over its second half
         so that start-up does not count. Change a setting and both move.
       </p>
-      <div className="overflow-x-auto rounded-sm border border-border p-4">
+      <div className="overflow-x-auto rounded-sm border border-border p-4 max-sm:p-3 max-sm:[&_.katex-display]:text-[0.85em]">
         <Tex
           display
-        >{`t = \\frac{\\mathit{MSS}}{R} = \\frac{${p.mss_bytes * 8}\\ \\text{b}}{${texNum(p.rate_bps, 4)}\\ \\text{b/s}} = ${ms(th.tx_us)}\\ \\text{ms}, \\qquad P = \\frac{\\mathit{RTT}_0 + t}{t} = \\frac{${ms(rtt0)}}{${ms(th.tx_us)}} = ${texNum(P, 1)}\\ \\text{packets}`}</Tex>
+        >{`\\begin{aligned} t &= \\frac{\\mathit{MSS}}{R} = \\frac{${p.mss_bytes * 8}\\ \\text{b}}{${texNum(p.rate_bps, 4)}\\ \\text{b/s}} = ${ms(th.tx_us)}\\ \\text{ms}, \\\\ P &= \\frac{\\mathit{RTT}_0 + t}{t} = \\frac{${ms(rtt0)}}{${ms(th.tx_us)}} = ${texNum(P, 1)}\\ \\text{packets} \\end{aligned}`}</Tex>
         <p className="mt-2 font-sans text-sm">
           P is the bandwidth-delay product: the packets in flight when the link is busy and the queue is empty. Adding the buffer and the
           packet being sent, the path holds W = P + B + 1 = {W.toFixed(1)} before the next arrival is dropped.

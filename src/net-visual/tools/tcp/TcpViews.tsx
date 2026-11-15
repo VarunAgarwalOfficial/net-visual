@@ -4,12 +4,8 @@ import { LineChart, type Series } from "../../components/LineChart"
 import { Tex, texNum } from "../../components/Tex"
 import { lastAtOrBefore } from "../../components/timeline"
 import { mbps, smooth, valueAt, type State, type TcpParams, type TcpRun } from "../../core/tcp"
-import { FLOW_COLORS } from "./CwndChart"
+import { FLOW_COLORS, seconds, toEnd } from "./CwndChart"
 
-const seconds = (us: number) => {
-  const s = us / 1e6
-  return s >= 10 || Number.isInteger(s) ? s.toFixed(0) : s.toFixed(s >= 1 ? 1 : 2)
-}
 const txOf = (p: TcpParams) => (8 * p.mss_bytes * 1e6) / p.rate_bps
 
 /** CUBIC's C (RFC 9438, 4.1), as in the model. */
@@ -108,12 +104,6 @@ export function Dumbbell({ run, p, t }: { run: TcpRun; p: TcpParams; t: number }
       </p>
     </figure>
   )
-}
-
-/** A step series held at its last value to the end of the run. */
-function toEnd(points: [number, number][], end: number): [number, number][] {
-  const last = points[points.length - 1]
-  return last && last[0] < end ? [...points, [end, last[1]]] : points
 }
 
 /** A duration in plain text: microseconds, milliseconds or seconds. */
@@ -457,7 +447,7 @@ export const LiveEquations = memo(function LiveEquations({ run, p, s, t }: { run
           </p>
           <Tex
             display
-          >{`U = \\frac{3W^2/8}{P\\,(P - W/2) + (W^2 - P^2)/2} = ${W >= 2 * P ? "1 \\ (\\text{since } W \\ge 2P)" : texNum(run.theory.reno_utilisation, 3)}, \\qquad P = ${texNum(P, 1)},\\ W = ${texNum(W, 1)}`}</Tex>
+          >{`\\begin{gathered} U = \\frac{3W^2/8}{P\\,(P - W/2) + (W^2 - P^2)/2} = ${W >= 2 * P ? "1 \\ (\\text{since } W \\ge 2P)" : texNum(run.theory.reno_utilisation, 3)}, \\\\ P = ${texNum(P, 1)},\\ W = ${texNum(W, 1)} \\end{gathered}`}</Tex>
           <p className="font-sans text-xs text-muted-foreground">
             Measured: {run.totals.utilisation.toFixed(3)}.{" "}
             {p.drops.length > 0 || p.drop_every > 0 || p.loss > 0
