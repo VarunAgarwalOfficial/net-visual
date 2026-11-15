@@ -24,7 +24,18 @@ interface Props {
   cursor?: number
   onSeek?: (x: number) => void
   log?: { x?: boolean }
-  children?: ReactNode
+  /** Extra marks drawn under the series; a function receives the scales. */
+  children?: ReactNode | ((scale: Scale) => ReactNode)
+}
+
+/** The chart's scales, for marks placed in data coordinates. */
+export interface Scale {
+  sx(x: number): number
+  sy(y: number): number
+  left: number
+  right: number
+  top: number
+  bottom: number
 }
 
 function ticks(lo: number, hi: number, count: number): number[] {
@@ -191,7 +202,9 @@ export function LineChart(props: Props) {
             <text transform={`translate(12 ${m.t + h / 2}) rotate(-90)`} textAnchor="middle" fontSize="12" fill="var(--chart-ink)">
               {yLabel}
             </text>
-            {props.children}
+            {typeof props.children === "function"
+              ? props.children({ sx, sy, left: m.l, right: m.l + w, top: m.t, bottom: m.t + h })
+              : props.children}
             {series.map((s, i) =>
               s.kind === "dots" ? (
                 <g key={s.id}>

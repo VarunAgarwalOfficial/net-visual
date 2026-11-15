@@ -24,11 +24,13 @@ import {
 } from "../../core/rdt"
 import { linkFor, readHash } from "../../core/share"
 import { ParamSlider, ParamSwitch } from "../../components/Controls"
+import { ladderExports } from "../../components/figure"
 import { HeaderDiagram, type HeaderField } from "../../components/HeaderDiagram"
 import { LabPanel } from "../../components/LabPanel"
 import { Ladder, type LadderFlight, type LadderMark } from "../../components/Ladder"
 import { LiterateSource } from "../../components/LiterateSource"
 import { ToolActions } from "../../components/ToolActions"
+import { TraceList } from "../../components/TraceList"
 import { Transport } from "../../components/Transport"
 import { formatTime, timelineKeys, useTimeline } from "../../components/timeline"
 import { RdtAnalysis, RdtFrontier, RdtIntro, RdtInternals } from "./RdtArticle"
@@ -49,15 +51,6 @@ export function RdtTool() {
   if (error) return <p role="alert">The simulation could not load: {error}</p>
   if (!sim) return <p className="font-sans text-sm text-muted-foreground">Loading the simulation…</p>
   return <RdtLoaded sim={sim} />
-}
-
-/** Keep the current row visible by scrolling its list only, never the page. */
-function scrollWithin(el: HTMLElement | null) {
-  const box = el?.closest("ol")
-  if (!el || !box) return
-  const top = el.offsetTop // the list is the offset parent (position: relative)
-  if (top < box.scrollTop) box.scrollTop = top
-  else if (top + el.offsetHeight > box.scrollTop + box.clientHeight) box.scrollTop = top + el.offsetHeight - box.clientHeight
 }
 
 const toLadder = (run: RdtRun): LadderFlight[] =>
@@ -223,16 +216,21 @@ function RdtLoaded({ sim }: { sim: Netsim }) {
           {tour === null ? "Guided tour" : "End tour"}
         </Button>
         <ToolActions
-          name={`rdt-${preset || "custom"}`}
           root={root}
           link={() => linkFor("rdt", { p: params, t: Math.round(tl.t) } satisfies Shared)}
-          figure={() => ({
-            lanes: ["Sender", "Receiver"],
-            flights: ladderFlights,
-            marks,
-            upTo: tl.t,
-            caption: `${protocol}, N = ${params.window}, sequence numbers mod ${m}, at ${formatTime(tl.t)}`,
-          })}
+          figures={[
+            {
+              label: "Sequence diagram",
+              stem: `rdt-${preset || "custom"}`,
+              ...ladderExports({
+                lanes: ["Sender", "Receiver"],
+                flights: ladderFlights,
+                marks,
+                upTo: tl.t,
+                caption: `${protocol}, N = ${params.window}, sequence numbers mod ${m}, at ${formatTime(tl.t)}`,
+              }),
+            },
+          ]}
         />
       </div>
 
@@ -387,45 +385,6 @@ const Article = memo(function Article(props: { sim: Netsim; p: RdtParams; run: R
       <RdtFrontier />
       <RdtInternals />
     </>
-  )
-})
-
-const TraceRow = memo(function TraceRow({
-  e,
-  i,
-  active,
-  onSeek,
-}: {
-  e: RdtRun["events"][number]
-  i: number
-  active: boolean
-  onSeek(i: number): void
-}) {
-  return (
-    <li>
-      <button
-        className={cn(
-          "grid w-full grid-cols-[4.5rem_2rem_1fr] gap-2 px-1 py-0.5 text-left hover:bg-muted",
-          active && "bg-[color-mix(in_oklab,var(--link)_14%,transparent)]",
-        )}
-        onClick={() => onSeek(i)}
-        ref={active ? scrollWithin : undefined}
-      >
-        <span className="text-muted-foreground tabular-nums">{formatTime(e.t)}</span>
-        <b>{e.step}</b>
-        <span>{e.text}</span>
-      </button>
-    </li>
-  )
-})
-
-const TraceList = memo(function TraceList({ events, index, onSeek }: { events: RdtRun["events"]; index: number; onSeek(i: number): void }) {
-  return (
-    <ol className="relative max-h-80 overflow-auto font-sans text-sm" aria-label="Event trace">
-      {events.map((e, i) => (
-        <TraceRow key={i} e={e} i={i} active={i === index} onSeek={onSeek} />
-      ))}
-    </ol>
   )
 })
 

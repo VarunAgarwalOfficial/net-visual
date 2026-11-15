@@ -20,7 +20,16 @@ export interface LadderFigure {
 const INK = "#141a24"
 const MUTED = "#4d5766"
 const ALARM = "#b42318"
-const PALETTE: Record<string, string> = { "var(--chart-1)": "#2a78d6", "var(--chart-2)": "#eb6834" }
+const PALETTE: Record<string, string> = {
+  "var(--chart-1)": "#2a78d6",
+  "var(--chart-2)": "#eb6834",
+  "var(--chart-3)": "#1baf7a",
+  "var(--chart-4)": "#eda100",
+  "var(--chart-5)": "#e87ba4",
+  "var(--chart-6)": "#008300",
+  "var(--foreground)": INK,
+  "var(--muted-foreground)": MUTED,
+}
 const hex = (c: string) => PALETTE[c] ?? (c.startsWith("#") ? c : INK)
 
 interface Seg {
@@ -172,6 +181,145 @@ export function ladderTikz(fig: LadderFigure): string {
   L.push("\\end{tikzpicture}", "\\end{document}", "")
   return L.join("\n")
 }
+
+/**
+ * A line chart as a figure: series in data coordinates, optional horizontal
+ * reference lines (a bandwidth-delay product, a buffer size), axis labels
+ * and a caption.
+ */
+export interface ChartFigure {
+  xLabel: string
+  yLabel: string
+  xFormat(x: number): string
+  yFormat(y: number): string
+  xDomain: [number, number]
+  yDomain: [number, number]
+  series: { label: string; color: string; points: [number, number][]; dashed?: boolean; step?: boolean }[]
+  refs: { y: number; label: string }[]
+  caption: string
+}
+
+/** At most n points, evenly spaced through the series, keeping the last. */
+function thin(points: [number, number][], n: number): [number, number][] {
+  if (points.length <= n) return points
+  const step = points.length / n
+  const out = Array.from({ length: n }, (_, i) => points[Math.floor(i * step)])
+  out.push(points[points.length - 1])
+  return out
+}
+
+function chartTicks(lo: number, hi: number, count: number): number[] {
+  const step = niceStep((hi - lo) / count)
+  const out: number[] = []
+  for (let v = Math.ceil(lo / step) * step; v <= hi + step * 1e-9; v += step) out.push(Number(v.toPrecision(12)))
+  return out
+}
+
+/** The polyline of a series, clipped to the y range, with steps if asked. */
+function trace(points: [number, number][], step: boolean, x: (v: number) => number, y: (v: number) => number, lo: number, hi: number) {
+  const out: [number, number][] = []
+  for (const [px, py] of thin(points, 2000)) {
+    const Y = y(Math.min(Math.max(py, lo), hi))
+    if (step && out.length) out.push([x(px), out[out.length - 1][1]])
+    out.push([x(px), Y])
+  }
+  return out
+}
+
+export function chartSvg(fig: ChartFigure): string {
+  const W = 720
+  const H = 320
+  const m = { l: 64, r: 120, t: 36, b: 52 }
+  const [x0, x1] = fig.xDomain
+  const [y0, y1] = fig.yDomain
+  const x = (v: number) => m.l + ((v - x0) / (x1 - x0 || 1)) * (W - m.l - m.r)
+  const y = (v: number) => m.t + (1 - (v - y0) / (y1 - y0 || 1)) * (H - m.t - m.b)
+  const n = (v: number) => v.toFixed(1)
+  const out: string[] = [
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H + 24}" viewBox="0 0 ${W} ${H + 24}" font-family="'CMU Sans Serif', 'Latin Modern Sans', Helvetica, Arial, sans-serif">`,
+    `<title>${esc(fig.caption)}</title>`,
+    `<rect width="100%" height="100%" fill="#ffffff"/>`,
+  ]
+  for (const v of chartTicks(y0, y1, 5)) {
+    out.push(`<line x1="${m.l}" x2="${W - m.r}" y1="${n(y(v))}" y2="${n(y(v))}" stroke="#e3e7ec"/>`)
+    out.push(
+      `<text x="${m.l - 6}" y="${n(y(v))}" dy="0.32em" text-anchor="end" font-size="11" fill="${MUTED}">${esc(fig.yFormat(v))}</text>`,
+    )
+  }
+  for (const v of chartTicks(x0, x1, 7))
+    out.push(`<text x="${n(x(v))}" y="${H - m.b + 16}" text-anchor="middle" font-size="11" fill="${MUTED}">${esc(fig.xFormat(v))}</text>`)
+  out.push(`<line x1="${m.l}" x2="${W - m.r}" y1="${H - m.b}" y2="${H - m.b}" stroke="${INK}" stroke-opacity="0.5"/>`)
+  out.push(`<text x="${(m.l + W - m.r) / 2}" y="${H - 12}" text-anchor="middle" font-size="12" fill="${INK}">${esc(fig.xLabel)}</text>`)
+  out.push(
+    `<text transform="translate(14 ${(m.t + H - m.b) / 2}) rotate(-90)" text-anchor="middle" font-size="12" fill="${INK}">${esc(fig.yLabel)}</text>`,
+  )
+  for (const r of fig.refs.filter((r) => r.y >= y0 && r.y <= y1)) {
+    out.push(`<line x1="${m.l}" x2="${W - m.r}" y1="${n(y(r.y))}" y2="${n(y(r.y))}" stroke="${MUTED}" stroke-dasharray="2 3"/>`)
+    out.push(`<text x="${W - m.r + 6}" y="${n(y(r.y))}" dy="0.32em" font-size="11" fill="${MUTED}">${esc(r.label)}</text>`)
+  }
+  fig.series.forEach((s, i) => {
+    const pts = trace(s.points, !!s.step, x, y, y0, y1)
+    out.push(
+      `<polyline points="${pts.map(([a, b]) => `${n(a)},${n(b)}`).join(" ")}" fill="none" stroke="${hex(s.color)}" stroke-width="1.75" stroke-linejoin="round"${s.dashed ? ' stroke-dasharray="5 4"' : ""}/>`,
+    )
+    const lx = m.l + (i % 4) * 150
+    const ly = 10 + Math.floor(i / 4) * 14
+    out.push(
+      `<line x1="${lx}" x2="${lx + 18}" y1="${ly}" y2="${ly}" stroke="${hex(s.color)}" stroke-width="2"${s.dashed ? ' stroke-dasharray="4 3"' : ""}/>`,
+      `<text x="${lx + 22}" y="${ly}" dy="0.32em" font-size="11" fill="${INK}">${esc(s.label)}</text>`,
+    )
+  })
+  out.push(`<text x="${W / 2}" y="${H + 12}" text-anchor="middle" font-size="12" fill="${INK}">${esc(fig.caption)}</text>`, `</svg>`)
+  return out.join("\n")
+}
+
+export function chartTikz(fig: ChartFigure): string {
+  const Wcm = 12
+  const Hcm = 6
+  const [x0, x1] = fig.xDomain
+  const [y0, y1] = fig.yDomain
+  const n = (v: number) => Number(v.toFixed(3))
+  const x = (v: number) => n(((v - x0) / (x1 - x0 || 1)) * Wcm)
+  const y = (v: number) => n(((v - y0) / (y1 - y0 || 1)) * Hcm)
+  const colours = [...new Set(fig.series.map((s) => hex(s.color)))]
+  const name = (c: string) => `nv${colours.indexOf(c)}`
+  const L: string[] = [
+    "% Exported from net-visual. Compile with pdflatex.",
+    "\\documentclass[tikz,border=6pt]{standalone}",
+    ...colours.map((c) => `\\definecolor{${name(c)}}{HTML}{${c.slice(1).toUpperCase()}}`),
+    "\\begin{document}",
+    "\\begin{tikzpicture}[font=\\sffamily\\scriptsize]",
+  ]
+  for (const v of chartTicks(y0, y1, 5)) {
+    L.push(`  \\draw[black!12] (0,${y(v)}) -- (${Wcm},${y(v)});`)
+    L.push(`  \\node[anchor=east, black!60] at (-0.1,${y(v)}) {${tex(fig.yFormat(v))}};`)
+  }
+  for (const v of chartTicks(x0, x1, 7)) L.push(`  \\node[anchor=north, black!60] at (${x(v)},-0.1) {${tex(fig.xFormat(v))}};`)
+  L.push(`  \\draw[black!50] (0,0) -- (${Wcm},0);`)
+  L.push(`  \\node[anchor=north] at (${Wcm / 2},-0.6) {${tex(fig.xLabel)}};`)
+  L.push(`  \\node[anchor=south, rotate=90] at (-1.2,${Hcm / 2}) {${tex(fig.yLabel)}};`)
+  for (const r of fig.refs.filter((r) => r.y >= y0 && r.y <= y1)) {
+    L.push(`  \\draw[black!55, dash pattern=on 1.5pt off 2pt] (0,${y(r.y)}) -- (${Wcm},${y(r.y)});`)
+    L.push(`  \\node[anchor=west, black!60] at (${Wcm + 0.1},${y(r.y)}) {${tex(r.label)}};`)
+  }
+  fig.series.forEach((s, i) => {
+    const pts = trace(s.points, !!s.step, x, y, y0, y1)
+    const style = `${name(hex(s.color))}, line width=0.8pt, line join=round${s.dashed ? ", dash pattern=on 3pt off 2pt" : ""}`
+    L.push(`  \\draw[${style}] ${pts.map(([a, b]) => `(${n(a)},${n(b)})`).join(" -- ")};`)
+    L.push(
+      `  \\draw[${style}] (${n((i % 4) * 3)},${n(Hcm + 0.8 - Math.floor(i / 4) * 0.4)}) -- ++(0.5,0) node[anchor=west, black] {${tex(s.label)}};`,
+    )
+  })
+  L.push(`  \\node[anchor=north, font=\\sffamily\\small] at (${Wcm / 2},-1.1) {${tex(fig.caption)}};`)
+  L.push("\\end{tikzpicture}", "\\end{document}", "")
+  return L.join("\n")
+}
+
+/** Lazy SVG and TikZ exports of a sequence diagram, for ToolActions. */
+export const ladderExports = (fig: LadderFigure) => ({ svg: () => ladderSvg(fig), tikz: () => ladderTikz(fig) })
+
+/** Lazy SVG and TikZ exports of a chart, for ToolActions. */
+export const chartExports = (fig: () => ChartFigure) => ({ svg: () => chartSvg(fig()), tikz: () => chartTikz(fig()) })
 
 /** Offer text to the reader as a file download. */
 export function download(filename: string, text: string, type: string) {

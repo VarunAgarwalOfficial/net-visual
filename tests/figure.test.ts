@@ -7,7 +7,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { test } from "node:test"
 
-import { ladderSvg, ladderTikz, type LadderFigure } from "../src/net-visual/components/figure.ts"
+import { chartSvg, chartTikz, ladderSvg, ladderTikz, type ChartFigure, type LadderFigure } from "../src/net-visual/components/figure.ts"
 import { createNetsim } from "../src/net-visual/core/netsim.ts"
 import { PRESETS, runDuration, runRdt } from "../src/net-visual/core/rdt.ts"
 
@@ -40,4 +40,33 @@ test("the TikZ export compiles with pdflatex", { skip: !hasLatex && "pdflatex is
   writeFileSync(join(dir, "fig.tex"), ladderTikz(fig))
   execFileSync("pdflatex", ["-interaction=nonstopmode", "-halt-on-error", "fig.tex"], { cwd: dir, stdio: "pipe" })
   assert.ok(readFileSync(join(dir, "fig.pdf")).length > 1000)
+})
+
+const chart: ChartFigure = {
+  xLabel: "time (s)",
+  yLabel: "window (segments)",
+  xFormat: (x) => (x / 1e6).toFixed(0),
+  yFormat: (y) => y.toFixed(0),
+  xDomain: [0, 3e6],
+  yDomain: [0, 30],
+  series: [
+    { label: "Reno cwnd", color: "var(--chart-1)", points: [[0, 1], [1e6, 12], [2e6, 6], [3e6, 9]], step: true },
+    { label: "Tahoe & 50% <cwnd>", color: "var(--chart-2)", points: [[0, 1], [1e6, 12], [1.2e6, 1]], dashed: true },
+  ],
+  refs: [{ y: 8, label: "ssthresh_0 = 8" }],
+  caption: "A chart with 100% & $5 #1 {a_b}",
+}
+
+test("the chart SVG export escapes text and uses concrete colours", () => {
+  const svg = chartSvg(chart)
+  assert.ok(svg.includes("Tahoe &amp; 50% &lt;cwnd&gt;"))
+  assert.ok(!svg.includes("var(--"))
+  assert.equal((svg.match(/<polyline/g) ?? []).length, 2)
+})
+
+test("the chart TikZ export compiles with pdflatex", { skip: !hasLatex && "pdflatex is not installed" }, () => {
+  const dir = mkdtempSync(join(tmpdir(), "nv-tikz-"))
+  writeFileSync(join(dir, "chart.tex"), chartTikz(chart))
+  execFileSync("pdflatex", ["-interaction=nonstopmode", "-halt-on-error", "chart.tex"], { cwd: dir, stdio: "pipe" })
+  assert.ok(readFileSync(join(dir, "chart.pdf")).length > 1000)
 })
