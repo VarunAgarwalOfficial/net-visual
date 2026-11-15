@@ -260,6 +260,8 @@ struct ConnState {
     inflight: u32,
     /// Start of the current recovery period.
     recovery: Option<u64>,
+    /// Entering recovery lets one retransmission go whatever the window.
+    urgent: bool,
     next_num: u32,
     next_seq: u32,
     retx: VecDeque<Chunk>,
@@ -465,6 +467,7 @@ impl<'a> Sim<'a> {
             ssthresh: f64::INFINITY,
             inflight: 0,
             recovery: None,
+            urgent: false,
             next_num: 0,
             next_seq: 0,
             retx: VecDeque::new(),
@@ -649,15 +652,20 @@ impl<'a> Sim<'a> {
     }
 
     // S2. [Send.] While the congestion window has room, the server sends a
-    // packet: a retransmission first, then new data. Packets from every
-    // connection leave through one bottleneck in the order they are sent.
+    // packet: a retransmission first, then new data. On entering recovery
+    // the retransmission goes at once even if the halved window is full
+    // (TCP's fast retransmit, RFC 5681 Section 3.2; RFC 9002 Section 7.3.2).
+    // Packets from every connection leave through one bottleneck in the
+    // order they are sent.
     fn pump(&mut self, c: usize, t: u64) {
         loop {
-            let st = &self.cs[c];
-            if f64::from(st.inflight) + 1.0 > st.cwnd.floor().max(1.0) {
+            let st = &mut self.cs[c];
+            let room = f64::from(st.inflight) + 1.0 <= st.cwnd.floor().max(1.0);
+            if !room && !(st.urgent && !st.retx.is_empty()) {
                 break;
             }
-            let (chunk, retx) = if let Some(ch) = self.cs[c].retx.pop_front() {
+            let (chunk, retx) = if let Some(ch) = st.retx.pop_front() {
+                st.urgent = false;
                 (ch, true)
             } else if let Some(ch) = self.next_chunk(c) {
                 (ch, false)
@@ -901,7 +909,8 @@ impl<'a> Sim<'a> {
 
     // L1. [Declare lost.] The server queues the lost data again, ahead of
     // new data, under a new packet number but at the same place in the byte
-    // stream. The first loss in a recovery period halves the window.
+    // stream. The first loss in a recovery period halves the window and lets
+    // the retransmission jump the window once.
     fn declare_lost(&mut self, k: usize, t: u64, how: &'static str) {
         let c = self.packets[k].conn;
         let pk = self.packets[k].clone();
@@ -913,6 +922,7 @@ impl<'a> Sim<'a> {
             st.ssthresh = (st.cwnd / 2.0).max(2.0);
             st.cwnd = st.ssthresh;
             st.recovery = Some(t);
+            st.urgent = true;
         }
         let cwnd = st.cwnd;
         st.retx.push_back(Chunk {
@@ -1213,6 +1223,20 @@ mod tests {
         // Found by the packet threshold, not the timer, in both.
         assert_eq!(r2.packets[12].detected_by.as_deref(), Some("threshold"));
         assert_eq!(r3.packets[12].detected_by.as_deref(), Some("threshold"));
+        // The repair leaves the moment the loss is declared, window or not.
+        for r in [&r2, &r3] {
+            let fix = r
+                .packets
+                .iter()
+                .position(|q| q.retx_of == Some(12))
+                .unwrap();
+            let sent = r
+                .events
+                .iter()
+                .find(|e| e.step == "S2" && e.pkt == Some(fix))
+                .unwrap();
+            assert_eq!(Some(sent.t), r.packets[12].detected_ns);
+        }
     }
 
     #[test]
