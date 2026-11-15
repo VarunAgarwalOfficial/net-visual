@@ -160,12 +160,12 @@ export type WebMode = "resolve" | "cache" | "ttl"
 
 /** Every mode on the page, naming first, then HTTP. */
 export const MODES: { id: WebMode | HttpMode; title: string; group: "naming" | "http" }[] = [
-  { id: "resolve", title: "Resolution", group: "naming" },
-  { id: "cache", title: "Shared cache", group: "naming" },
-  { id: "ttl", title: "TTLs and change", group: "naming" },
-  { id: "connections", title: "HTTP connections", group: "http" },
-  { id: "hol", title: "Head-of-line blocking", group: "http" },
-  { id: "handshake", title: "Handshakes and loss", group: "http" },
+  { id: "resolve", title: "Looking up a name (DNS, the Domain Name System)", group: "naming" },
+  { id: "cache", title: "One shared cache, many devices asking", group: "naming" },
+  { id: "ttl", title: "How long a cached answer lasts (TTL, time to live)", group: "naming" },
+  { id: "connections", title: "Fetching a web page over HTTP connections", group: "http" },
+  { id: "hol", title: "One reply holding up the rest (head-of-line blocking)", group: "http" },
+  { id: "handshake", title: "Setting up before the first request, and losses", group: "http" },
 ]
 
 export interface WebParams {
@@ -367,15 +367,15 @@ export const PRESETS: Preset[] = [
   {
     id: "cold-warm",
     mode: "resolve",
-    title: "Cold, then warm",
+    title: "Looking a name up twice: first from scratch, then from the cache",
     source: "RFC 1034, Section 5.3.3; Kurose and Ross, Section 2.4",
-    note: "The resolver starts empty. The laptop's first lookup of www.example.com. walks down from the root: 10 ms to the resolver and back, then 30 + 40 + 20 ms to the root, com. and example.com. servers, 100 ms in all. Two seconds later the phone asks for the same name and gets it from the resolver's cache in its own 24 ms round trip. At 4 s mail.example.com. needs only example.com.'s server, because the referral to it is cached: 30 ms.",
+    note: "A laptop and a phone ask a resolver, a server that looks names up for them and keeps what it learns; it starts empty. The laptop's first lookup of www.example.com. (the final dot stands for the root of all names) walks down from the root servers: 10 ms to the resolver and back, then 30 + 40 + 20 ms to the root, com. and example.com. servers, 100 ms in all. Two seconds later the phone asks for the same name and gets it from the resolver's cache in its own 24 ms round trip. At 4 s mail.example.com. needs only example.com.'s server, because the referral to it is cached: 30 ms.",
     params: web("resolve", { queries: [q(0, WWW), q(2, WWW, 1), q(4, MAIL)] }),
   },
   {
     id: "chain",
     mode: "resolve",
-    title: "The recursive chain",
+    title: "Each server asks the next (recursive lookup)",
     source: "RFC 1034, Section 4.3.1; Kurose and Ross, Figure 2.20",
     note: "The same three lookups, but each server asks the next on the asker's behalf and passes the answer back, as textbook figures of recursive resolution draw it. The cold total is the same 100 ms, but the resolver never sees the referrals, so mail.example.com. goes through the root and com. again: 100 ms instead of 30 ms, and the root is asked twice instead of once.",
     params: web("resolve", { mode: "recursive", queries: [q(0, WWW), q(2, WWW, 1), q(4, MAIL)] }),
@@ -385,15 +385,15 @@ export const PRESETS: Preset[] = [
     mode: "resolve",
     title: "An alias into another zone",
     source: "RFC 1034, Sections 3.6.2 and 4.3.2",
-    note: "shop.example.com. is a CNAME for shop.example.net., as a site served by a content network often is. Cold, the resolver walks to example.com. (90 ms), learns the alias, and walks again from the root to example.net. (30 + 36 + 12 ms): 178 ms with the laptop's 10. A second later the chain is cached: 10 ms. At 70 s the alias (TTL 600 s) is still cached but the network's address (TTL 60 s) is not, so only example.net.'s server is asked: 22 ms.",
+    note: "shop.example.com. is an alias (a CNAME, canonical name, record) for shop.example.net., as a site served by a content network often is. Cold, the resolver walks to example.com. (90 ms), learns the alias, and walks again from the root to example.net. (30 + 36 + 12 ms): 178 ms with the laptop's 10. A second later the chain is cached: 10 ms. At 70 s the alias (kept for 600 s) is still cached but the network's address (kept for 60 s) is not, so only example.net.'s server is asked: 22 ms.",
     params: web("resolve", { queries: [q(0, SHOP), q(1, SHOP), q(70, SHOP)] }),
   },
   {
     id: "stub",
     mode: "resolve",
-    title: "Stub caches downstream",
+    title: "The devices keep their own copies too",
     source: "RFC 1034, Section 5.3.1; RFC 1035, Section 7.4",
-    note: "Both clients now keep their own cache, and www.example.com. has a 30 s TTL. The laptop's second lookup at 10 s is answered by its own stub in no time at all. The phone at 15 s gets the answer from the resolver, with only the TTL that remains, so its copy expires 12 ms after the resolver's: the time the answer took to reach it. At 40 s every copy has gone and the lookup costs 30 ms again.",
+    note: "Both devices now keep their own cache in their stub, the small resolver on each device, and www.example.com. may be kept for 30 s, its time to live (TTL). The laptop's second lookup at 10 s is answered by its own stub in no time at all. The phone at 15 s gets the answer from the resolver, with only the time to live that remains, so its copy expires 12 ms after the resolver's: the time the answer took to reach it. At 40 s every copy has gone and the lookup costs 30 ms again.",
     params: web("resolve", {
       zones: withTtl(ZONES, WWW, "A", 30),
       clients: [
@@ -409,7 +409,7 @@ export const PRESETS: Preset[] = [
     mode: "resolve",
     title: "A name that does not exist",
     source: "RFC 2308, Sections 3 and 5",
-    note: "Someone types wwww.example.com. The example.com. server says NXDOMAIN and attaches its SOA record, whose TTL is 3600 s and whose MINIMUM field is 300 s. The resolver caches the denial for the smaller, 300 s, so the phone's repeat at 60 s costs only its round trip. At 400 s the denial has expired and the server is asked again.",
+    note: "Someone types wwww.example.com. The example.com. server replies that no such name exists (NXDOMAIN) and attaches its zone's start-of-authority (SOA) record, which may be kept for 3600 s and whose MINIMUM field says 300 s. The resolver caches the denial for the smaller, 300 s, so the phone's repeat at 60 s costs only its round trip. At 400 s the denial has expired and the server is asked again.",
     params: web("resolve", { queries: [q(0, TYPO), q(60, TYPO, 1), q(400, TYPO)] }),
   },
   {
@@ -417,7 +417,7 @@ export const PRESETS: Preset[] = [
     mode: "cache",
     title: "One name, many clients",
     source: "Jung, Berger and Balakrishnan 2003; renewal argument in the article",
-    note: "Eight hosts behind one resolver ask for www.example.com. (TTL 60 s here) as a Poisson stream of 0.05 queries a second in all, so λT = 3. After each miss the name stays cached for T, every query in that time hits, and the first query after expiry misses again: the hit ratio is λT / (1 + λT) = 0.75. Forty minutes is about 120 queries, so the run's own ratio wanders; the sweep below uses 5000 queries a point.",
+    note: "Eight hosts behind one resolver ask for www.example.com. (kept for 60 s here) at random moments, 0.05 queries a second in all, so 3 queries arrive on average while one answer is cached. After each miss the name stays cached, every query in that time hits, and the first query after expiry misses again: about 3 hits for each miss, so three quarters of lookups are answered from the cache. Forty minutes is about 120 queries, so the run's own ratio wanders; the sweep below uses 5000 queries a point.",
     params: web("cache", {
       zones: withTtl(ZONES, WWW, "A", 60),
       clients: hosts(8),
@@ -427,7 +427,7 @@ export const PRESETS: Preset[] = [
   {
     id: "root-load",
     mode: "cache",
-    title: "What the root sees",
+    title: "What the root servers see",
     source: "RFC 1034, Section 5.3.3; RFC 7816",
     note: "Four names, one a typo, asked at 0.5 a second for ten minutes. Iterating, the resolver caches the referrals to com. and net. for two days, so the root is asked only twice, once for each top-level domain, however many lookups follow. Switch to recursive and the root hears every miss the resolver has: 15 queries in the same ten minutes, most of them for the content network's address, whose TTL is only 60 s.",
     params: web("cache", {
@@ -448,7 +448,7 @@ export const PRESETS: Preset[] = [
     mode: "ttl",
     title: "The address moves",
     source: "RFC 1034, Section 3.6; RFC 1035, Section 3.2.1",
-    note: "www.example.com. moves to 203.0.113.99 at 100 s. The resolver cached the old address at 0.095 s for its 300 s TTL and keeps serving it, correctly by the rules, until 300.095 s: every lookup from 120 s to 300 s gets the old address. Changing the zone does not reach into caches; only the TTL bounds how long they may disagree.",
+    note: "www.example.com. moves to 203.0.113.99 at 100 s. The resolver cached the old address at 0.095 s for its time to live (TTL) of 300 s and keeps serving it, correctly by the rules, until 300.095 s: every lookup from 120 s to 300 s gets the old address. Changing the zone does not reach into caches; only the TTL bounds how long they may disagree.",
     params: web("ttl", {
       queries: every(0, 450, 30, WWW),
       changes: [{ at_us: 100 * S, name: WWW, value: MOVED, ttl_s: 60 }],
@@ -457,7 +457,7 @@ export const PRESETS: Preset[] = [
   {
     id: "lower-first",
     mode: "ttl",
-    title: "Lower the TTL first",
+    title: "Shorten the time to live (TTL) before moving",
     source: "Operators' practice; RFC 1034, Section 3.6",
     note: "The move is at 400 s, and at 50 s the owner lowers the TTL to 30 s without changing the address. The copy cached at 0.095 s still carries the old 300 s promise, but after it expires at 300.095 s every copy lasts at most 30 s, so at most one stale answer is served after the move instead of a stream of them. Lowering must come at least one old TTL before the change.",
     params: web("ttl", {
@@ -506,7 +506,7 @@ export const TOUR: TourStep[] = [
     preset: "cold-warm",
     at: 95 * MS,
     step: "R3",
-    text: "example.com.'s server is authoritative and answers: 203.0.113.10, TTL 300 s. The resolver caches it; the Caches tab shows each entry counting down. The laptop has its answer at 100 ms, the sum of the four round trips.",
+    text: "example.com.'s server is authoritative and answers: 203.0.113.10, TTL 300 s. The resolver caches it; the list of caches under Go deeper shows each entry counting down. The laptop has its answer at 100 ms, the sum of the four round trips.",
   },
   {
     preset: "cold-warm",
@@ -554,7 +554,7 @@ export const TOUR: TourStep[] = [
     preset: "hit-ratio",
     at: 0,
     step: "C1",
-    text: "Eight hosts share one resolver. Each miss buys T seconds in which every query for the name hits; the equation card compares the run's hit ratio with λT / (1 + λT), and the chart sweeps λT with 5000 queries a point.",
+    text: "Eight hosts share one resolver. Each miss buys T seconds in which every query for the name hits; the formulas under Go deeper compare the run's hit ratio with λT / (1 + λT), where λ is queries a second and T the time to live, and the chart sweeps λT with 5000 queries a point.",
   },
   {
     preset: "ttl-change",
@@ -591,7 +591,7 @@ export const LABS: LabTask[] = [
     difficulty: 1,
     title: "Warm the cache for a name you have not asked",
     task: "The laptop looks up mail.example.com. at 5 s with a cold resolver, which takes 100 ms. Add one query for a different name, earlier, so that the lookup at 5 s takes 30 ms.",
-    hint: "What does the resolver keep from a lookup besides the answer? Any name it must ask example.com.'s server for will do; the Setup tab adds queries.",
+    hint: "What does the resolver keep from a lookup besides the answer? Any name it must ask example.com.'s server for will do; the settings under Go deeper add queries.",
     start: web("resolve", { queries: [q(5, MAIL)] }),
     check(p, run) {
       const others = p.dns.queries.filter((x) => x.name !== MAIL)
@@ -627,7 +627,7 @@ export const LABS: LabTask[] = [
     difficulty: 2,
     title: "Cache the typo for a minute",
     task: "Make the resolver keep the denial of wwww.example.com. for exactly 60 s, without changing the TTL of example.com.'s SOA record itself (3600 s).",
-    hint: "RFC 2308 Section 5 takes the smaller of two SOA fields. Which one can you lower? Look in the Setup tab under example.com.",
+    hint: "RFC 2308 Section 5 takes the smaller of two SOA fields. Which one can you lower? Look in the settings under Go deeper, under example.com.",
     start: preset("nxdomain"),
     check(p, run) {
       const z = p.dns.zones.find((x) => x.origin === "example.com.")

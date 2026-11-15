@@ -2,18 +2,23 @@
 // and 3, with a stream view, a packet ladder, live equations and sweeps.
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 
-import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { chartExports } from "../../components/figure"
 import { LabPanel } from "../../components/LabPanel"
 import { LineChart, useWidth } from "../../components/LineChart"
 import { LiterateSource } from "../../components/LiterateSource"
-import { ToolActions } from "../../components/ToolActions"
 import { TraceList } from "../../components/TraceList"
 import { Transport } from "../../components/Transport"
-import { scrollBehavior } from "../../components/ToolFrame"
+import {
+  DeeperHeading,
+  Disclosure,
+  ExampleIntro,
+  Readouts,
+  StepCard,
+  TourAndSharing,
+  TourCard,
+  scrollBehavior,
+} from "../../components/ToolFrame"
 import { keepFocus, timelineKeys, useTimeline } from "../../components/timeline"
 import {
   HTTP_LABS,
@@ -22,6 +27,7 @@ import {
   HTTP_TOUR,
   MS,
   fmtNs,
+  isHttpMode,
   runHttp,
   type HttpMode,
   type HttpRun,
@@ -34,7 +40,7 @@ import { figSvg, figTikz } from "../link/shapes"
 import { HttpAnalysis, HttpFrontier, HttpInternals, HttpIntro, HttpMechanics } from "./HttpArticle"
 import { ladderFigure, streamsFigure } from "./httpFigures"
 import { HttpEquations, HttpObjects, HttpSetup, HttpTotals, httpChart } from "./HttpViews"
-import { ModeSwitch, type AnyMode } from "./ModeSwitch"
+import { WebPicker, modeOf, type AnyMode } from "./ModeSwitch"
 
 /** What a shared link carries for the HTTP modes: the setup and the clock in µs. */
 export interface HttpShared {
@@ -47,9 +53,9 @@ const DEFAULT_VIEW: Record<HttpMode, View> = { connections: "ladder", hol: "stre
 
 const HELP: Record<View, string> = {
   streams:
-    "One row per object. Upper ticks are packets as they arrive, lower ticks as they are handed to the browser; a red bar is data that has arrived but is held behind a gap, and a cross marks a lost packet. Dashed red lines mark each loss across every row.",
+    "One row per object, a file the page needs, with its size; time left to right. Upper ticks are packets as they arrive, lower ticks as they are handed to the browser; a red bar is data that has arrived but is held behind a gap, and a cross marks a lost packet. Dashed red lines mark each loss across every row.",
   ladder:
-    "Client on the left, server on the right, time running down. Grey lines are handshakes, dark ones requests, coloured ones data packets (one colour per object). A cross is a lost packet, a dashed line its retransmission, and a red dot the moment the server noticed.",
+    "The client (the browser) on the left, the server on the right, time running down. Grey lines are handshakes: SYN, SYN-ACK and ACK open a TCP (Transmission Control Protocol) connection, and ClientHello, ServerHello and Finished set up its encryption (TLS, Transport Layer Security). Dark lines are requests, and coloured ones data packets, one colour per object. Where there are several connections, [1], [2] and so on say which one a line belongs to. A cross is a lost packet, a dashed line its retransmission, and a red dot the moment the server noticed.",
 }
 
 const SLICE = 200
@@ -60,20 +66,22 @@ export function HttpPanel({
   sim,
   shared,
   startMode,
+  startPreset,
   onSwitch,
 }: {
   sim: Netsim
   shared?: HttpShared
   startMode?: HttpMode
-  onSwitch(m: AnyMode): void
+  startPreset?: string
+  onSwitch(m: AnyMode, preset?: string): void
 }) {
-  const first = HTTP_PRESETS.find((pr) => pr.mode === (startMode ?? HTTP_PRESETS[0].mode))!
+  const first =
+    HTTP_PRESETS.find((pr) => pr.id === startPreset) ?? HTTP_PRESETS.find((pr) => pr.mode === (startMode ?? HTTP_PRESETS[0].mode))!
   const [params, setParams] = useState<HttpWeb>(shared?.h ?? first.params)
   const [preset, setPreset] = useState<string>(() =>
     shared ? (HTTP_PRESETS.find((q) => JSON.stringify(q.params) === JSON.stringify(shared.h))?.id ?? "") : first.id,
   )
   const [view, setView] = useState<View>(DEFAULT_VIEW[params.mode])
-  const [tab, setTab] = useState("trace")
   const [tour, setTour] = useState<number | null>(null)
   const root = useRef<HTMLElement>(null)
   const [figBox, width] = useWidth<HTMLDivElement>()
@@ -91,7 +99,6 @@ export function HttpPanel({
     }
   }
   const { run, p } = good
-  const mode = p.mode
   const source = useMemo(() => sim.call<string>("http", "source"), [sim])
 
   // The clock runs in microseconds of simulated time.
@@ -146,161 +153,112 @@ export function HttpPanel({
 
   const presetInfo = HTTP_PRESETS.find((q) => q.id === preset)
   const title = presetInfo?.title ?? "Your own setup"
-  const figLabel = view === "streams" ? "Each object's bytes, arrived and delivered" : "Handshakes, requests and packets"
+  const started = tl.index >= 0 && !!event
+  const figLabel = view === "streams" ? "each object's bytes, arrived and delivered" : "the handshakes, requests and packets"
   const caption = `${title}, at ${fmtNs(tNs)}: ${fig.summary}`
-  const choices = HTTP_PRESETS.filter((pr) => pr.mode === mode)
   const other: View = view === "streams" ? "ladder" : "streams"
   const otherFig = () => (other === "streams" ? streamsFigure(p.http, run, tNs, w) : ladderFigure(p.http, run, tNs, w))
-  const who = event
-    ? [
-        event.conn !== null && run.conns.length > 1 ? `connection ${event.conn + 1}` : "",
-        event.obj !== null ? run.objects[event.obj].name : "",
-      ]
-        .filter(Boolean)
-        .join(", ")
-    : ""
+  const who =
+    started && event
+      ? [
+          event.conn !== null && run.conns.length > 1 ? `connection ${event.conn + 1}` : "",
+          event.obj !== null ? run.objects[event.obj].name : "",
+        ]
+          .filter(Boolean)
+          .join(", ")
+      : ""
+  const stepTitle = started ? (HTTP_STEPS[event.step] ?? "") : ""
+  const pickExample = (id: string) => {
+    setTour(null)
+    const m = modeOf(id)
+    if (m && !isHttpMode(m)) onSwitch(m, id)
+    else load(id)
+    focusRoot()
+  }
 
   return (
     <section
       ref={root}
       tabIndex={-1}
-      className="nv-tool space-y-5 outline-none [&.nv-present]:[zoom:1.2] [&.nv-present]:overflow-auto [&.nv-present]:bg-background [&.nv-present]:p-6"
+      aria-label="Naming and the web"
+      className="nv-tool max-w-4xl space-y-6 outline-none [&.nv-present]:max-w-none [&.nv-present]:[zoom:1.2] [&.nv-present]:overflow-auto [&.nv-present]:bg-background [&.nv-present]:p-6"
       onKeyDown={(e) => {
         if (timelineKeys(tl, e)) e.preventDefault()
       }}
     >
-      <ModeSwitch
-        mode={mode}
-        onPick={(v) => {
-          setTour(null)
-          focusRoot()
-          if (v === "connections" || v === "hol" || v === "handshake") load(HTTP_PRESETS.find((pr) => pr.mode === v)!.id)
-          else onSwitch(v)
-        }}
+      {tour !== null && <TourCard index={tour} steps={HTTP_TOUR} go={goTour} playing={tl.playing} toggle={tl.toggle} />}
+
+      <ExampleIntro
+        title={title}
+        note={presetInfo?.note ?? 'Your own settings for the page load. Open "Change the settings" below to see them.'}
       />
-
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="min-w-56 flex-1">
-          <label className="mb-1 block font-sans text-xs text-muted-foreground" htmlFor="http-preset">
-            Scenario
-          </label>
-          <Select
-            value={preset || "custom"}
-            onValueChange={(id) => {
-              load(id)
-              focusRoot()
-            }}
-          >
-            <SelectTrigger id="http-preset" className="w-full max-w-md">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {choices.map((pr) => (
-                <SelectItem key={pr.id} value={pr.id}>
-                  {pr.title}
-                </SelectItem>
-              ))}
-              <SelectItem value="custom" disabled>
-                Your own setup
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <p className="mb-1 font-sans text-xs text-muted-foreground" id="http-view">
-            View
-          </p>
-          <ToggleGroup
-            type="single"
-            variant="outline"
-            size="sm"
-            aria-labelledby="http-view"
-            value={view}
-            onValueChange={(v) => {
-              if (v === "streams" || v === "ladder") setView(v)
-              focusRoot()
-            }}
-          >
-            <ToggleGroupItem value="streams" className="px-3">
-              Streams
-            </ToggleGroupItem>
-            <ToggleGroupItem value="ladder" className="px-3">
-              Packets
-            </ToggleGroupItem>
-          </ToggleGroup>
-        </div>
-        <Button variant={tour === null ? "outline" : "secondary"} onClick={() => goTour(tour === null ? 0 : null)}>
-          {tour === null ? "Guided tour" : "End tour"}
-        </Button>
-        <ToolActions
-          root={root}
-          link={() => linkFor("web", { h: p, t: Math.round(tl.t) } satisfies HttpShared)}
-          figures={[
-            {
-              label: figLabel,
-              stem: `http-${preset || "custom"}-${view}`,
-              svg: () => figSvg({ ...fig, caption }),
-              tikz: () => figTikz({ ...fig, caption }),
-            },
-            {
-              label: other === "streams" ? "Each object's bytes, arrived and delivered" : "Handshakes, requests and packets",
-              stem: `http-${preset || "custom"}-${other}`,
-              svg: () => {
-                const f = otherFig()
-                return figSvg({ ...f, caption: `${title}, at ${fmtNs(tNs)}: ${f.summary}` })
-              },
-              tikz: () => {
-                const f = otherFig()
-                return figTikz({ ...f, caption: `${title}, at ${fmtNs(tNs)}: ${f.summary}` })
-              },
-            },
-            {
-              label: chart.title,
-              stem: `http-${preset || "custom"}-chart`,
-              ...chartExports(() => chartFigure(chart, `${title}: ${chart.title.toLowerCase()}`)),
-            },
-          ]}
-        />
-      </div>
-
-      {tour !== null ? (
-        <div className="rounded-sm border border-border bg-muted/40 p-4" aria-live="polite">
-          <p className="font-sans text-xs text-muted-foreground">
-            Tour, {tour + 1} of {HTTP_TOUR.length}
-          </p>
-          <p className="mt-1 max-w-[70ch]">{HTTP_TOUR[tour].text}</p>
-          <div className="mt-3 flex gap-2">
-            <Button size="sm" variant="outline" disabled={tour === 0} onClick={() => goTour(tour - 1)}>
-              Back
-            </Button>
-            <Button size="sm" onClick={() => goTour(tour + 1 < HTTP_TOUR.length ? tour + 1 : null)}>
-              {tour + 1 < HTTP_TOUR.length ? "Next" : "Finish"}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => tl.toggle()}>
-              {tl.playing ? "Pause" : "Play from here"}
-            </Button>
-          </div>
-        </div>
-      ) : (
-        presetInfo && (
-          <p className="max-w-[70ch] text-[0.98rem]">
-            {presetInfo.note} <span className="text-muted-foreground">({presetInfo.source}.)</span>
-          </p>
-        )
-      )}
       {error && (
         <p role="alert" className="font-sans text-sm text-destructive">
           That setting cannot run ({error}); the run shown is the last one that could.
         </p>
       )}
 
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-        <div className="min-w-0 space-y-3">
-          <div ref={figBox}>
-            <ShapeView fig={fig} label={caption} />
-          </div>
-          <p className="font-sans text-xs text-muted-foreground">{HELP[view]} Space plays, arrow keys step, Home and End jump.</p>
-          <Transport tl={tl} events={n} format={(x) => fmtNs(x * 1000)} />
+      <Transport tl={tl} events={n} format={(x) => fmtNs(x * 1000)} />
+
+      <figure className="space-y-2">
+        <figcaption className="max-w-[70ch] font-sans text-sm text-muted-foreground">{HELP[view]}</figcaption>
+        <div ref={figBox}>
+          <ShapeView fig={fig} label={caption} />
+        </div>
+      </figure>
+      <div className="space-y-2">
+        <p className="font-sans text-sm text-muted-foreground" id="http-view">
+          Draw the page load as
+        </p>
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          size="sm"
+          aria-labelledby="http-view"
+          value={view}
+          onValueChange={(v) => {
+            if (v === "streams" || v === "ladder") setView(v)
+            focusRoot()
+          }}
+          className="flex-wrap"
+        >
+          <ToggleGroupItem value="ladder" className="px-3">
+            Packets on the wire
+          </ToggleGroupItem>
+          <ToggleGroupItem value="streams" className="px-3">
+            Streams: each object
+          </ToggleGroupItem>
+        </ToggleGroup>
+      </div>
+
+      <StepCard
+        live={!tl.playing}
+        when={started ? `At ${fmtNs(event.t)}${who ? `, ${who}` : ""}` : null}
+        title={stepTitle ? stepTitle[0].toUpperCase() + stepTitle.slice(1) : undefined}
+        text={started ? event.text : undefined}
+        empty={
+          <>
+            Nothing has happened yet. Press <b>Play</b> to run the example, or <b>Next event</b> to go one event at a time (the arrow keys
+            do the same).
+          </>
+        }
+      />
+
+      <Readouts
+        caption="So far"
+        cols={2}
+        items={[
+          ["Simulated time", fmtNs(tNs)],
+          ["Events so far", `${started ? tl.index + 1 : 0} of ${n}`],
+        ]}
+      />
+      {started && <p className="max-w-[70ch] font-sans text-sm">{fig.summary[0].toUpperCase() + fig.summary.slice(1)}.</p>}
+
+      <WebPicker id="http-preset" value={preset} onPick={pickExample} />
+
+      <div>
+        <DeeperHeading />
+        <Disclosure title={chart.title} note="The whole run as a chart. Where it runs over time, select a point to jump there.">
           <LineChart
             title={chart.title}
             series={chart.series}
@@ -312,71 +270,95 @@ export function HttpPanel({
             yDomain={chart.yDomain}
             height={240}
             cursor={chart.timed ? tNs / MS : undefined}
+            upTo={chart.timed ? tNs / MS : undefined}
             onSeek={chart.timed ? (x) => tl.seek(x * 1000) : undefined}
             overlay={(s) => <RefLines s={s} refs={chart.refs} />}
           />
-        </div>
-
-        <div className="min-w-0 space-y-4">
-          {event && (
-            <div className="rounded-sm border border-border p-3" aria-live={tl.playing ? "off" : "polite"}>
-              <p className="font-sans text-xs text-muted-foreground">
-                {fmtNs(event.t)}
-                {who ? `, ${who}` : ""}
-              </p>
-              <p className="mt-0.5">
-                <b className="lining">{event.step}.</b> [{HTTP_STEPS[event.step] ?? ""}] {event.text}
-              </p>
-            </div>
-          )}
-          <HttpTotals run={run} />
+        </Disclosure>
+        <Disclosure title="Each object" note="Every file the page needs: its size, when it was asked for and when it was complete.">
+          <HttpObjects run={run} />
+        </Disclosure>
+        <Disclosure
+          title="The formulas, with this run's numbers"
+          note="What theory predicts for this page load, set beside what the run did."
+        >
           <HttpEquations w={p} run={run} t={tNs} />
-
-          <Tabs value={tab} onValueChange={setTab}>
-            <TabsList className="flex-wrap">
-              <TabsTrigger value="trace">Trace</TabsTrigger>
-              <TabsTrigger value="objects">Objects</TabsTrigger>
-              <TabsTrigger value="setup">Setup</TabsTrigger>
-              <TabsTrigger value="source">Source</TabsTrigger>
-              <TabsTrigger value="lab">Lab</TabsTrigger>
-            </TabsList>
-            <TabsContent value="trace">
-              <TraceList events={traceSlice} index={tl.index - offset} onSeek={(i) => tl.seekIndex(i + offset)} format={fmtNs} />
-              {n > traceSlice.length && (
-                <p className="mt-1 font-sans text-xs text-muted-foreground">
-                  Events {offset + 1} to {offset + traceSlice.length} of {n}; the list follows the clock.
-                </p>
-              )}
-            </TabsContent>
-            <TabsContent value="objects">{tab === "objects" && <HttpObjects run={run} />}</TabsContent>
-            <TabsContent value="setup">
-              <HttpSetup w={params} set={(next) => apply(next)} />
-            </TabsContent>
-            <TabsContent value="source">
-              <p className="mb-2 font-sans text-xs text-muted-foreground">
-                The Rust that produced this run (crates/netsim/src/http.rs), compiled into the page. The step behind the current event is
-                shaded.
-              </p>
-              <LiterateSource source={source} active={tab === "source" && event ? event.step : null} className="max-h-[32rem]" />
-            </TabsContent>
-            <TabsContent value="lab" forceMount className="data-[state=inactive]:hidden">
-              <LabPanel
-                labs={HTTP_LABS}
-                load={(start) => {
-                  const key = JSON.stringify(start)
-                  const pr = HTTP_PRESETS.find((q) => JSON.stringify(q.params) === key)
-                  apply(start, pr?.id ?? "")
-                  setTour(null)
-                  tl.home()
-                }}
-                check={(lab) => HTTP_LABS.find((l) => l.id === lab.id)!.check(p, run)}
-              />
-            </TabsContent>
-          </Tabs>
-        </div>
+        </Disclosure>
+        <Disclosure title="What the whole run comes to" note="Totals for the full page load, from start to end.">
+          <HttpTotals run={run} />
+        </Disclosure>
+        <Disclosure title="Change the settings" note="The path, the protocol, the objects and the losses; the run follows at once.">
+          <HttpSetup w={params} set={(next) => apply(next)} />
+        </Disclosure>
+        <Disclosure title="Every step, as a list" note="Each event of the run in order. Select one to jump there.">
+          <TraceList events={traceSlice} index={tl.index - offset} onSeek={(i) => tl.seekIndex(i + offset)} format={fmtNs} />
+          {n > traceSlice.length && (
+            <p className="mt-1 font-sans text-xs text-muted-foreground">
+              Events {offset + 1} to {offset + traceSlice.length} of {n}; the list follows the clock.
+            </p>
+          )}
+        </Disclosure>
+        <Disclosure title="Exercises this page can check" note="Short tasks; each says whether the run on screen meets it." keepMounted>
+          <LabPanel
+            labs={HTTP_LABS}
+            load={(start) => {
+              const key = JSON.stringify(start)
+              const pr = HTTP_PRESETS.find((q) => JSON.stringify(q.params) === key)
+              apply(start, pr?.id ?? "")
+              setTour(null)
+              tl.home()
+            }}
+            check={(lab) => HTTP_LABS.find((l) => l.id === lab.id)!.check(p, run)}
+          />
+        </Disclosure>
+        <Disclosure
+          title="The program that produced this run"
+          note="The Rust code behind the simulation, with the step behind the current event shaded."
+        >
+          <p className="mb-2 font-sans text-xs text-muted-foreground">
+            From crates/netsim/src/http.rs, compiled into the page. Each step has a letter and number, such as C1; the list of steps above
+            uses the same names.
+          </p>
+          <LiterateSource source={source} active={started ? event.step : null} className="max-h-[32rem]" />
+        </Disclosure>
+        <TourAndSharing
+          root={root}
+          tour={tour}
+          stops={HTTP_TOUR.length}
+          startTour={() => goTour(0)}
+          link={() => linkFor("web", { h: p, t: Math.round(tl.t) } satisfies HttpShared)}
+          figures={[
+            {
+              label: figLabel,
+              stem: `http-${preset || "custom"}-${view}`,
+              svg: () => figSvg({ ...fig, caption }),
+              tikz: () => figTikz({ ...fig, caption }),
+            },
+            {
+              label: other === "streams" ? "each object's bytes, arrived and delivered" : "the handshakes, requests and packets",
+              stem: `http-${preset || "custom"}-${other}`,
+              svg: () => {
+                const f = otherFig()
+                return figSvg({ ...f, caption: `${title}, at ${fmtNs(tNs)}: ${f.summary}` })
+              },
+              tikz: () => {
+                const f = otherFig()
+                return figTikz({ ...f, caption: `${title}, at ${fmtNs(tNs)}: ${f.summary}` })
+              },
+            },
+            {
+              label: `the chart: ${chart.title.toLowerCase()}`,
+              stem: `http-${preset || "custom"}-chart`,
+              ...chartExports(() => chartFigure(chart, `${title}: ${chart.title.toLowerCase()}`)),
+            },
+          ]}
+        />
       </div>
 
-      <Article sim={sim} onLoad={onLoad} />
+      <div>
+        <DeeperHeading>Read about it</DeeperHeading>
+        <Article sim={sim} onLoad={onLoad} />
+      </div>
     </section>
   )
 }

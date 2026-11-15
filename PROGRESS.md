@@ -295,7 +295,14 @@ disclosures, TourAndSharing, "Read about it".
   the first event; Transport takes `clock={false}` for the coding modes,
   which count steps, not time. Mode view, chart, formulas, totals,
   settings, trace, labs, source behind disclosures.
-- [ ] web (shell and obvious labels only)
+- [x] web: shell order for both panels (DNS in WebTool, HTTP in
+  HttpPanel); the six mode buttons became one grouped picker
+  (`WebPicker` in ModeSwitch.tsx) that swaps panels and loads the chosen
+  example; the iterative/recursive switch sits under the picker and the
+  HTTP picture switch under the picture; DNS, TTL, CNAME, stub, resolver,
+  NXDOMAIN, SOA, TCP, TLS, SYN, QUIC, [1] named where they appear; the
+  ladder is empty before the first event; long ladder labels wrap at
+  390 px instead of being cut; "C1." codes gone from the step card.
 - Smooth scrolls everywhere go through `scrollBehavior()`.
 - The dev server must not run through /tmp/unsw-reorg/build: that wrapper
   holds a machine-wide lock for as long as the command runs. Start it with

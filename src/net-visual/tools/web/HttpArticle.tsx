@@ -109,7 +109,7 @@ export function HttpMechanics() {
   return (
     <Layer id="http-mechanics" layer="Mechanics" title="Connections, requests, frames and packets, step by step">
       <p>
-        Every event in the trace carries a lettered step, which is also a comment in the Rust source on the Source tab; the step behind the
+        Every event in the trace carries a lettered step, which is also a comment in the Rust source under Go deeper; the step behind the
         current moment is shaded there.
       </p>
       <ol className="list-none space-y-2 pl-0">
@@ -128,7 +128,7 @@ export function HttpMechanics() {
         <li>
           <b>S1. Queue the responses.</b> An HTTP/1.1 server must answer requests on a connection in the order they arrived. An HTTP/2 or
           HTTP/3 server may interleave frames of different streams; this one sends one packet's worth from each stream in turn, the
-          incremental behaviour of RFC 9218's priorities. The Setup tab can switch it to sending each response whole.
+          incremental behaviour of RFC 9218's priorities. The settings under Go deeper can switch it to sending each response whole.
         </li>
         <li>
           <b>S2. Send.</b> Each connection has its own congestion window. A new connection starts with ten packets (RFC 6928), grows by a
@@ -352,10 +352,10 @@ export function HttpInternals() {
     <Layer id="http-internals" layer="Internals" title="How the model works, and what it leaves out">
       <p>
         The simulation is a discrete-event model in Rust (crates/netsim/src/http.rs), compiled to WebAssembly and run in the page; the
-        Source tab shows the code. Time is counted in whole nanoseconds, so a run is exactly repeatable, and random loss draws from a
-        generator seeded by the Seed slider. Every data packet goes through one queue at the bottleneck in the order it was sent, takes its
-        size over the rate to leave, and arrives half a round trip later; its acknowledgement reaches the server half a round trip after
-        that.
+        program under Go deeper shows the code. Time is counted in whole nanoseconds, so a run is exactly repeatable, and random loss draws
+        from a generator seeded by the Seed slider. Every data packet goes through one queue at the bottleneck in the order it was sent,
+        takes its size over the rate to leave, and arrives half a round trip later; its acknowledgement reaches the server half a round trip
+        after that.
       </p>
       <p>
         Each connection keeps its own congestion window, starting at the initial window and growing by one packet per acknowledgement until

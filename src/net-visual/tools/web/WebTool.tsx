@@ -1,17 +1,22 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 
-import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { chartExports } from "../../components/figure"
 import { LabPanel } from "../../components/LabPanel"
 import { LineChart, useWidth } from "../../components/LineChart"
 import { LiterateSource } from "../../components/LiterateSource"
-import { ToolActions } from "../../components/ToolActions"
 import { TraceList } from "../../components/TraceList"
 import { Transport } from "../../components/Transport"
-import { scrollBehavior } from "../../components/ToolFrame"
+import {
+  DeeperHeading,
+  Disclosure,
+  ExampleIntro,
+  Readouts,
+  StepCard,
+  TourAndSharing,
+  TourCard,
+  scrollBehavior,
+} from "../../components/ToolFrame"
 import { keepFocus, timelineKeys, useTimeline } from "../../components/timeline"
 import { LABS, PRESETS, SOURCE, TOUR, eventAt, fmtUs, runDns, type DnsRun, type WebMode, type WebParams } from "../../core/dns"
 import { isHttpMode, type HttpMode } from "../../core/http"
@@ -23,7 +28,7 @@ import { figSvg, figTikz } from "../link/shapes"
 import { DnsAnalysis, DnsFrontier, DnsInternals, DnsIntro, DnsMechanics } from "./DnsArticle"
 import { ladderFigure } from "./dnsFigures"
 import { HttpPanel, type HttpShared } from "./HttpPanel"
-import { ModeSwitch, type AnyMode } from "./ModeSwitch"
+import { WebPicker, modeOf, type AnyMode } from "./ModeSwitch"
 import { DnsCaches, DnsEquations, DnsSetup, DnsTotals, dnsChart, dnsWho } from "./DnsViews"
 
 interface Shared {
@@ -49,9 +54,9 @@ function WebPage({ sim }: { sim: Netsim }) {
     const h = readHash<Shared | HttpShared>("web")
     return h && "h" in h ? { http: h } : { dns: h ?? undefined }
   })
-  const [pick, setPick] = useState<{ mode: AnyMode | null; n: number }>({ mode: null, n: 0 })
+  const [pick, setPick] = useState<{ mode: AnyMode | null; preset?: string; n: number }>({ mode: null, n: 0 })
   const http = pick.mode === null ? "http" in start : isHttpMode(pick.mode)
-  const onSwitch = useCallback((mode: AnyMode) => setPick((q) => ({ mode, n: q.n + 1 })), [])
+  const onSwitch = useCallback((mode: AnyMode, preset?: string) => setPick((q) => ({ mode, preset, n: q.n + 1 })), [])
   if (http)
     return (
       <HttpPanel
@@ -59,6 +64,7 @@ function WebPage({ sim }: { sim: Netsim }) {
         sim={sim}
         shared={pick.mode === null ? start.http : undefined}
         startMode={pick.mode === null ? undefined : (pick.mode as HttpMode)}
+        startPreset={pick.preset}
         onSwitch={onSwitch}
       />
     )
@@ -68,6 +74,7 @@ function WebPage({ sim }: { sim: Netsim }) {
       sim={sim}
       shared={pick.mode === null ? start.dns : undefined}
       startMode={pick.mode === null ? undefined : (pick.mode as WebMode)}
+      startPreset={pick.preset}
       onSwitch={onSwitch}
     />
   )
@@ -81,19 +88,30 @@ const RATE = 1.5
 
 const HELP: Record<WebMode, string> = {
   resolve:
-    "One lookup at a time: a column per machine, time running down. Grey lines are queries, blue referrals, green answers, orange a CNAME and red a denial. A small square marks a record set cached. The clock steps from event to event; the card gives each one's real time.",
+    "One lookup at a time: a column per machine, time running down. Each device asks through its stub, a small resolver that only passes the question on; the resolver does the looking up and keeps what it learns. Grey lines are questions, blue referrals (go and ask this other server), green answers, orange an alias (a CNAME, canonical name, record) and red a reply that the name does not exist. A small square marks a set of records being cached. Names end in a dot, which stands for the root of the name tree. The clock steps from event to event; the card below gives each one's real time.",
   cache:
-    "The ladder shows the lookup behind the current event; most are answered by the resolver in one round trip. The chart sweeps λT with the same zones and compares the measured hit ratio with the formula, or, with several names, counts the queries each level of server received.",
-  ttl: "The ladder shows the lookup behind the current event. In the chart the line is the TTL left on the resolver's copy, falling to zero at each expiry; dots are answers, red where the address was already out of date.",
+    "The ladder shows the lookup behind the current event; most are answered by the resolver from its cache, in one round trip. The chart under Go deeper compares the share of lookups the cache answered with what the formula predicts, or, with several names, counts the questions each level of server received.",
+  ttl: "The ladder shows the lookup behind the current event. Every cached answer carries a time to live (TTL): how long a cache may keep it. The chart under Go deeper draws the TTL left on the resolver's copy, falling to zero at each expiry; dots are answers, red where the address was already out of date.",
 }
 
 const FIGURE_LABEL = "The lookup at this moment"
 
-function DnsPanel({ sim, shared, startMode, onSwitch }: { sim: Netsim; shared?: Shared; startMode?: WebMode; onSwitch(m: AnyMode): void }) {
-  const first = PRESETS.find((pr) => pr.mode === (startMode ?? PRESETS[0].mode))!
+function DnsPanel({
+  sim,
+  shared,
+  startMode,
+  startPreset,
+  onSwitch,
+}: {
+  sim: Netsim
+  shared?: Shared
+  startMode?: WebMode
+  startPreset?: string
+  onSwitch(m: AnyMode, preset?: string): void
+}) {
+  const first = PRESETS.find((pr) => pr.id === startPreset) ?? PRESETS.find((pr) => pr.mode === (startMode ?? PRESETS[0].mode))!
   const [params, setParams] = useState<WebParams>(shared?.p ?? first.params)
   const [preset, setPreset] = useState<string>(shared ? "" : first.id)
-  const [tab, setTab] = useState("trace")
   const [tour, setTour] = useState<number | null>(null)
   const root = useRef<HTMLElement>(null)
   const [figBox, width] = useWidth<HTMLDivElement>()
@@ -125,7 +143,9 @@ function DnsPanel({ sim, shared, startMode, onSwitch }: { sim: Netsim; shared?: 
   const event = run.events[index]
   const fmtClock = useCallback((x: number) => fmtUs(run.events[Math.max(0, Math.min(n - 1, Math.round(x)))]?.t ?? 0), [run, n])
 
-  const fig = useMemo(() => ladderFigure(p.dns, run, index, Math.max(320, Math.round(width))), [p, run, index, width])
+  // Before the first event the ladder is empty, not the first lookup already finished.
+  const figIndex = tl.index < 0 ? -1 : index
+  const fig = useMemo(() => ladderFigure(p.dns, run, figIndex, Math.max(320, Math.round(width))), [p, run, figIndex, width])
   const chart = useMemo(() => dnsChart(sim, p, run), [sim, p, run])
 
   const trace = useMemo(() => run.events.map((e) => ({ t: e.t, step: e.step, text: e.text })), [run])
@@ -166,138 +186,101 @@ function DnsPanel({ sim, shared, startMode, onSwitch }: { sim: Netsim; shared?: 
 
   const presetInfo = PRESETS.find((q) => q.id === preset)
   const title = presetInfo?.title ?? "Your own setup"
-  const caption = `${title}, at ${event ? fmtUs(event.t) : "0 s"}: ${fig.summary}`
-  const choices = PRESETS.filter((pr) => pr.mode === mode)
+  const started = tl.index >= 0 && !!event
+  const caption = `${title}, at ${started ? fmtUs(event.t) : "0 s"}: ${fig.summary}`
+  const stepTitle = started ? (stepTitles.get(event.step) ?? "").replace(/\.$/, "") : ""
+  const who = started ? dnsWho(run, index) : ""
+  const pickExample = (id: string) => {
+    setTour(null)
+    const m = modeOf(id)
+    if (m && isHttpMode(m)) onSwitch(m, id)
+    else load(id)
+    focusRoot()
+  }
 
   return (
     <section
       ref={root}
       tabIndex={-1}
-      className="nv-tool space-y-5 outline-none [&.nv-present]:[zoom:1.2] [&.nv-present]:overflow-auto [&.nv-present]:bg-background [&.nv-present]:p-6"
+      aria-label="Naming and the web"
+      className="nv-tool max-w-4xl space-y-6 outline-none [&.nv-present]:max-w-none [&.nv-present]:[zoom:1.2] [&.nv-present]:overflow-auto [&.nv-present]:bg-background [&.nv-present]:p-6"
       onKeyDown={(e) => {
         if (timelineKeys(tl, e)) e.preventDefault()
       }}
     >
-      <ModeSwitch
-        mode={mode}
-        onPick={(v) => {
-          setTour(null)
-          focusRoot()
-          if (isHttpMode(v)) onSwitch(v)
-          else load(PRESETS.find((pr) => pr.mode === v)!.id)
-        }}
+      {tour !== null && <TourCard index={tour} steps={TOUR} go={goTour} playing={tl.playing} toggle={tl.toggle} />}
+
+      <ExampleIntro
+        title={title}
+        note={presetInfo?.note ?? 'Your own settings for the name lookups. Open "Change the settings" below to see them.'}
       />
-
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="min-w-56 flex-1">
-          <label className="mb-1 block font-sans text-xs text-muted-foreground" htmlFor="web-preset">
-            Scenario
-          </label>
-          <Select
-            value={preset || "custom"}
-            onValueChange={(id) => {
-              load(id)
-              focusRoot()
-            }}
-          >
-            <SelectTrigger id="web-preset" className="w-full max-w-md">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {choices.map((pr) => (
-                <SelectItem key={pr.id} value={pr.id}>
-                  {pr.title}
-                </SelectItem>
-              ))}
-              <SelectItem value="custom" disabled>
-                Your own setup
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <p className="mb-1 font-sans text-xs text-muted-foreground" id="web-resolve">
-            Resolution
-          </p>
-          <ToggleGroup
-            type="single"
-            variant="outline"
-            size="sm"
-            aria-labelledby="web-resolve"
-            value={params.dns.mode}
-            onValueChange={(v) => {
-              if (v === "iterative" || v === "recursive") apply({ ...params, dns: { ...params.dns, mode: v } })
-              focusRoot()
-            }}
-          >
-            <ToggleGroupItem value="iterative" className="px-3">
-              Iterative
-            </ToggleGroupItem>
-            <ToggleGroupItem value="recursive" className="px-3">
-              Recursive
-            </ToggleGroupItem>
-          </ToggleGroup>
-        </div>
-        <Button variant={tour === null ? "outline" : "secondary"} onClick={() => goTour(tour === null ? 0 : null)}>
-          {tour === null ? "Guided tour" : "End tour"}
-        </Button>
-        <ToolActions
-          root={root}
-          link={() => linkFor("web", { p, i: index } satisfies Shared)}
-          figures={[
-            {
-              label: FIGURE_LABEL,
-              stem: `dns-${preset || "custom"}-ladder`,
-              svg: () => figSvg({ ...fig, caption }),
-              tikz: () => figTikz({ ...fig, caption }),
-            },
-            {
-              label: chart.title,
-              stem: `dns-${preset || "custom"}-chart`,
-              ...chartExports(() => chartFigure(chart, `${title}: ${chart.title.toLowerCase()}`)),
-            },
-          ]}
-        />
-      </div>
-
-      {tour !== null ? (
-        <div className="rounded-sm border border-border bg-muted/40 p-4" aria-live="polite">
-          <p className="font-sans text-xs text-muted-foreground">
-            Tour, {tour + 1} of {TOUR.length}
-          </p>
-          <p className="mt-1 max-w-[70ch]">{TOUR[tour].text}</p>
-          <div className="mt-3 flex gap-2">
-            <Button size="sm" variant="outline" disabled={tour === 0} onClick={() => goTour(tour - 1)}>
-              Back
-            </Button>
-            <Button size="sm" onClick={() => goTour(tour + 1 < TOUR.length ? tour + 1 : null)}>
-              {tour + 1 < TOUR.length ? "Next" : "Finish"}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => tl.toggle()}>
-              {tl.playing ? "Pause" : "Play from here"}
-            </Button>
-          </div>
-        </div>
-      ) : (
-        presetInfo && (
-          <p className="max-w-[70ch] text-[0.98rem]">
-            {presetInfo.note} <span className="text-muted-foreground">({presetInfo.source}.)</span>
-          </p>
-        )
-      )}
       {error && (
         <p role="alert" className="font-sans text-sm text-destructive">
           That setting cannot run ({error}); the run shown is the last one that could.
         </p>
       )}
 
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-        <div className="min-w-0 space-y-3">
-          <div ref={figBox}>
-            <ShapeView fig={fig} label={caption} />
-          </div>
-          <p className="font-sans text-xs text-muted-foreground">{HELP[mode]} Space plays, arrow keys step, Home and End jump.</p>
-          <Transport tl={tl} events={n} format={fmtClock} />
+      <Transport tl={tl} events={n} format={fmtClock} />
+
+      <figure className="space-y-2">
+        <figcaption className="max-w-[70ch] font-sans text-sm text-muted-foreground">{HELP[mode]}</figcaption>
+        <div ref={figBox}>
+          <ShapeView fig={fig} label={caption} />
+        </div>
+      </figure>
+
+      <StepCard
+        live={!tl.playing}
+        when={started ? `At ${fmtUs(event.t)}${who ? `, ${who}` : ""}` : null}
+        title={stepTitle || undefined}
+        text={started ? event.text : undefined}
+        empty={
+          <>
+            Nothing has happened yet. Press <b>Play</b> to run the example, or <b>Next event</b> to go one event at a time (the arrow keys
+            do the same).
+          </>
+        }
+      />
+
+      <Readouts
+        caption="So far"
+        cols={2}
+        items={[
+          ["Simulated time", started ? fmtUs(event.t) : "0 s"],
+          ["Events so far", `${started ? tl.index + 1 : 0} of ${n}`],
+        ]}
+      />
+      {started && <p className="max-w-[70ch] font-sans text-sm">{fig.summary[0].toUpperCase() + fig.summary.slice(1)}.</p>}
+
+      <WebPicker id="web-preset" value={preset} onPick={pickExample} />
+      <div className="space-y-2">
+        <p className="font-sans text-sm text-muted-foreground" id="web-resolve">
+          How the servers are asked
+        </p>
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          size="sm"
+          aria-labelledby="web-resolve"
+          value={params.dns.mode}
+          onValueChange={(v) => {
+            if (v === "iterative" || v === "recursive") apply({ ...params, dns: { ...params.dns, mode: v } })
+            focusRoot()
+          }}
+          className="flex-wrap"
+        >
+          <ToggleGroupItem value="iterative" className="px-3">
+            The resolver asks each (iterative)
+          </ToggleGroupItem>
+          <ToggleGroupItem value="recursive" className="px-3">
+            Each asks the next (recursive)
+          </ToggleGroupItem>
+        </ToggleGroup>
+      </div>
+
+      <div>
+        <DeeperHeading />
+        <Disclosure title={chart.title} note="The whole run as a chart. Where it runs over time, select a point to jump there.">
           <LineChart
             title={chart.title}
             series={chart.series}
@@ -308,72 +291,91 @@ function DnsPanel({ sim, shared, startMode, onSwitch }: { sim: Netsim; shared?: 
             xDomain={chart.xDomain}
             yDomain={chart.yDomain}
             height={220}
-            cursor={chart.timed && event ? event.t : undefined}
+            cursor={chart.timed && started ? event.t : undefined}
+            upTo={chart.timed ? (started ? event.t : 0) : undefined}
             onSeek={chart.timed ? (x) => tl.seekIndex(eventAt(run, x)) : undefined}
             overlay={(s) => <RefLines s={s} refs={chart.refs} />}
           />
-        </div>
-
-        <div className="min-w-0 space-y-4">
-          {event && (
-            <div className="rounded-sm border border-border p-3" aria-live={tl.playing ? "off" : "polite"}>
-              <p className="font-sans text-xs text-muted-foreground">
-                {fmtUs(event.t)}, {dnsWho(run, index)}
-              </p>
-              <p className="mt-0.5">
-                <b className="lining">{event.step}.</b> [{stepTitles.get(event.step) ?? ""}] {event.text}
-              </p>
-            </div>
-          )}
-          <DnsTotals p={p.dns} run={run} />
+        </Disclosure>
+        <Disclosure
+          title="Every cache, at this moment"
+          note="What the resolver and each device's stub hold now, and how long each entry has left."
+        >
+          <DnsCaches p={p.dns} run={run} t={started ? event.t : 0} />
+        </Disclosure>
+        <Disclosure
+          title="The formulas, with this run's numbers"
+          note="What theory predicts for this example, set beside what the run did."
+        >
           <DnsEquations w={p} run={run} index={index} />
-
-          <Tabs value={tab} onValueChange={setTab}>
-            <TabsList className="flex-wrap">
-              <TabsTrigger value="trace">Trace</TabsTrigger>
-              <TabsTrigger value="caches">Caches</TabsTrigger>
-              <TabsTrigger value="setup">Setup</TabsTrigger>
-              <TabsTrigger value="source">Source</TabsTrigger>
-              <TabsTrigger value="lab">Lab</TabsTrigger>
-            </TabsList>
-            <TabsContent value="trace">
-              <TraceList events={traceSlice} index={tl.index - offset} onSeek={(i) => tl.seekIndex(i + offset)} format={fmtUs} />
-              {n > traceSlice.length && (
-                <p className="mt-1 font-sans text-xs text-muted-foreground">
-                  Events {offset + 1} to {offset + traceSlice.length} of {n}; the list follows the clock.
-                </p>
-              )}
-            </TabsContent>
-            <TabsContent value="caches">{tab === "caches" && event && <DnsCaches p={p.dns} run={run} t={event.t} />}</TabsContent>
-            <TabsContent value="setup">
-              <DnsSetup w={params} set={(next) => apply(next)} />
-            </TabsContent>
-            <TabsContent value="source">
-              <p className="mb-2 font-sans text-xs text-muted-foreground">
-                The Rust that produced this run (crates/netsim/src/{SOURCE[mode].file}), compiled into the page. The step behind the current
-                event is shaded.
-              </p>
-              <LiterateSource source={source} active={tab === "source" && event ? event.step : null} className="max-h-[32rem]" />
-            </TabsContent>
-            <TabsContent value="lab" forceMount className="data-[state=inactive]:hidden">
-              <LabPanel
-                labs={LABS}
-                load={(start) => {
-                  // Lab starts are copies, so match a scenario by its settings.
-                  const key = JSON.stringify(start)
-                  const pr = PRESETS.find((q) => q.mode === start.mode && JSON.stringify(q.params) === key)
-                  apply(start, pr?.id ?? "")
-                  setTour(null)
-                  tl.home()
-                }}
-                check={(lab) => LABS.find((l) => l.id === lab.id)!.check(p, run)}
-              />
-            </TabsContent>
-          </Tabs>
-        </div>
+        </Disclosure>
+        <Disclosure title="What the whole run comes to" note="Totals for the full run, from start to end.">
+          <DnsTotals p={p.dns} run={run} />
+        </Disclosure>
+        <Disclosure
+          title="Change the settings"
+          note="The devices, the servers, the names and their times to live; the run follows at once."
+        >
+          <DnsSetup w={params} set={(next) => apply(next)} />
+        </Disclosure>
+        <Disclosure title="Every step, as a list" note="Each event of the run in order. Select one to jump there.">
+          <TraceList events={traceSlice} index={tl.index - offset} onSeek={(i) => tl.seekIndex(i + offset)} format={fmtUs} />
+          {n > traceSlice.length && (
+            <p className="mt-1 font-sans text-xs text-muted-foreground">
+              Events {offset + 1} to {offset + traceSlice.length} of {n}; the list follows the clock.
+            </p>
+          )}
+        </Disclosure>
+        <Disclosure title="Exercises this page can check" note="Short tasks; each says whether the run on screen meets it." keepMounted>
+          <LabPanel
+            labs={LABS}
+            load={(start) => {
+              // Lab starts are copies, so match a scenario by its settings.
+              const key = JSON.stringify(start)
+              const pr = PRESETS.find((q) => q.mode === start.mode && JSON.stringify(q.params) === key)
+              apply(start, pr?.id ?? "")
+              setTour(null)
+              tl.home()
+            }}
+            check={(lab) => LABS.find((l) => l.id === lab.id)!.check(p, run)}
+          />
+        </Disclosure>
+        <Disclosure
+          title="The program that produced this run"
+          note="The Rust code behind the simulation, with the step behind the current event shaded."
+        >
+          <p className="mb-2 font-sans text-xs text-muted-foreground">
+            From crates/netsim/src/{SOURCE[mode].file}, compiled into the page. Each step has a letter and number, such as R1; the list of
+            steps above uses the same names.
+          </p>
+          <LiterateSource source={source} active={started ? event.step : null} className="max-h-[32rem]" />
+        </Disclosure>
+        <TourAndSharing
+          root={root}
+          tour={tour}
+          stops={TOUR.length}
+          startTour={() => goTour(0)}
+          link={() => linkFor("web", { p, i: index } satisfies Shared)}
+          figures={[
+            {
+              label: FIGURE_LABEL.toLowerCase(),
+              stem: `dns-${preset || "custom"}-ladder`,
+              svg: () => figSvg({ ...fig, caption }),
+              tikz: () => figTikz({ ...fig, caption }),
+            },
+            {
+              label: `the chart: ${chart.title.toLowerCase()}`,
+              stem: `dns-${preset || "custom"}-chart`,
+              ...chartExports(() => chartFigure(chart, `${title}: ${chart.title.toLowerCase()}`)),
+            },
+          ]}
+        />
       </div>
 
-      <Article sim={sim} onLoad={onLoad} />
+      <div>
+        <DeeperHeading>Read about it</DeeperHeading>
+        <Article sim={sim} onLoad={onLoad} />
+      </div>
     </section>
   )
 }

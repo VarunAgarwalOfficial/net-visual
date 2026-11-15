@@ -109,7 +109,8 @@ export function DnsMechanics() {
       <p>
         The ladder above draws one lookup at a time: one column per machine, time running down, each message a line from its sending to its
         arrival. Grey lines are queries, blue are referrals, green are answers, and a red line is a denial. Small squares mark where a
-        record set was cached. The trace names each event by the step of the model that produced it; the Source tab shows that step's code.
+        record set was cached. The trace names each event by the step of the model that produced it; the program under Go deeper shows that
+        step's code.
       </p>
       <dl className="space-y-2">
         <div>

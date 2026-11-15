@@ -181,18 +181,26 @@ export function ladderFigure(p: HttpParams, run: HttpRun, t: number, width: numb
     const y = sy(m.send_ns)
     if (y - lastLabel >= 11) {
       const text = (many ? `[${m.conn + 1}] ` : "") + m.label
+      // A long label wraps at spaces onto further lines rather than being cut short.
       const max = narrow ? 14 : 30
-      const short = text.length > max ? `${text.slice(0, max - 1)}…` : text
-      s.push({
-        kind: "text",
-        x: m.up ? cx - 4 : sxv + 4,
-        y: y + 3,
-        text: short,
-        size: fs - 1,
-        anchor: m.up ? "end" : "start",
-        fill: m.request ? "ink" : "muted",
-      })
-      lastLabel = y
+      const lines: string[] = []
+      for (const word of text.split(" ")) {
+        const last = lines.length - 1
+        if (last >= 0 && lines[last].length + 1 + word.length <= max) lines[last] += ` ${word}`
+        else lines.push(word)
+      }
+      lines.forEach((line, k) =>
+        s.push({
+          kind: "text",
+          x: m.up ? cx - 4 : sxv + 4,
+          y: y + 3 + k * (fs - 1),
+          text: line,
+          size: fs - 1,
+          anchor: m.up ? "end" : "start",
+          fill: m.request ? "ink" : "muted",
+        }),
+      )
+      lastLabel = y + (lines.length - 1) * (fs - 1)
     }
   }
 
