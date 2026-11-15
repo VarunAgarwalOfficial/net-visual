@@ -26,6 +26,8 @@ interface Props {
   log?: { x?: boolean }
   /** Extra marks drawn under the series; a function receives the scales. */
   children?: ReactNode | ((scale: Scale) => ReactNode)
+  /** Marks drawn over the series, such as labels that must stay legible. */
+  overlay?: (scale: Scale) => ReactNode
 }
 
 /** The chart's scales, for marks placed in data coordinates. */
@@ -225,6 +227,7 @@ export function LineChart(props: Props) {
                 />
               ),
             )}
+            {props.overlay?.({ sx, sy, left: m.l, right: m.l + w, top: m.t, bottom: m.t + h })}
             {cursor !== undefined && cursor >= x0 && cursor <= x1 && (
               <line x1={sx(cursor)} x2={sx(cursor)} y1={m.t} y2={m.t + h} stroke="var(--foreground)" strokeOpacity={0.6} />
             )}

@@ -298,9 +298,8 @@ function QueueLoaded({ sim }: { sim: Netsim }) {
             height={220}
             cursor={tl.t}
             onSeek={(t) => tl.seek(t)}
-          >
-            {(s) => <RefLines s={s} refs={chart.refs} />}
-          </LineChart>
+            overlay={(s) => <RefLines s={s} refs={chart.refs} />}
+          />
         </div>
 
         <div className="min-w-0 space-y-4">

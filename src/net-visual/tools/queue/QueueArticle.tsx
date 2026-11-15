@@ -534,9 +534,9 @@ export function QueueFrontier() {
           already started under GPS, which stops a flow running far ahead of its fluid share, a gap WFQ allows.
         </li>
         <li>
-          <b>fq_codel.</b> The default queue discipline in Linux and many home routers combines the two ideas (RFC 8290): flows are hashed
-          into many queues served by deficit round robin, each queue runs CoDel, and a queue that has just become active is served first, so
-          short flows such as DNS lookups and game traffic overtake bulk transfers.
+          <b>fq_codel.</b> The default queue discipline on most Linux distributions (set by systemd) and in OpenWrt combines the two ideas
+          (RFC 8290): flows are hashed into many queues served by deficit round robin, each queue runs CoDel, and a queue that has just
+          become active is served first, so short flows such as DNS lookups and game traffic overtake bulk transfers.
         </li>
         <li>
           <b>Traffic contracts.</b> Token buckets are how operators write down what a customer may send. RFC 2697 and RFC 2698 define

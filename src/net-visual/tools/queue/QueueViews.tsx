@@ -422,11 +422,23 @@ export function modeChart(mode: Mode, p: QueueParams, run: QueueRun, end: number
     const series: Series[] = [
       { id: "n", label: "packets in the system", color: FLOW_COLORS[0], kind: "step", points: occ.map((o) => [o.t, o.n]) },
     ]
+    const lTh = th?.l ?? null
+    const lRun = run.stats.l
+    const wire = p.buffer_pkts ? p.buffer_pkts + 1 : null
+    const top = Math.max(2, ...occ.map((o) => o.n), lTh ?? 0, lRun, wire ?? 0) * 1.08
     const refs: { y: number; label: string }[] = []
-    if (th?.l != null) refs.push({ y: th.l, label: `theory L = ${th.l.toFixed(2)}` })
-    refs.push({ y: run.stats.l, label: `measured L = ${run.stats.l.toFixed(2)}` })
-    if (p.buffer_pkts) refs.push({ y: p.buffer_pkts + 1, label: `buffer + 1 on the wire = ${p.buffer_pkts + 1}` })
-    const top = Math.max(2, ...occ.map((o) => o.n), ...refs.map((r) => r.y)) * 1.08
+    // Two reference lines closer than 6% of the axis would print their labels over each other.
+    if (lTh != null && Math.abs(lTh - lRun) < 0.06 * top) {
+      refs.push({ y: lTh, label: `theory L = ${lTh.toFixed(2)}, measured ${lRun.toFixed(2)}` })
+    } else {
+      if (lTh != null) refs.push({ y: lTh, label: `theory L = ${lTh.toFixed(2)}` })
+      refs.push({ y: lRun, label: `measured L = ${lRun.toFixed(2)}` })
+    }
+    if (wire != null) {
+      const last = refs[refs.length - 1]
+      if (Math.abs(last.y - wire) < 0.06 * top) last.label += `; buffer + 1 = ${wire}`
+      else refs.push({ y: wire, label: `buffer + 1 on the wire = ${wire}` })
+    }
     return {
       title: "Packets in the system (waiting or being sent)",
       yLabel: "packets",
@@ -536,7 +548,16 @@ export function RefLines({ refs, s }: { refs: { y: number; label: string }[]; s:
             strokeOpacity={0.55}
             strokeDasharray={i === 0 ? "6 4" : "2 3"}
           />
-          <text x={s.right - 4} y={s.sy(r.y) - 4} textAnchor="end" fontSize="11" fill="var(--chart-ink)">
+          <text
+            x={s.right - 4}
+            y={s.sy(r.y) - 4}
+            textAnchor="end"
+            fontSize="11"
+            fill="var(--chart-ink)"
+            className="stroke-background"
+            strokeWidth={4}
+            paintOrder="stroke"
+          >
             {r.label}
           </text>
         </g>
@@ -849,8 +870,7 @@ export function SchedulerPanel({
         height={200}
         cursor={cursor}
         onSeek={onSeek}
-      >
-        {(s) => (
+        overlay={(s) => (
           <RefLines
             s={s}
             refs={[
@@ -859,7 +879,7 @@ export function SchedulerPanel({
             ]}
           />
         )}
-      </LineChart>
+      />
       <LineChart
         title="Bytes sent by each flow, and what GPS would have sent"
         series={served}
