@@ -153,10 +153,29 @@
 - Vault notes for tool five part A: ALOHA and slotted ALOHA, CSMA-CD and
   exponential backoff, CSMA-CA, hidden and exposed terminals, and a
   medium-access section in the subject index.
+- Tool 5 part B, on the same page: Rust models `lan.rs` (learning
+  switches and hubs with flood, learn, filter, ageing and a loop cap),
+  `stp.rs` (802.1D BPDUs, root and designated ports with tie-breaks,
+  listening and learning, sensed and silent failures) and `coding.rs`
+  (CRC by GF(2) long division; Hamming, SECDED and general (2^r - 1)
+  codes), dispatched as the wasm tools `lan`, `stp` and `coding`.
+  Seventeen Rust tests: forward, flood and filter; the storm grows
+  without STP and stops with it; the STP result is a spanning tree,
+  matches the direct shortest-path computation, and has one designated
+  port per segment; recovery in 2 T_fwd sensed and up to max age plus
+  2 T_fwd silent; check values 0xF4, 0x29B1 and 0xCBF43926; every burst
+  up to r caught; an undetected error divisible by G; every single error
+  corrected, every double detected under SECDED, d_min 3 and 4. The page
+  now has 29 presets, 8 labs and a 17-stop tour; network, bridge,
+  division and codeword figures (SVG and TikZ), table, port, property
+  and syndrome tabs, live equations, and a second five-layer article
+  placed first for these modes. Browser-checked at 1440 and 390, light
+  and dark.
+- Vault notes for tool five part B: Switch learning, Spanning tree
+  protocol, Cyclic redundancy check, Hamming codes, and a switching and
+  error-control section in the subject index.
 
 ## Next
 
-1. Tool 5 part B, on the same Link layer and wireless page: switch
-   learning and spanning tree, CRC and Hamming codes.
-2. Tool 6, naming and the web: iterative and recursive DNS with caching
+1. Tool 6, naming and the web: iterative and recursive DNS with caching
    and TTLs; HTTP/1.1, HTTP/2 and HTTP/3 with head-of-line blocking.
