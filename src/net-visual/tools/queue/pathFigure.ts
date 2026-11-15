@@ -88,7 +88,7 @@ export function pathAt(p: QueueParams, run: QueueRun, t: number, selected: numbe
     if (q.t_reach <= t) delivered++
   }
   waiting.sort((a, b) => a.key - b.key || a.key2 - b.key2)
-  const name = { fifo: "FIFO", priority: "strict priority", wfq: "WFQ" }[p.discipline]
+  const name = { fifo: "first come, first served", priority: "urgent first", wfq: "shared by weight" }[p.discipline]
   return {
     flows,
     processing,
@@ -98,7 +98,7 @@ export function pathAt(p: QueueParams, run: QueueRun, t: number, selected: numbe
     delivered,
     dropped,
     flash,
-    link: `${bps(p.rate_bps)}, ${name}${p.buffer_pkts ? `, buffer ${p.buffer_pkts}` : ""}`,
+    link: `${bps(p.rate_bps)}, ${name}${p.buffer_pkts ? `, room for ${p.buffer_pkts} waiting` : ""}`,
     caption: "",
     selected,
   }
@@ -149,8 +149,10 @@ export function pathShapes(fig: PathFigure, k = 1): Shape[] {
   fig.flows.forEach((f, i) => {
     const y = rowY(i, n)
     out.push({ kind: "rect", x: 6, y: y - 9, w: 18, h: 18, fill: flowInk(i), stroke: "ink" })
-    out.push({ kind: "text", x: 30, y: y + 4, text: f.name, size: fs(12), anchor: "start", fill: "ink" })
-    let from = 30 + f.name.length * 7 * k + 4
+    // One flow is just "source"; several are told apart by name.
+    const name = n === 1 ? "source" : f.name
+    out.push({ kind: "text", x: 30, y: y + 4, text: name, size: fs(12), anchor: "start", fill: "ink" })
+    let from = 30 + name.length * 7 * k + 4
     if (f.shaper) {
       const bx = 100
       const bh = n === 1 ? 44 : Math.max(12, Math.min(46, 168 / n) - 28)
@@ -228,7 +230,7 @@ export function pathShapes(fig: PathFigure, k = 1): Shape[] {
     kind: "text",
     x: (QX0 + QX1) / 2,
     y: MID + 46,
-    text: `queue: ${fig.waiting.length} waiting`,
+    text: `${fig.waiting.length} waiting in line`,
     size: fs(10),
     anchor: "middle",
     fill: "muted",
@@ -243,7 +245,7 @@ export function pathShapes(fig: PathFigure, k = 1): Shape[] {
     out.push({ kind: "rect", x: TX + 1, y: MID - 13, w: 28 * (1 - fig.sending.frac), h: 26, fill: flowInk(fig.sending.flow) })
     if (fig.sending.id === fig.selected) out.push({ kind: "rect", x: TX - 2, y: MID - 17, w: 34, h: 34, stroke: "ink" })
   }
-  out.push({ kind: "text", x: TX + 15, y: MID + 46, text: "send L/R", size: fs(10), anchor: "middle", fill: "muted" })
+  out.push({ kind: "text", x: TX + 15, y: MID + 46, text: "send", size: fs(10), anchor: "middle", fill: "muted" })
   out.push({ kind: "text", x: (RX + RX2) / 2, y: MID - 38, text: fig.link, size: fs(11), anchor: "middle", fill: "ink" })
 
   // The wire, and the receiver.
@@ -260,7 +262,7 @@ export function pathShapes(fig: PathFigure, k = 1): Shape[] {
       stroke: w.id === fig.selected ? "ink" : undefined,
     })
   }
-  out.push({ kind: "text", x: (WIRE0 + WIRE1) / 2, y: MID + 46, text: "propagate d/s", size: fs(10), anchor: "middle", fill: "muted" })
+  out.push({ kind: "text", x: (WIRE0 + WIRE1) / 2, y: MID + 46, text: "travel", size: fs(10), anchor: "middle", fill: "muted" })
   out.push({ kind: "rect", x: WIRE1 + 4, y: MID - 18, w: 40, h: 36, stroke: "ink", fill: "surface" })
   out.push({ kind: "text", x: WIRE1 + 24, y: MID + 4, text: String(fig.delivered), size: fs(12), anchor: "middle", fill: "ink" })
   out.push({ kind: "text", x: WIRE1 + 24, y: MID - 24, text: "arrived", size: fs(10), anchor: "middle", fill: "muted" })

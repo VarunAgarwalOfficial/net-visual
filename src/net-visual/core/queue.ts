@@ -298,9 +298,9 @@ export const bps = (r: number) =>
 export type Mode = "delay" | "shaping" | "scheduling"
 
 export const MODES: { id: Mode; title: string }[] = [
-  { id: "delay", title: "Delay and M/M/1" },
-  { id: "shaping", title: "Shaping" },
-  { id: "scheduling", title: "Scheduling" },
+  { id: "delay", title: "Where the time goes" },
+  { id: "shaping", title: "Smoothing bursts" },
+  { id: "scheduling", title: "Who goes next" },
 ]
 
 const NO_SHAPER: Shaper = { kind: "none", rate_bps: 1_000_000, bucket_bytes: 3000, police: false }
@@ -398,55 +398,55 @@ export const PRESETS: Preset[] = [
     mode: "delay",
     title: "The four delays of one hop",
     source: "Kurose and Ross, Section 1.4",
-    note: "Six 1500-byte packets, 900 µs apart, cross a 10 Mb/s link 2000 km long. Each spends 20 µs being processed, 1.2 ms being pushed onto the wire (L/R) and 10 ms crossing it (d/s). The link needs 1.2 ms per packet but they come every 0.9 ms, so each waits 300 µs longer than the one before.",
+    note: "Six packets of 1500 bytes, one every 900 µs (microseconds), cross a link 2000 km long that sends 10 Mb/s (megabits per second). Each spends 20 µs being processed in the router, 1.2 ms being pushed onto the wire (its length divided by the link's rate) and 10 ms travelling along it (the distance divided by the signal's speed). The link needs 1.2 ms per packet but they come every 0.9 ms, so each waits in line 300 µs longer than the one before.",
     params: FOUR,
   },
   {
     id: "mm1",
     mode: "delay",
-    title: "M/M/1 at 70% load",
+    title: "Random arrivals and sizes, link busy 70% of the time",
     source: "Kleinrock, Queueing Systems, Vol. 1, Section 3.2",
-    note: "Poisson arrivals at 700 a second, exponential sizes averaging 1000 bytes on an 8 Mb/s link, so μ = 1000 a second and ρ = 0.7. Theory says W = 1/(μ − λ) = 3.33 ms and L = ρ/(1 − ρ) = 2.33. Three thousand packets give an estimate within several per cent; the W against ρ tab runs a hundred thousand.",
+    note: "Packets arrive at random, 700 a second on average, with random sizes averaging 1000 bytes, on an 8 Mb/s link that can send 1000 such packets a second. So the link is busy 70% of the time: the load, written ρ (rho), is 0.7. Theory says a packet spends 3.33 ms in the router on average and 2.33 packets are there on average; this run of three thousand packets comes within a few per cent. Textbooks call this queue M/M/1: arrival times and sizes both random in the same memoryless way, and one link.",
     params: MM1,
   },
   {
     id: "md1",
     mode: "delay",
-    title: "M/D/1: the same load, every packet the same size",
+    title: "The same, but every packet the same size",
     source: "Pollaczek-Khinchine formula; Kleinrock, Section 5.6",
-    note: "Identical arrivals, but every packet is 1000 bytes. Pollaczek and Khinchine say the wait depends on the mean of the square of the service time; with no variation that halves it, to Wq = ρ/(2μ(1 − ρ)) = 1.17 ms against M/M/1's 2.33 ms.",
+    note: "The same random arrivals, but every packet is 1000 bytes. Packets now wait in line 1.17 ms on average instead of 2.33 ms: the wait depends on how much the sizes vary (the Pollaczek-Khinchine formula), and with no variation it halves. Textbooks call this queue M/D/1, D for deterministic sizes.",
     params: MD1,
   },
   {
     id: "heavy",
     mode: "delay",
-    title: "Near saturation: 95% load",
+    title: "Link busy 95% of the time",
     source: "Kleinrock, Section 3.2",
-    note: "At ρ = 0.95 the M/M/1 wait is 19 service times, 19 ms. The queue does not sit near 19: it climbs into the sixties and drains to empty over stretches of seconds, so successive waits are strongly correlated and a run must be far longer than at 70% load to estimate the mean as well.",
+    note: "With the link busy 95% of the time, theory says a packet waits in line 19 ms on average, 19 times as long as it takes to send one. The line does not sit near 19 packets: it climbs past sixty and drains to empty over stretches of seconds, so one packet's wait says a lot about the next, and a run must be far longer than at 70% to measure the average as well.",
     params: { ...MM1, flows: [{ ...MM1.flows[0], rate_pps: 950 }] },
   },
   {
     id: "overload",
     mode: "delay",
-    title: "Overload with a finite buffer",
+    title: "More arriving than the link can send",
     source: "Kurose and Ross, Section 1.4.3",
-    note: "Arrivals at 120% of the link's rate into a buffer of 50 packets. With no limit the queue would grow without end; here it fills, the link never idles again, and the excess is dropped: on average one packet in six (0.2 of 1.2), 14% in this run. The wait levels off at 50 service times, 50 ms: the buffer, not the load, now sets the delay.",
+    note: "Packets arrive 20% faster than the link can send them, into a buffer that holds 50. With no limit the line would grow without end; here it fills, the link never rests again, and the excess is thrown away: on average one packet in six (0.2 of 1.2), 14% in this run. The wait levels off at 50 sending times, 50 ms: the buffer's size, not the load, now sets the delay.",
     params: { ...MD1, buffer_pkts: 50, flows: [{ ...MD1.flows[0], rate_pps: 1200, packets: 2000 }] },
   },
   {
     id: "token-shape",
     mode: "shaping",
-    title: "Token bucket: shaping a bursty source",
+    title: "Smoothing bursts with a token bucket",
     source: "Turner 1986; RFC 2697; Le Boudec and Thiran, Section 1.2",
-    note: "The source sends 20 packets of 500 bytes back to back at 8 Mb/s every 50 ms. The bucket holds 3000 bytes of tokens and fills at 2 Mb/s. The first seven packets of a burst pass at once on the full bucket and its refill; the rest leave one every 2 ms as tokens build. Whatever the source does, what leaves never exceeds 3000 bytes + 2 Mb/s × t in any interval of length t.",
+    note: "The source sends bursts of 20 packets of 500 bytes, back to back at 8 Mb/s, every 50 ms. In front of the router sits a token bucket: a packet may pass only by spending tokens worth its size. The bucket holds 3000 bytes of tokens and refills at 2 Mb/s. The first seven packets of a burst pass at once on the stored tokens; the rest are held and leave one every 2 ms as tokens build. Whatever the source does, what leaves in any stretch of t seconds is at most 3000 bytes plus 2 Mb/s × t.",
     params: SHAPED,
   },
   {
     id: "token-police",
     mode: "shaping",
-    title: "Token bucket: policing instead",
+    title: "A token bucket that drops instead of holding",
     source: "RFC 2697; RFC 2475, Section 2.3.3.3",
-    note: "The same bucket, but a packet that finds too few tokens is dropped instead of held. Nothing is delayed and the output still fits r t + b, but only ten of each burst of twenty get through: seven on the stored tokens, then one in four.",
+    note: "The same bucket, but a packet that finds too few tokens is thrown away instead of held (policing). Nothing is delayed and what leaves keeps to the same limit, but only ten of each burst of twenty get through: seven on the stored tokens, then one in four.",
     params: { ...SHAPED, flows: [{ ...SHAPED.flows[0], shaper: { ...SHAPED.flows[0].shaper, police: true } }] },
   },
   {
@@ -454,7 +454,7 @@ export const PRESETS: Preset[] = [
     mode: "shaping",
     title: "Leaky bucket: a constant drip",
     source: "Turner 1986; Tanenbaum and Wetherall, Section 5.4",
-    note: "The leaky bucket queues up to 4000 bytes and lets them out at exactly 2 Mb/s, one 500-byte packet every 2 ms, however they came in. A burst bigger than the bucket spills. Unlike the token bucket it never lets a burst through, even after a long silence: here 12 of each 20 get through, every one delayed.",
+    note: "A leaky bucket holds up to 4000 bytes of waiting packets and lets them out at exactly 2 Mb/s, one 500-byte packet every 2 ms, however they came in. A burst bigger than the bucket spills and is lost. Unlike the token bucket it never lets a burst through, even after a long silence: here 12 of each 20 get through, every one delayed.",
     params: {
       ...SHAPED,
       flows: [{ ...SHAPED.flows[0], shaper: { kind: "leaky", rate_bps: 2_000_000, bucket_bytes: 4000, police: false } }],
@@ -463,41 +463,41 @@ export const PRESETS: Preset[] = [
   {
     id: "fifo-mice",
     mode: "scheduling",
-    title: "FIFO: voice stuck behind bulk",
+    title: "First come, first served: voice stuck behind bulk",
     source: "Kurose and Ross, Section 4.2.6",
-    note: "Bulk sends 1500-byte packets at 12 Mb/s in bursts of 40 ms; voice sends a 100-byte packet every 10 ms. FIFO serves in order of arrival, so a voice packet that lands during a burst waits behind every bulk packet already queued: 14 ms on average, up to 26 ms.",
+    note: "Two flows share an 8 Mb/s link. Bulk sends 1500-byte packets at 12 Mb/s in bursts of 40 ms; voice sends a 100-byte packet every 10 ms. The router sends packets in the order they arrived (first in, first out: FIFO), so a voice packet that lands during a burst waits behind every bulk packet already in line: 14 ms on average, up to 26 ms.",
     params: MICE,
   },
   {
     id: "priority",
     mode: "scheduling",
-    title: "Strict priority: voice first",
+    title: "Voice first",
     source: "Kurose and Ross, Section 4.2.6; Cobham 1954",
-    note: "The same packets, with voice in the urgent class. A voice packet now waits at most for the one bulk packet already on the wire, 1.5 ms, because a packet being sent is never interrupted. Bulk barely notices: voice is 1% of the load.",
+    note: "The same packets, but the router always sends a waiting voice packet before any bulk one (strict priority). A voice packet now waits at most for the one bulk packet already on the wire, 1.5 ms, because a packet being sent is never interrupted. Bulk barely notices: voice is 1% of the load.",
     params: { ...MICE, discipline: "priority" },
   },
   {
     id: "wfq-shares",
     mode: "scheduling",
-    title: "WFQ: shares by weight, whatever the packet sizes",
+    title: "Sharing the link by weight",
     source: "Demers, Keshav and Shenker 1989; Parekh and Gallager 1993",
-    note: "Three flows always have packets waiting: 1500, 500 and 100 bytes, weights 1, 2 and 4. GPS would give them 1/7, 2/7 and 4/7 of the link; WFQ sends whole packets in the order GPS would finish them, so each flow's bytes track its share to within one largest packet, and no packet leaves more than L_max/R = 1.5 ms after its GPS finish.",
+    note: "Three flows always have packets waiting: of 1500, 500 and 100 bytes, with weights 1, 2 and 4. The ideal splits the link's bytes 1/7, 2/7 and 4/7, as if it could send a sliver of every flow at once (generalised processor sharing, GPS). Weighted fair queueing (WFQ) sends whole packets in the order that ideal would finish them, so each flow keeps within one largest packet of its share, and no packet leaves more than 1.5 ms, the largest packet's sending time, after its ideal finish.",
     params: BACKLOGGED,
   },
   {
     id: "fifo-greedy",
     mode: "scheduling",
-    title: "FIFO: a greedy flow takes the link",
+    title: "First come, first served: a greedy flow takes the link",
     source: "Nagle 1987; Demers, Keshav and Shenker 1989",
-    note: "One flow sends at 2.4 Mb/s, another at 16 Mb/s into an 8 Mb/s link. FIFO gives each a share of the link in proportion to what it sends, so the polite flow's packets queue behind the greedy flow's ever-growing backlog.",
+    note: "One flow sends at 2.4 Mb/s, another at 16 Mb/s, into an 8 Mb/s link. Sending packets in arrival order (FIFO) gives each flow a share in proportion to what it sends, so the polite flow's packets queue behind the greedy flow's ever-growing backlog.",
     params: GREEDY,
   },
   {
     id: "wfq-greedy",
     mode: "scheduling",
-    title: "WFQ: the greedy flow only hurts itself",
+    title: "Sharing by weight: the greedy flow only hurts itself",
     source: "Demers, Keshav and Shenker 1989",
-    note: "The same flows under WFQ with equal weights. Each is promised half the link, 4 Mb/s; the polite flow uses less than that, so its packets go almost straight through and the greedy flow queues alone.",
+    note: "The same flows, now under weighted fair queueing (WFQ) with equal weights. Each is promised half the link, 4 Mb/s; the polite flow uses less than that, so its packets go almost straight through and the greedy flow queues alone.",
     params: { ...GREEDY, discipline: "wfq" },
   },
 ]
@@ -513,7 +513,7 @@ export const TOUR: TourStep[] = [
   {
     preset: "four-delays",
     at: 1_220,
-    text: "One packet, four delays. It was processed for 20 µs and has just finished going onto the wire: 1500 bytes at 10 Mb/s take L/R = 1.2 ms. Its first bit is already 240 km down the link, which is s × 1.2 ms.",
+    text: "One packet, four delays. It was processed for 20 µs and has just finished going onto the wire: 1500 bytes at 10 Mb/s take 1.2 ms, its length divided by the link's rate. Its first bit is already 240 km down the link: the signal's speed times 1.2 ms.",
   },
   {
     preset: "four-delays",
@@ -523,7 +523,7 @@ export const TOUR: TourStep[] = [
   {
     preset: "mm1",
     at: 300_000,
-    text: "Random arrivals and random sizes: even at 70% load the queue keeps forming and draining. The chart's dashed line is L = ρ/(1 − ρ), the time average the jagged line hovers around.",
+    text: "Random arrivals and random sizes: even with the link busy 70% of the time, the line keeps forming and draining. On the chart of packets in the router, under Go deeper, the dashed line is the average theory predicts, 2.33 packets, which the jagged line hovers around.",
   },
   {
     preset: "md1",
@@ -533,27 +533,27 @@ export const TOUR: TourStep[] = [
   {
     preset: "heavy",
     at: 2_000_000,
-    text: "At 95% load the queue is mostly long, and it stays long for long stretches. Delay grows as 1/(1 − ρ): the last 5% of load costs as much waiting as the first 90%.",
+    text: "With the link busy 95% of the time, the line is mostly long, and it stays long for long stretches. Delay grows as 1/(1 − ρ), where ρ is the share of time the link is busy: the last 5% costs as much waiting as the first 90%.",
   },
   {
     preset: "token-shape",
     at: 12_000,
-    text: "A burst meets a token bucket. Seven packets went straight through on stored tokens; the rest are held, and leave one every 2 ms as tokens drip in. The tokens line in the Shaper tab shows the bucket emptying.",
+    text: "A burst meets a token bucket. Seven packets went straight through on stored tokens; the rest are held, and leave one every 2 ms as tokens drip in. The token bucket view under Go deeper shows the bucket emptying.",
   },
   {
     preset: "fifo-mice",
     at: 45_000,
-    text: "FIFO: a 100-byte voice packet has joined behind a burst of 1500-byte bulk packets and must wait for all of them.",
+    text: "First come, first served: a 100-byte voice packet has joined behind a burst of 1500-byte bulk packets and must wait for all of them.",
   },
   {
     preset: "priority",
     at: 45_000,
-    text: "Strict priority: the voice packet goes next, once the bulk packet already on the wire is done.",
+    text: "Voice first: the voice packet goes next, once the bulk packet already on the wire is done.",
   },
   {
     preset: "wfq-shares",
     at: 20_000,
-    text: "WFQ with weights 1, 2 and 4. Small packets go more often, large ones less, so that bytes, not packets, are shared by weight. The Scheduler tab compares each packet's departure with its finish under GPS.",
+    text: "Sharing by weight, 1, 2 and 4. Small packets go more often, large ones less, so that bytes, not packets, are shared by weight. The scheduler view under Go deeper compares each packet's departure with its finish under the ideal split.",
   },
 ]
 

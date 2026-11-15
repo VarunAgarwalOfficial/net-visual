@@ -274,8 +274,25 @@ disclosures, TourAndSharing, "Read about it".
   state diagram, queue and round-trip charts, phase plane, CUBIC curve,
   formulas and run averages behind disclosures. The chart's shaded band
   shows only while the sequence diagram is open.
-- [ ] routing (deep)
-- [ ] queue, link, web (shell and obvious labels only)
+- [x] routing: plain step sentences (`tools/routing/plain.ts`, built from
+  each event's data: what changed, and why, with the sum spelled out);
+  preset titles, notes, tour and lab words rewritten; graph labels read
+  "cost N"; the caption is the legend; table shading and the selected
+  router's ring only after the first event or a choice; Bellman-Ford card,
+  cost chart, Dijkstra steps, totals, settings, trace, labs and source
+  behind disclosures; tabs and the toolbar row removed.
+- [x] queue: shell order; the three mode buttons became groups in the
+  example picker; step card titles and reasons (`eventTitle`, `eventWhy`
+  in QueueViews); "So far" readouts up to the clock (final totals moved
+  to "What the whole run comes to"); chart, packet table, formulas, mode
+  view, settings, trace, labs, source behind disclosures; preset titles
+  and notes with abbreviations and symbols spelled out; figure labels in
+  words (source, send, travel, first come first served).
+- [ ] link, web (shell and obvious labels only)
+- Smooth scrolls everywhere go through `scrollBehavior()`.
+- The dev server must not run through /tmp/unsw-reorg/build: that wrapper
+  holds a machine-wide lock for as long as the command runs. Start it with
+  plain `nice npx vite --port 5391 --strictPort`.
 - [ ] impeccable detect on changed files; final captures.
 
 Checks: `/tmp/nv-work/check.js` (overflow, truncation, side-by-side,

@@ -141,8 +141,8 @@ export function QueueIntro({ onLoad }: { onLoad(id: string): void }) {
           </Try>
         </li>
         <li>
-          <b>Strict priority with a heavy urgent class.</b> In Setup, give voice 1000-byte packets at 900 a second and more of them: it now
-          needs 90% of the link, and bulk gets only what voice leaves. Strict priority has no notion of a share.{" "}
+          <b>Strict priority with a heavy urgent class.</b> In the settings under Go deeper, give voice 1000-byte packets at 900 a second
+          and more of them: it now needs 90% of the link, and bulk gets only what voice leaves. Strict priority has no notion of a share.{" "}
           <Try id="priority" onLoad={onLoad}>
             Start from priority.
           </Try>
@@ -163,8 +163,8 @@ export function QueueMechanics() {
   return (
     <Layer id="queue-mechanics" layer="Mechanics" title="What happens to one packet, step by step">
       <p>
-        The trace names each step by its letter, and the Source tab shades the code behind it. A packet's life is the same in every mode;
-        the modes change which steps matter.
+        The list of steps under Go deeper names each step by its letter, and the program shown there shades the code behind it. A packet's
+        life is the same in every mode; the modes change which steps matter.
       </p>
       <ol className="list-decimal space-y-2 pl-5">
         <li>
@@ -199,8 +199,8 @@ export function QueueMechanics() {
           <b>S2, last bit out.</b> L/R later the last bit is on the wire and the link takes the next packet.
         </li>
         <li>
-          <b>R1, reach.</b> d/s after that the last bit arrives. The Packets tab lists each packet's four delays, and the card above the
-          tabs adds them up.
+          <b>R1, reach.</b> d/s after that the last bit arrives. The table of each packet's delays, under Go deeper, lists all four, and the
+          formulas there add them up.
         </li>
       </ol>
       <p>
@@ -277,8 +277,8 @@ export function QueueAnalysis({ p, run }: { sim: Netsim; p: QueueParams; run: Qu
         {single && th.w !== null ? (
           <>
             This run is {th.model} at ρ = {th.rho.toFixed(3)}: theory gives W = {us(th.w)} and L = {th.l!.toFixed(3)}; the run measured W ={" "}
-            {us(s.system_us)} and L = {s.l.toFixed(3)} over {s.served} packets. The W against ρ tab runs up to a hundred thousand packets
-            per load.
+            {us(s.system_us)} and L = {s.l.toFixed(3)} over {s.served} packets. The chart of average time against load, under Go deeper,
+            runs up to a hundred thousand packets per load.
           </>
         ) : (
           <>
@@ -426,7 +426,7 @@ export function QueueAnalysis({ p, run }: { sim: Netsim; p: QueueParams; run: Qu
           answer={
             <p>
               At ρ = 0.5, W = 2/μ; at 0.9, W = 10/μ; at 0.99, W = 100/μ. Going from 0.9 to 0.99 adds 10% more traffic and multiplies the
-              delay by ten. Run the W against ρ tab to see the dots follow.
+              delay by ten. Open the chart of average time against load, under Go deeper, to see the dots follow.
             </p>
           }
         >

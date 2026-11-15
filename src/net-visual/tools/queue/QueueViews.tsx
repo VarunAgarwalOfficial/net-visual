@@ -64,19 +64,19 @@ export function eventText(p: QueueParams, run: QueueRun, e: QEvent): string {
         : `${who} would overfill the ${f.shaper.bucket_bytes}-byte leaky bucket and spills.`
     case "P1":
       if (e.what === "dropped")
-        return `${who} has been processed, but ${p.buffer_pkts} packets are already waiting: the buffer is full and it is dropped at the tail.`
-      return `${who} has been processed (${us(p.proc_us)}) and joins the output queue${e.waiting > 1 ? `, where ${e.waiting - 1} other${e.waiting > 2 ? "s are" : " is"} waiting` : ""}.`
+        return `${who} has been processed, but ${p.buffer_pkts} packets are already waiting: the buffer is full, so it is thrown away.`
+      return `${who} has been processed (${us(p.proc_us)}) and joins the line for the link${e.waiting > 1 ? `, where ${e.waiting - 1} other${e.waiting > 2 ? "s are" : " is"} waiting` : ""}.`
     case "S1": {
       const why =
         p.discipline === "fifo"
           ? ""
           : p.discipline === "priority"
             ? `, the most urgent waiting (class ${f.priority})`
-            : `, the smallest finish tag waiting (${Math.round(q.tag)} bits per unit of weight)`
-      return `${who} starts onto the link after waiting ${us(e.t - q.t_join!)}${why}. Its ${q.size_bytes} bytes take L/R = ${us(transUs(q.size_bytes, p.rate_bps))}.`
+            : `, the waiting packet the ideal split would finish first`
+      return `${who} starts onto the link after waiting ${us(e.t - q.t_join!)} in line${why}. Pushing its ${q.size_bytes} bytes onto the wire takes ${us(transUs(q.size_bytes, p.rate_bps))}, its size divided by the link's rate.`
     }
     case "S2":
-      return `The last bit of ${who.toLowerCase()} is on the wire; it reaches the far end d/s = ${us(propUs(p))} later. The link takes the next packet.`
+      return `The last bit of ${who.toLowerCase()} is on the wire; it reaches the far end ${us(propUs(p))} later, the distance divided by the signal's speed. The link takes the next packet.`
     case "R1": {
       const d = delays(p, q)!
       const parts = [d.shaper ? `shaper ${us(d.shaper)}` : "", `processing ${us(d.processing)}`, `queueing ${us(d.queueing)}`]
@@ -85,6 +85,39 @@ export function eventText(p: QueueParams, run: QueueRun, e: QEvent): string {
     default:
       return ""
   }
+}
+
+/** A short title for the step card, by step and outcome. */
+export function eventTitle(e: QEvent): string {
+  switch (e.step) {
+    case "A1":
+      return "A packet sets off"
+    case "B1":
+      return e.what === "released" ? "Through the token bucket" : e.what === "held" ? "Held for tokens" : "Dropped for want of tokens"
+    case "B2":
+      return e.what === "held" ? "Into the leaky bucket" : "The leaky bucket spills"
+    case "P1":
+      return e.what === "dropped" ? "The buffer is full" : "Processed, into the line"
+    case "S1":
+      return "Onto the wire"
+    case "S2":
+      return "All on the wire"
+    case "R1":
+      return "Arrived"
+    default:
+      return ""
+  }
+}
+
+/** Why an event came out as it did, where that is not plain from the sentence. */
+export function eventWhy(p: QueueParams, e: QEvent): string | undefined {
+  if (e.step === "P1" && e.what === "dropped") return `The router holds at most ${p.buffer_pkts} waiting packets; any more are lost.`
+  if (e.step === "P1" && e.waiting > 1)
+    return p.discipline === "fifo"
+      ? "The link sends one packet at a time, in the order they came, so this one waits for those ahead of it."
+      : "The link sends one packet at a time, and the router chooses which waiting packet goes next."
+  if (e.step === "R1") return "Its time from start to end is these delays added up."
+  return undefined
 }
 
 /** The path, drawn in the theme's colours. Text grows on narrow screens so it stays legible. */
@@ -177,15 +210,14 @@ export const Totals = memo(function Totals({ run, p }: { run: QueueRun; p: Queue
   return (
     <dl className="grid grid-cols-2 gap-x-4 gap-y-1 font-sans text-sm sm:grid-cols-3">
       <Row
-        k="offered load"
+        k="Traffic sent, as a share of what the link can carry"
         v={`${offered(p) >= 10 ? "more than 1000%" : `${(100 * offered(p)).toFixed(0)}%`} of ${bps(p.rate_bps)}`}
-        bad={offered(p) >= 1}
       />
-      <Row k="delivered" v={`${s.served} of ${sent}`} />
-      <Row k="dropped" v={s.dropped ? `${s.dropped} (${((100 * s.dropped) / sent).toFixed(1)}%)` : "none"} bad={s.dropped > 0} />
-      <Row k="mean wait in queue" v={us(s.wait_us)} />
-      <Row k="longest queue" v={`${s.max_waiting} packets`} />
-      <Row k="link busy" v={`${(100 * s.busy).toFixed(1)}%`} />
+      <Row k="Arrived at the far end" v={`${s.served} of ${sent} packets`} />
+      <Row k="Lost" v={s.dropped ? `${s.dropped} packets (${((100 * s.dropped) / sent).toFixed(1)}%)` : "none"} />
+      <Row k="Average wait in line" v={us(s.wait_us)} />
+      <Row k="Longest line" v={`${s.max_waiting} packets`} />
+      <Row k="Time the link was busy" v={`${(100 * s.busy).toFixed(1)}%`} />
     </dl>
   )
 })
