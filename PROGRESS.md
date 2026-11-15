@@ -129,13 +129,16 @@
   live numbers and eight rated exercises, frontier (bufferbloat, buffer
   sizing, RED, CoDel, PIE, SCFQ, DRR, WF2Q, fq_codel, DiffServ, network
   calculus, self-similar traffic, L4S), internals with simplifications.
+- Queueing browser pass at 1440 and 390, light and dark: one-flow path
+  figure cropped to its band; Try buttons scroll to the tool and focus it,
+  and the article is memoised against a stable loader; the scheduling chart
+  plots waits by start time so backlogged runs spread out; wide display
+  equations wrap at 390; the sweep's axis fits the simulated dots.
 
 ## Next
 
-1. Tool 4, queueing and delay: M/M/1 and M/D/1 against the formulas, the
-   four delays, token and leaky bucket, FIFO, priority and WFQ.
-2. Tool 5, link layer and wireless: CSMA/CD with BEB, ALOHA and slotted
+1. Tool 5, link layer and wireless: CSMA/CD with BEB, ALOHA and slotted
    ALOHA, CSMA/CA with hidden and exposed terminals and RTS/CTS, switch
    learning and spanning tree, CRC, Hamming codes.
-3. Tool 6, naming and the web: iterative and recursive DNS with caching
+2. Tool 6, naming and the web: iterative and recursive DNS with caching
    and TTLs; HTTP/1.1, HTTP/2 and HTTP/3 with head-of-line blocking.

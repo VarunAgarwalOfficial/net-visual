@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from "react"
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -146,6 +146,16 @@ function QueueLoaded({ sim }: { sim: Netsim }) {
     tl.pause()
     tl.seek(at)
   }
+  // The article is memoised, so it gets a stable function that calls the latest loader.
+  const loader = useRef(load)
+  useEffect(() => {
+    loader.current = load
+  })
+  const onLoad = useCallback((id: string) => {
+    loader.current(id)
+    root.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+    root.current?.focus({ preventScroll: true })
+  }, [])
   const goTour = (i: number | null) => {
     setTour(i)
     if (i === null) return
@@ -359,7 +369,7 @@ function QueueLoaded({ sim }: { sim: Netsim }) {
         </div>
       </div>
 
-      <Article sim={sim} p={p} run={run} onLoad={(id) => load(id)} />
+      <Article sim={sim} p={p} run={run} onLoad={onLoad} />
     </section>
   )
 }

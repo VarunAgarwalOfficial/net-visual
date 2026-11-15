@@ -229,7 +229,7 @@ export function QueueAnalysis({ p, run }: { sim: Netsim; p: QueueParams; run: Qu
   const sh = useMemo(() => (p.flows.length > 1 ? shares(p, run) : null), [p, run])
 
   return (
-    <Layer id="queue-analysis" layer="Analysis" title="Four results that explain the numbers">
+    <Layer id="queue-analysis" layer="Analysis" title="Six results that explain the numbers">
       <h3 className="pt-2 text-lg">Theorem 1 (Little's law)</h3>
       <p>
         In any system that packets enter and leave, if over a long stretch of time the arrival rate is <Tex>{"\\lambda"}</Tex>, the mean
@@ -256,11 +256,11 @@ export function QueueAnalysis({ p, run }: { sim: Netsim; p: QueueParams; run: Qu
         <Tex>{"\\rho = \\lambda/\\mu < 1"}</Tex>, the number in the system in equilibrium is geometric,{" "}
         <Tex>{"P(N = n) = (1-\\rho)\\rho^n"}</Tex>, so
       </p>
-      <Tex display>
-        {
-          "L = \\frac{\\rho}{1-\\rho}, \\qquad W = \\frac{L}{\\lambda} = \\frac{1}{\\mu - \\lambda}, \\qquad W_q = W - \\frac{1}{\\mu} = \\frac{\\rho}{\\mu - \\lambda}."
-        }
-      </Tex>
+      <div className="flex flex-wrap justify-center gap-x-10">
+        <Tex display>{"L = \\frac{\\rho}{1-\\rho},"}</Tex>
+        <Tex display>{"W = \\frac{L}{\\lambda} = \\frac{1}{\\mu - \\lambda},"}</Tex>
+        <Tex display>{"W_q = W - \\frac{1}{\\mu} = \\frac{\\rho}{\\mu - \\lambda}."}</Tex>
+      </div>
       <p>
         <em>Proof.</em> Both distributions are memoryless, so the number in the system alone determines the future: it is a birth-death
         chain that goes up at rate <Tex>{"\\lambda"}</Tex> and, when positive, down at rate <Tex>{"\\mu"}</Tex>. In equilibrium the flow
@@ -315,7 +315,10 @@ export function QueueAnalysis({ p, run }: { sim: Netsim; p: QueueParams; run: Qu
         With Poisson classes served by non-preemptive strict priority, class 1 most urgent, and{" "}
         <Tex>{"\\sigma_k = \\rho_1 + \\dots + \\rho_k"}</Tex>, the mean wait of class k is (Cobham, 1954)
       </p>
-      <Tex display>{"W_{q,k} = \\frac{R_0}{(1-\\sigma_{k-1})(1-\\sigma_k)}, \\qquad R_0 = \\sum_i \\frac{\\lambda_i E[S_i^2]}{2}."}</Tex>
+      <div className="flex flex-wrap justify-center gap-x-10">
+        <Tex display>{"W_{q,k} = \\frac{R_0}{(1-\\sigma_{k-1})(1-\\sigma_k)},"}</Tex>
+        <Tex display>{"R_0 = \\sum_i \\frac{\\lambda_i E[S_i^2]}{2}."}</Tex>
+      </div>
       <p>
         <em>Proof sketch.</em> A class-k packet waits for the remainder <Tex>{"R_0"}</Tex> of whatever is in service, for the work of
         classes 1 to k already queued, and for the work of classes 1 to k − 1 that arrives while it waits. The same mean-value argument as
@@ -486,7 +489,8 @@ export function QueueAnalysis({ p, run }: { sim: Netsim; p: QueueParams; run: Qu
               Under FIFO a flow's share is set by demand, so the polite flow gets 2.4/(2.4 + 16) of the link while the queue grows, about
               13%, far less than its 2.4 Mb/s, and its packets wait behind a backlog growing at 10.4 Mb/s. Under WFQ with equal weights its
               guaranteed rate is 4 Mb/s ≥ 2.4 Mb/s, and its packets are evenly spaced (b = one packet), so by Theorem 6 its delay is at most
-              L/g + L_max/R = 2 ms + 1 ms. In the run no polite packet waits more than 1 ms, the time to finish one greedy packet already on the wire.
+              L/g + L_max/R = 2 ms + 1 ms. In the run no polite packet waits more than 1 ms, the time to finish one greedy packet already on
+              the wire.
             </p>
           }
         >

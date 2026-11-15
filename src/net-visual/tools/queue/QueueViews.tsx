@@ -33,13 +33,14 @@ import {
   type QueueRun,
   type SweepPoint,
 } from "../../core/queue"
-import { CSS, FLOW_COLORS, H, W, pathShapes, type PathFigure } from "./pathFigure"
+import { CSS, FLOW_COLORS, W, pathBox, pathShapes, type PathFigure } from "./pathFigure"
 
 const ms = (v: number) => String(Number((v / 1000).toPrecision(4)))
 const DISCIPLINE: Record<Discipline, string> = { fifo: "FIFO", priority: "strict priority", wfq: "WFQ" }
 
 /** "Packet 12" for one flow, "voice packet 12" for several. */
-export const packetName = (p: QueueParams, q: QPacket) => (p.flows.length > 1 ? `${p.flows[q.flow].name} packet ${q.id}` : `Packet ${q.id}`)
+export const packetName = (p: QueueParams, q: QPacket) =>
+  p.flows.length > 1 ? `Packet ${q.id} (${p.flows[q.flow].name})` : `Packet ${q.id}`
 
 /** What one event means, in a sentence, with the numbers that matter. */
 export function eventText(p: QueueParams, run: QueueRun, e: QEvent): string {
@@ -93,7 +94,7 @@ export const PathView = memo(function PathView({ fig, label }: { fig: PathFigure
   const shapes = useMemo(() => pathShapes(fig, k), [fig, k])
   return (
     <div ref={box}>
-      <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full font-sans" role="img" aria-label={label}>
+      <svg viewBox={`0 ${pathBox(fig).y0} ${W} ${pathBox(fig).h}`} className="block h-auto w-full font-sans" role="img" aria-label={label}>
         <defs>
           <marker id="nvq-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
             <path d="M0,0 L10,5 L0,10 z" fill="var(--muted-foreground)" />
@@ -175,7 +176,11 @@ export const Totals = memo(function Totals({ run, p }: { run: QueueRun; p: Queue
   const sent = run.packets.length
   return (
     <dl className="grid grid-cols-2 gap-x-4 gap-y-1 font-sans text-sm sm:grid-cols-3">
-      <Row k="offered load" v={`${(100 * offered(p)).toFixed(0)}% of ${bps(p.rate_bps)}`} bad={offered(p) >= 1} />
+      <Row
+        k="offered load"
+        v={`${offered(p) >= 10 ? "more than 1000%" : `${(100 * offered(p)).toFixed(0)}%`} of ${bps(p.rate_bps)}`}
+        bad={offered(p) >= 1}
+      />
       <Row k="delivered" v={`${s.served} of ${sent}`} />
       <Row k="dropped" v={s.dropped ? `${s.dropped} (${((100 * s.dropped) / sent).toFixed(1)}%)` : "none"} bad={s.dropped > 0} />
       <Row k="mean wait in queue" v={us(s.wait_us)} />
@@ -369,7 +374,7 @@ function SchedulingEquations({ p, run }: { p: QueueParams; run: QueueRun }) {
       ) : p.discipline === "priority" ? (
         <Tex display>{`\\text{wait behind less urgent classes} \\le \\frac{L_{\\max}}{R} = ${texNum(m.us / 1000)}\\ \\text{ms}`}</Tex>
       ) : (
-        <Tex display>{`\\text{send in order of arrival: share}_i \\approx \\frac{\\lambda_i L_i}{\\sum_j \\lambda_j L_j}`}</Tex>
+        <Tex display>{`\\text{FIFO share}_i \\approx \\frac{\\lambda_i L_i}{\\sum_j \\lambda_j L_j}`}</Tex>
       )}
       <div className="overflow-x-auto">
         <table className="w-full font-sans text-sm tabular-nums lining">
@@ -443,7 +448,7 @@ export function modeChart(mode: Mode, p: QueueParams, run: QueueRun, end: number
     if (b !== null && f.shaper.kind !== "none") {
       series.push({
         id: "env",
-        label: "bound: tightest b + r(t − s)",
+        label: "ceiling: least over s of out(s) + b + r(t − s)",
         color: FLOW_COLORS[2],
         kind: "line",
         points: bound(releases(run, k), b, f.shaper.rate_bps, end),
@@ -467,11 +472,11 @@ export function modeChart(mode: Mode, p: QueueParams, run: QueueRun, end: number
     kind: "dots" as const,
     points: run.packets
       .filter((q) => q.flow === k && q.t_start !== null && q.t_join !== null)
-      .map((q): [number, number] => [q.t_join!, q.t_start! - q.t_join!]),
+      .map((q): [number, number] => [q.t_start!, q.t_start! - q.t_join!]),
   }))
   const top = Math.max(1000, ...series.flatMap((s) => s.points.map((x) => x[1]))) * 1.08
   return {
-    title: "Each packet's wait in the queue, by when it joined",
+    title: "Each packet's wait in the queue, by when it started onto the link",
     yLabel: "wait (ms)",
     yFormat: ms,
     yDomain: [0, top] as [number, number],
@@ -670,7 +675,7 @@ export function SweepPanel({ sim, p }: { sim: Netsim; p: QueueParams }) {
         xFormat={(v) => v.toFixed(1)}
         yFormat={ms}
         xDomain={[0, 0.92]}
-        yDomain={[0, 11 * s]}
+        yDomain={[0, Math.max(11 * s, ...series.slice(2).flatMap((x) => x.points.map((pt) => pt[1] * 1.05)))]}
         height={240}
       />
       <ParamSlider

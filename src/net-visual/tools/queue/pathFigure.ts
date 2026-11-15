@@ -130,6 +130,9 @@ const rowY = (k: number, n: number) => 118 + (k - (n - 1) / 2) * Math.min(46, 16
 
 export const SLOTS = 13
 
+/** The part of the W by H box a figure uses: one flow needs only a band around the router. */
+export const pathBox = (fig: PathFigure) => (fig.flows.length === 1 ? { y0: 44, h: 152 } : { y0: 0, h: H })
+
 /** The figure as shapes in a W by H box. `k` enlarges text for narrow screens. */
 export function pathShapes(fig: PathFigure, k = 1): Shape[] {
   const out: Shape[] = []
@@ -173,7 +176,16 @@ export function pathShapes(fig: PathFigure, k = 1): Shape[] {
   if (anyShaper) {
     const kinds = new Set(fig.flows.map((f) => f.shaper?.kind).filter(Boolean))
     const what = kinds.size === 2 ? "tokens or bytes held" : kinds.has("token") ? "tokens" : "bytes held"
-    out.push({ kind: "text", x: 117, y: 226, text: `shaper (fill: ${what})`, size: fs(10), anchor: "middle", fill: "muted" })
+    const box = pathBox(fig)
+    out.push({
+      kind: "text",
+      x: 117,
+      y: box.y0 + box.h - 10,
+      text: `shaper (fill: ${what})`,
+      size: fs(10),
+      anchor: "middle",
+      fill: "muted",
+    })
   }
 
   // The router: processing, then the queue, then the transmitter.
@@ -283,10 +295,11 @@ export const CSS: Record<Ink, string> = {
 const n1 = (v: number) => Number(v.toFixed(1))
 
 export function pathSvg(fig: PathFigure): string {
+  const { y0, h } = pathBox(fig)
   const out = [
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${W + 20}" height="${H + 40}" viewBox="-10 -10 ${W + 20} ${H + 40}" font-family="'CMU Sans Serif', 'Latin Modern Sans', Helvetica, Arial, sans-serif">`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${W + 20}" height="${h + 40}" viewBox="-10 ${y0 - 10} ${W + 20} ${h + 40}" font-family="'CMU Sans Serif', 'Latin Modern Sans', Helvetica, Arial, sans-serif">`,
     `<title>${esc(fig.caption)}</title>`,
-    `<rect x="-10" y="-10" width="100%" height="100%" fill="#ffffff"/>`,
+    `<rect x="-10" y="${y0 - 10}" width="100%" height="100%" fill="#ffffff"/>`,
     `<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="${MUTED}"/></marker></defs>`,
   ]
   for (const s of pathShapes(fig)) {
@@ -303,7 +316,7 @@ export function pathSvg(fig: PathFigure): string {
         `<text x="${n1(s.x)}" y="${n1(s.y)}" text-anchor="${s.anchor}" font-size="${s.size}" fill="${PALETTE[s.fill]}"${s.bold ? ' font-weight="bold"' : ""}>${esc(s.text)}</text>`,
       )
   }
-  out.push(`<text x="${W / 2}" y="${H + 22}" text-anchor="middle" font-size="12" fill="${INK}">${esc(fig.caption)}</text>`, `</svg>`)
+  out.push(`<text x="${W / 2}" y="${y0 + h + 22}" text-anchor="middle" font-size="12" fill="${INK}">${esc(fig.caption)}</text>`, `</svg>`)
   return out.join("\n")
 }
 
@@ -339,7 +352,8 @@ export function pathTikz(fig: PathFigure): string {
       L.push(`  \\node[anchor=${anchor}, inner sep=0pt, text=${col(s.fill)}, font=\\sffamily${size}] at ${c(s.x, s.y)} {${tex(s.text)}};`)
     }
   }
-  L.push(`  \\node[anchor=north, font=\\sffamily\\small] at ${c(W / 2, H + 6)} {${tex(fig.caption)}};`)
+  const { y0, h } = pathBox(fig)
+  L.push(`  \\node[anchor=north, font=\\sffamily\\small] at ${c(W / 2, y0 + h + 6)} {${tex(fig.caption)}};`)
   L.push("\\end{tikzpicture}", "\\end{document}", "")
   return L.join("\n")
 }
