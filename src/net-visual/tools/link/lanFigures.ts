@@ -56,7 +56,8 @@ function linkOffsets(links: LanLink[]): number[] {
     const same = links.map((m, j) => ({ m, j })).filter(({ m }) => (m.a === l.a && m.b === l.b) || (m.a === l.b && m.b === l.a))
     if (same.length < 2) return 0
     const k = same.findIndex(({ j }) => j === i)
-    return (k - (same.length - 1) / 2) * 14
+    // Wide enough apart that the port markers (17 units across) of parallel links do not touch.
+    return (k - (same.length - 1) / 2) * 22
   })
 }
 
@@ -188,8 +189,8 @@ export function stpFigure(p: StpParams, run: StpRun, t: number, index: number, w
   const ports = lanPorts(p.bridges.length, p.links)
   const offs = linkOffsets(p.links)
   const shapes: Shape[] = []
-  // Sized for the 11-unit labels the page renders at 17px.
-  const hw = w < 480 ? 32 : 36
+  // Sized for the 11-unit labels the page renders at 17px: a ten-character ID needs about 66 units.
+  const hw = 38
   const hh = 25
   const failed = p.failure && t >= p.failure.at_ms ? p.failure.link : -1
   const ends = (i: number): [Place, Place] => shifted(pos[p.links[i].a], pos[p.links[i].b], offs[i])

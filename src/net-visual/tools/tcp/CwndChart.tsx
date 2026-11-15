@@ -122,6 +122,10 @@ export const CwndChart = memo(function CwndChart({
   }
   const firstDrop = marks.drops.flat().reduce((a, b) => Math.min(a, b), Infinity)
   const { bdp_pkts: bdp, pipe_pkts: pipe } = run.theory
+  const refs: [number, string][] = [
+    [bdp, `the path holds ${bdp.toFixed(0)} (bandwidth-delay product)`],
+    [pipe, `path and router buffer full: ${pipe.toFixed(0)}`],
+  ]
   return (
     <div>
       <LineChart
@@ -138,77 +142,33 @@ export const CwndChart = memo(function CwndChart({
         cursor={t}
         upTo={t}
         onSeek={onSeek}
-      >
-        {({ sx, sy, left, right, top: y0, bottom }) => (
+        overlay={({ sx, sy, right, top: y0, bottom }) => (
+          // Words and marks go over the lines, each on a ground of the page colour.
           <g pointerEvents="none">
-            {band && (
-              <rect
-                x={sx(band[0])}
-                y={y0}
-                width={Math.max(1, sx(Math.min(band[1], p.duration_us)) - sx(band[0]))}
-                height={bottom - y0}
-                fill="var(--nv-mark)"
-              />
-            )}
             {band && (
               <text x={sx(band[0]) + 4} y={y0 + 18} fontSize="17" fill="var(--chart-ink)">
                 shaded: in the sequence diagram
               </text>
             )}
-            {[
-              [bdp, `the path holds ${bdp.toFixed(0)} (bandwidth-delay product)`],
-              [pipe, `path and router buffer full: ${pipe.toFixed(0)}`],
-            ].map(([v, text]) =>
-              (v as number) <= top ? (
-                <g key={text}>
-                  <line x1={left} x2={right} y1={sy(v as number)} y2={sy(v as number)} stroke="var(--chart-ink)" strokeDasharray="1 3" />
-                  <text x={right - 4} y={sy(v as number) - 4} textAnchor="end" fontSize="17" fill="var(--chart-ink)">
-                    {text}
-                  </text>
-                </g>
+            {refs.map(([v, text]) =>
+              v <= top ? (
+                <text key={text} x={right - 4} y={sy(v) - 4} textAnchor="end" fontSize="17" fill="var(--chart-ink)" {...HALO}>
+                  {text}
+                </text>
               ) : null,
             )}
-            {marks.drops.map((ts, i) => (
-              <path key={i} d={ts.map((x) => `M${sx(x).toFixed(1)},${bottom}v-${5 + 3 * i}`).join("")} stroke="var(--nv-bad)" fill="none" />
-            ))}
             {firstDrop < Infinity && (
-              <text
-                x={sx(firstDrop) + 5}
-                y={bottom - 4}
-                fontSize="17"
-                fill="var(--chart-ink)"
-                stroke="var(--background)"
-                strokeWidth={3}
-                paintOrder="stroke"
-              >
+              <text x={sx(firstDrop) + 5} y={bottom - 4} fontSize="17" fill="var(--chart-ink)" {...HALO}>
                 {marks.drops.length > 1 ? "packet lost (ticks, one row per flow)" : "packet lost (ticks)"}
               </text>
             )}
             {marks.fast.slice(0, 1).map(([x, y]) => (
-              <text
-                key="fast-label"
-                x={sx(x) + 7}
-                y={sy(y) - 12}
-                fontSize="17"
-                fill="var(--nv-again)"
-                stroke="var(--background)"
-                strokeWidth={3}
-                paintOrder="stroke"
-              >
+              <text key="fast-label" x={sx(x) + 7} y={sy(y) - 12} fontSize="17" fill="var(--nv-again)" {...HALO}>
                 fast retransmit
               </text>
             ))}
             {marks.timeout.slice(0, 1).map(([x, y]) => (
-              <text
-                key="timeout-label"
-                x={sx(x) + 7}
-                y={sy(y) - 3}
-                fontSize="17"
-                fill="var(--nv-bad)"
-                stroke="var(--background)"
-                strokeWidth={3}
-                paintOrder="stroke"
-              >
+              <text key="timeout-label" x={sx(x) + 7} y={sy(y) - 3} fontSize="17" fill="var(--nv-bad)" {...HALO}>
                 timer ran out
               </text>
             ))}
@@ -229,10 +189,34 @@ export const CwndChart = memo(function CwndChart({
             ))}
           </g>
         )}
+      >
+        {({ sx, sy, left, right, top: y0, bottom }) => (
+          // Under the lines: the shaded span, the two reference levels, the loss ticks.
+          <g pointerEvents="none">
+            {band && (
+              <rect
+                x={sx(band[0])}
+                y={y0}
+                width={Math.max(1, sx(Math.min(band[1], p.duration_us)) - sx(band[0]))}
+                height={bottom - y0}
+                fill="var(--nv-mark)"
+              />
+            )}
+            {refs.map(([v, text]) =>
+              v <= top ? <line key={text} x1={left} x2={right} y1={sy(v)} y2={sy(v)} stroke="var(--chart-ink)" strokeDasharray="1 3" /> : null,
+            )}
+            {marks.drops.map((ts, i) => (
+              <path key={i} d={ts.map((x) => `M${sx(x).toFixed(1)},${bottom}v-${5 + 3 * i}`).join("")} stroke="var(--nv-bad)" fill="none" />
+            ))}
+          </g>
+        )}
       </LineChart>
     </div>
   )
 })
+
+/** A ground of the page colour round a label, so a line under it does not run through its letters. */
+const HALO = { stroke: "var(--background)", strokeWidth: 4, strokeLinejoin: "round", paintOrder: "stroke" } as const
 
 /** The window chart as an exportable figure. */
 export function cwndFigure(run: TcpRun, compare: TcpRun | null, cmp: Algo | null, p: TcpParams, caption: string): ChartFigure {

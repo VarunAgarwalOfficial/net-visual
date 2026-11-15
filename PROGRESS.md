@@ -468,7 +468,7 @@ recorded per tool below.
   muted with dashes and hollow/filled dots. Figures are laid out so 11
   units render at 17px (`figureWidth`, ShapeView `px` floor). Moved: the
   ALOHA key wraps and gains "a frame still being sent"; STP boxes grew
-  (still crowded at 390); overlapping CSMA/CD "heard after" labels lift
+  to 76 units, enough for a ten-character ID; overlapping CSMA/CD "heard after" labels lift
   15 units. Colour words changed: ALOHA help ("purple while it is sent,
   green ... red ..."), switch help ("Each purple dot is one copy").
 - web: DNS ladder query muted, referral purple, answer green, CNAME
@@ -499,10 +499,58 @@ Contrast (WCAG 2 relative luminance, computed from the token hexes by
 | fg / code-bg | 13.77 | 12.38 |
 | meaning / code-bg (lowest) | 4.49 (amber) | 6.09 |
 
+| green / mark, amber / mark (light) | 4.497, 4.10 | 5.12, 5.30 |
+
 Page colour on a solid meaning fill has the same ratio as the fill on
-the page. Amber on code-bg in light is 4.49, just under 4.5 for text
-(it passes the 3:1 graphics level); not fixed. Rule colour (1.35/1.41)
-is a separator only.
+the page. Two meaning colours fall under 4.5 on a highlighted or
+hovered row in light: green and amber on the highlighter, amber on the
+code ground. host.css now sets text in those two colours in the ink on
+`bg-mark`, `bg-muted` and a hovered `hover:bg-muted` row (the STP
+bridge table's acting row was the one real case: "forwarding" in
+green); the word still says it. Purple and red stay (4.6 or more).
+Rule colour (1.35/1.41) is a separator only.
+
+Text-box check (`/tmp/nv-work/style/textcheck.js`, run by
+`textrun.sh` at load and after seeking to the middle of the run, 1440
+light and 390 dark, and by `sweep.sh` at every Next step): every SVG
+text in a picture must lie inside the picture (cut by any clip-path)
+and must not intersect another text. `contrastcheck.js` measures every
+rendered text (HTML colour on the first opaque ground; SVG fill on the
+last filled shape under it, or its halo) and reports anything under
+4.5. What the text check found and what moved:
+
+- rdt/tcp ladder: lane names and the time unit were cut at the top of
+  the scroller and "accepted"/"packet 0" at the now line were cut by
+  the flights' clip. The unit and lane names now sit in a fixed header
+  strip above the scroller; only the bands, lines and crosses are
+  clipped, labels are drawn unclipped on a page-colour halo, and the
+  now line is drawn under them.
+- tcp window chart: two end-of-line labels ran off the plot at 390.
+  Long labels wrap to two lines, are pushed apart and kept inside. The
+  chart's own words (fast retransmit, packet lost, timer ran out, the
+  two reference levels) moved from under the lines to over them, on a
+  halo, and the now line is drawn under all labels.
+- routing: message boxes covered link costs ("3" on "cost 10"),
+  router labels and each other. Each message is placed beside its
+  link by searching both sides and positions along it for a spot
+  clear of costs, routers, router labels and other messages; below
+  520px the network keeps 520px and scrolls sideways in its box.
+- link: ALOHA ticks "11"/"14" overlapped "ms" (first tick now starts
+  left-aligned) and the vulnerable-window note ran off the left at 390
+  (wraps to two lines, kept inside). STP and switch pictures crowded at
+  390 (IDs past the boxes, "4" on "D", port numbers on each other): the
+  LAN pictures keep 720px and scroll sideways below it, parallel links
+  sit 22 units apart, bridge boxes are 76 units wide.
+- queue and web: clean.
+
+After the fixes all six tools are clean at load and mid-run at both
+widths (no clipped text, no overlaps, nothing under 4.5), and full
+Next sweeps of routing (72 steps) and the STP presets are clean. What
+remains: in routing at 390 and in the LAN pictures below 720px, labels
+at the right edge are cut by the sideways scroll box until scrolled
+(reported as "scrollEdge"); lines still pass behind some halo'd labels
+(tcp "slow-start threshold", "packet lost"), which the check does not
+count.
 
 ## Next
 

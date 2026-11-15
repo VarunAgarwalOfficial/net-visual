@@ -178,13 +178,25 @@ export function LineChart(props: Props) {
       let p = s.points[0]
       for (const q of s.points) if (q[0] <= limit) p = q
       const X = sx(p[0])
-      return [{ id: s.id, label: s.label, color: s.color, x: X, y: sy(Math.min(Math.max(p[1], y0), y1)) - 7 }]
+      // A name too long for the chart wraps; every line stays inside the plot.
+      const lines = s.label.length * 7.6 > w - 12 ? wrap(s.label) : [s.label]
+      const len = 7.6 * Math.max(...lines.map((l) => l.length))
+      const x = X < m.l + w * 0.6 ? Math.max(X, m.l) + 6 : X - 6 - len
+      return [
+        { id: s.id, lines, color: s.color, x: Math.max(m.l + 2, Math.min(x, m.l + w - len)), y: sy(Math.min(Math.max(p[1], y0), y1)) - 7 },
+      ]
     })
     out.sort((a, b) => a.y - b.y)
-    for (let k = 1; k < out.length; k++) if (out[k].y - out[k - 1].y < 20) out[k].y = out[k - 1].y + 20
-    const over = out.length ? out[out.length - 1].y - (m.t + h - 2) : 0
+    const gap = (l: (typeof out)[number]) => 20 * l.lines.length
+    for (let k = 1; k < out.length; k++) if (out[k].y - out[k - 1].y < gap(out[k - 1])) out[k].y = out[k - 1].y + gap(out[k - 1])
+    const lastOne = out[out.length - 1]
+    const over = out.length ? lastOne.y + 20 * (lastOne.lines.length - 1) - (m.t + h - 2) : 0
     if (over > 0) for (const l of out) l.y -= over
-    for (let k = 0; k < out.length; k++) out[k].y = Math.max(out[k].y, m.t + 14 + k * 20)
+    let floor = m.t + 14
+    for (const l of out) {
+      l.y = Math.max(l.y, floor)
+      floor = l.y + gap(l)
+    }
     return out
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [series, upTo, width, height, x0, x1, y0, y1])
@@ -323,6 +335,10 @@ export function LineChart(props: Props) {
                 )}
               </g>
             ))}
+            {/* The now line goes under every label, so it never runs through a word. */}
+            {cursor !== undefined && cursor >= x0 && cursor <= x1 && (
+              <line x1={sx(cursor)} x2={sx(cursor)} y1={m.t} y2={m.t + h} stroke="var(--foreground)" />
+            )}
             {ahead !== null && m.l + w - ahead > 150 && noteFits && (
               <text x={m.l + w - 4} y={noteY} textAnchor="end" fontSize="17" fill="var(--chart-ink)">
                 faint: the rest of the run, not reached yet
@@ -331,23 +347,24 @@ export function LineChart(props: Props) {
             {(asKey ? [] : labels).map((l) => (
               <text
                 key={l.id}
-                x={l.x < m.l + w * 0.6 ? Math.max(l.x, m.l) + 6 : l.x - 6}
+                x={l.x}
                 y={l.y}
-                textAnchor={l.x < m.l + w * 0.6 ? "start" : "end"}
                 fontSize="17"
                 fill={l.color}
                 stroke="var(--background)"
-                strokeWidth={3}
+                strokeWidth={4}
+                strokeLinejoin="round"
                 paintOrder="stroke"
                 pointerEvents="none"
               >
-                {l.label}
+                {l.lines.map((line, i) => (
+                  <tspan key={i} x={l.x} dy={i ? 20 : 0}>
+                    {line}
+                  </tspan>
+                ))}
               </text>
             ))}
             {props.overlay?.({ sx, sy, left: m.l, right: m.l + w, top: m.t, bottom: m.t + h })}
-            {cursor !== undefined && cursor >= x0 && cursor <= x1 && (
-              <line x1={sx(cursor)} x2={sx(cursor)} y1={m.t} y2={m.t + h} stroke="var(--foreground)" />
-            )}
             {hover !== null && (
               <g pointerEvents="none">
                 <line x1={sx(hover)} x2={sx(hover)} y1={m.t} y2={m.t + h} stroke="var(--chart-ink)" strokeDasharray="3 3" />

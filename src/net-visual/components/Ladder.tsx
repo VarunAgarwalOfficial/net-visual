@@ -86,8 +86,10 @@ export function Ladder(props: Props) {
   const [scroll, setScroll] = useState(0)
   const [drag, setDrag] = useState<{ id: number; y0: number; dy: number } | null>(null)
   const clip = useId().replace(/:/g, "")
-  // Two rows above the lanes: the axis unit, then the lane names.
-  const top = 62
+  // The axis unit and the lane names sit in a strip above the scrolling
+  // lanes, so they stay in view; the lanes start just below the first label.
+  const head = 48
+  const top = 24
   // The right gutter holds what happened to each arriving packet, so it is
   // never narrower than the longest of those words at phone width.
   const xs = [Math.min(110, width * 0.22), width - Math.min(150, Math.max(112, width * 0.24))] as const
@@ -123,10 +125,20 @@ export function Ladder(props: Props) {
           {props.legend}
         </div>
       )}
+      <svg width={width} height={head} className="block font-sans lining select-none" aria-hidden>
+        <text x={4} y={18} fontSize="17" fill="var(--chart-ink)" className="font-sans">
+          {unit.name}
+        </text>
+        {props.lanes.map((name, i) => (
+          <text key={name} x={xs[i]} y={40} textAnchor="middle" fontSize="17" fill="var(--foreground)" className="font-sans">
+            {name}
+          </text>
+        ))}
+      </svg>
       <div
         ref={scroller}
         className="relative overflow-x-hidden overflow-y-auto overscroll-contain"
-        style={{ height }}
+        style={{ height: height - head }}
         onScroll={(e) => setScroll(e.currentTarget.scrollTop)}
       >
         <svg
@@ -154,9 +166,6 @@ export function Ladder(props: Props) {
                 </text>
               </g>
             ))}
-          <text x={4} y={18} fontSize="17" fill="var(--chart-ink)" className="font-sans">
-            {unit.name}
-          </text>
           {t < 0 &&
             props.empty?.map((line, i) => (
               <text
@@ -175,14 +184,12 @@ export function Ladder(props: Props) {
               </text>
             ))}
           {props.lanes.map((name, i) => (
-            <g key={name}>
-              <text x={xs[i]} y={40} textAnchor="middle" fontSize="17" fill="var(--foreground)" className="font-sans">
-                {name}
-              </text>
-              <line x1={xs[i]} x2={xs[i]} y1={top} y2={total} stroke="var(--muted-foreground)" />
-            </g>
+            <line key={name} x1={xs[i]} x2={xs[i]} y1={top} y2={total} stroke="var(--muted-foreground)" />
           ))}
-          <g clipPath={`url(#${clip})`}>
+          {t >= 0 && <line x1={0} x2={width} y1={yt} y2={yt} stroke="var(--muted-foreground)" strokeDasharray="2 3" />}
+          {/* Only the past is drawn: the bands and the crosses stop at the now line. Labels
+              are all of past events, so they are not cut, and a halo keeps lines off them. */}
+          <g>
             {visible.map((f) => {
               const a = xs[f.from]
               const b = xs[1 - f.from]
@@ -218,18 +225,20 @@ export function Ladder(props: Props) {
                     }
                   }}
                 >
-                  <polygon points={band} fill={f.color} fillOpacity={f.lost ? 0.1 : 0.18} />
-                  <line
-                    x1={a}
-                    y1={y(f.t_start)}
-                    x2={bx}
-                    y2={leadY}
-                    stroke={f.color}
-                    strokeWidth={sel ? 3 : 1.75}
-                    strokeDasharray={f.lost ? "5 3" : undefined}
-                  />
-                  <line x1={a} y1={y(f.t_start)} x2={bx} y2={leadY} stroke="transparent" strokeWidth={14} />
-                  {f.lost && <Cross x={bx} y={leadY} />}
+                  <g clipPath={`url(#${clip})`}>
+                    <polygon points={band} fill={f.color} fillOpacity={f.lost ? 0.1 : 0.18} />
+                    <line
+                      x1={a}
+                      y1={y(f.t_start)}
+                      x2={bx}
+                      y2={leadY}
+                      stroke={f.color}
+                      strokeWidth={sel ? 3 : 1.75}
+                      strokeDasharray={f.lost ? "5 3" : undefined}
+                    />
+                    <line x1={a} y1={y(f.t_start)} x2={bx} y2={leadY} stroke="transparent" strokeWidth={14} />
+                    {f.lost && <Cross x={bx} y={leadY} />}
+                  </g>
                   {labelled.send.has(f.id) && (
                     <text
                       x={a + (f.from === 0 ? 6 : -6)}
@@ -237,6 +246,7 @@ export function Ladder(props: Props) {
                       textAnchor={f.from === 0 ? "start" : "end"}
                       fontSize="17"
                       fill="var(--foreground)"
+                      {...HALO}
                       className="font-sans"
                     >
                       {f.label}
@@ -250,6 +260,7 @@ export function Ladder(props: Props) {
                       textAnchor={f.from === 0 ? "start" : "end"}
                       fontSize="17"
                       fill={f.alarm ? "var(--nv-bad)" : "var(--muted-foreground)"}
+                      {...HALO}
                       className="font-sans"
                     >
                       {f.fate}
@@ -278,6 +289,7 @@ export function Ladder(props: Props) {
                     textAnchor={mk.lane === 0 ? "end" : "start"}
                     fontSize="17"
                     fill="var(--foreground)"
+                    {...HALO}
                     className="font-sans"
                   >
                     {mk.text}
@@ -303,7 +315,6 @@ export function Ladder(props: Props) {
                 />
               )
             })}
-          {t >= 0 && <line x1={0} x2={width} y1={yt} y2={yt} stroke="var(--muted-foreground)" strokeDasharray="2 3" />}
           {props.onDelay &&
             visible
               .filter((f) => f.id === selected && !f.lost && t >= f.t_start)
@@ -338,6 +349,9 @@ export function Ladder(props: Props) {
     </div>
   )
 }
+
+/** A page-coloured outline under a label, so lines passing behind it stop short of the letters. */
+const HALO = { stroke: "var(--background)", strokeWidth: 4, strokeLinejoin: "round", paintOrder: "stroke" } as const
 
 function Cross({ x, y }: { x: number; y: number }) {
   return (

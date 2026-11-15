@@ -248,3 +248,13 @@
 .nv-tool svg text {
   font-family: var(--site-font-body);
 }
+
+/* A highlighted or hovered row sits on the highlighter or the code ground, where
+   two meaning colours fall under 4.5:1 in light: green 4.50 and amber 4.10 on
+   the highlighter, amber 4.49 on the code ground. Text in those two is set in
+   the ink there; the word itself (forwarding, the check value's tick) still says
+   what the colour said. Purple and red stay: 4.6 or more on both grounds. */
+:is(.bg-mark, .bg-muted, .hover\:bg-muted:hover) :is(.text-ok, .text-again),
+:is(.bg-mark, .bg-muted, .hover\:bg-muted:hover):is(.text-ok, .text-again) {
+  color: var(--foreground);
+}

@@ -106,7 +106,9 @@ export function alohaFigure(p: AlohaParams, run: AlohaRun, t: number, w: number)
     keyShapes.push(text(kx, ky, k.label, { size: 11, fill: "ink" }))
     kx += k.label.length * 5.6 + 16
   }
-  const top = ky + 26
+  // The note over the vulnerable window takes two lines where one would be wider than the picture.
+  const noteLines = 50 * 5.6 > right - 8 ? 2 : 1
+  const top = ky + 26 + (noteLines - 1) * 15
   const rowH = Math.max(10, Math.min(22, 176 / n))
   const chanY = top + n * rowH + 10
   const chanH = 18
@@ -128,11 +130,14 @@ export function alohaFigure(p: AlohaParams, run: AlohaRun, t: number, w: number)
         ? `only a frame in this same slot ruins frame #${focus.id}`
         : `any frame starting in this band ruins frame #${focus.id}`
       const mid = (X(a) + X(b)) / 2
-      shapes.push(
-        text(Math.min(right, Math.max(left, mid)), top - 6, label, {
-          anchor: mid < left + 60 ? "start" : mid > right - 60 ? "end" : "middle",
-        }),
-      )
+      const words = label.split(" ")
+      const half = Math.ceil(words.length / 2)
+      const lines = noteLines === 2 ? [words.slice(0, half).join(" "), words.slice(half).join(" ")] : [label]
+      // Centred over the band, but never past either edge of the picture.
+      lines.forEach((line, i) => {
+        const lw = line.length * 5.6
+        shapes.push(text(Math.max(4, Math.min(right - lw, mid - lw / 2)), top - 6 - (lines.length - 1 - i) * 15, line))
+      })
     }
   }
   if (p.slotted)
@@ -179,7 +184,8 @@ export function alohaFigure(p: AlohaParams, run: AlohaRun, t: number, w: number)
     if (k % every === 0)
       shapes.push(
         text(X(k * F), h - 4, String(Number(((k * F) / 1000).toPrecision(4))), {
-          anchor: X(k * F) > right - 16 ? "end" : "middle",
+          // A tick at the left edge starts there, clear of the unit name before it.
+          anchor: X(k * F) > right - 16 ? "end" : X(k * F) < left + 14 ? "start" : "middle",
           size: 11,
         }),
       )

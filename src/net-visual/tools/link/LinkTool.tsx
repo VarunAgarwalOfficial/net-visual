@@ -318,7 +318,10 @@ function LinkLoaded({ sim }: { sim: Netsim }) {
 
   // Before the first event the channel is drawn empty, not with the first frame already on it.
   const figT = tl.index < 0 && p.mode === "aloha" ? -Infinity : tl.t
-  const { fig, label } = useMemo(() => figureFor(p, run, figT, index, figureWidth(width, 11)), [p, run, figT, index, width])
+  // Bridges and switches need room for their names, IDs and port labels to stay apart: below 720px the
+  // drawing keeps that width and scrolls sideways inside its own box.
+  const figPx = p.mode === "stp" || p.mode === "switch" ? Math.max(width, 720) : width
+  const { fig, label } = useMemo(() => figureFor(p, run, figT, index, figureWidth(figPx, 11)), [p, run, figT, index, figPx])
   const chart = useMemo(() => chartFor(sim, p, run), [sim, p, run])
 
   const trace = useMemo(() => run.run.events.map((e, i) => ({ t: e.t, step: e.step, text: textFor(p, run, i) })), [p, run])
@@ -394,8 +397,10 @@ function LinkLoaded({ sim }: { sim: Netsim }) {
       />
 
       <figure className="space-y-2">
-        <div ref={figBox}>
-          <ShapeView fig={fig} label={`${caption}. ${label}`} px={width} />
+        <div ref={figBox} className={figPx > width ? "overflow-x-auto" : undefined}>
+          <div style={figPx > width ? { width: figPx } : undefined}>
+            <ShapeView fig={fig} label={`${caption}. ${label}`} px={figPx} />
+          </div>
         </div>
         <figcaption className="max-w-(--site-measure) font-sans text-sm text-muted-foreground">{HELP[mode]}</figcaption>
       </figure>
