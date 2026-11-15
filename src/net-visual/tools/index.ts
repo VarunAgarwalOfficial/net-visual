@@ -33,4 +33,12 @@ export const TOOLS: ToolInfo[] = [
     layers: ["intuition", "mechanics", "analysis", "frontier", "internals"],
     Component: lazy(() => import("./routing/RoutingTool").then((m) => ({ default: m.RoutingTool }))),
   },
+  {
+    id: "queue",
+    title: "Queueing and delay",
+    summary:
+      "M/M/1 and M/D/1 packet by packet against their formulas, the four delays of a hop, token and leaky buckets, and FIFO, priority and WFQ against GPS.",
+    layers: ["intuition", "mechanics", "analysis", "frontier", "internals"],
+    Component: lazy(() => import("./queue/QueueTool").then((m) => ({ default: m.QueueTool }))),
+  },
 ]

@@ -113,6 +113,22 @@
   occupancy, cumulative curves, envelope excess and shares; 13 scenarios in
   three modes, 9 tour stops, 5 labs. tests/queue.test.ts checks every note's
   numbers, the tour moments and each lab's start and a solution.
+- Queueing page (tools/queue): mode switcher (delay, shaping, scheduling)
+  over the scenarios; the path drawn from the event trace (shaper buckets
+  with tokens or held bytes, processing, the queue in the order the
+  discipline will send it, the transmitter, packets on the wire as long as
+  s L/R, delivered and dropped counts); a live equation card per mode (the
+  four delays of the chosen packet, theory against measurement with
+  Little's law, the arrival curve, WFQ against GPS); charts of occupancy,
+  cumulative input and output against b + r t, and departure minus GPS
+  finish; tabs for packets, trace, W against rho sweep, shaper, scheduler,
+  setup, source and lab; SVG and TikZ export of the path and the chart.
+  Article: misconceptions with Try buttons, mechanics by step letter,
+  Theorems 1 to 6 (Little, M/M/1, Pollaczek-Khinchine, Cobham and
+  conservation, the token bucket's arrival curve, Parekh-Gallager) with
+  live numbers and eight rated exercises, frontier (bufferbloat, buffer
+  sizing, RED, CoDel, PIE, SCFQ, DRR, WF2Q, fq_codel, DiffServ, network
+  calculus, self-similar traffic, L4S), internals with simplifications.
 
 ## Next
 
