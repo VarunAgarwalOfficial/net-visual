@@ -334,7 +334,7 @@ function RoutingLoaded({ sim }: { sim: Netsim }) {
           onNode={(i) => (dijOpen ? setDijSource(i) : setRouter(i))}
           onLink={(a, b) => setLink(link && link[0] === a && link[1] === b ? null : [a, b])}
         />
-        <div className="max-w-[70ch] space-y-1 font-sans text-sm">
+        <div className="max-w-(--site-measure) space-y-1 font-sans text-sm">
           <p>
             {started ? (
               <>
@@ -377,7 +377,7 @@ function RoutingLoaded({ sim }: { sim: Netsim }) {
             ))}
           </ToggleGroup>
         </div>
-        <p className="max-w-[70ch] font-sans text-sm" aria-live="polite">
+        <p className="max-w-(--site-measure) font-sans text-sm" aria-live="polite">
           {overlay ? (
             <>
               Dijkstra's algorithm from {p.nodes[overlay.source]}, step {k}: filled routers are settled; solid arrows are the cheapest paths
@@ -401,7 +401,7 @@ function RoutingLoaded({ sim }: { sim: Netsim }) {
             close={closeLink}
           />
         )}
-        <figcaption className="max-w-[70ch] space-y-2 font-sans text-sm text-muted-foreground">
+        <figcaption className="max-w-(--site-measure) space-y-2 font-sans text-sm text-muted-foreground">
           <span className="block">
             Circles are routers and lines are links. The number on a link is its cost, the price of sending over it; routers look for the
             cheapest total. Next to each router, as &quot;cost 5&quot;, is its cost to reach {D} as far as it knows now (&quot;cost ∞&quot;:

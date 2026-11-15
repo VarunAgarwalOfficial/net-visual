@@ -210,7 +210,7 @@ export function HttpPanel({
         <div ref={figBox}>
           <ShapeView fig={fig} label={caption} />
         </div>
-        <figcaption className="max-w-[70ch] font-sans text-sm text-muted-foreground">{HELP[view]}</figcaption>
+        <figcaption className="max-w-(--site-measure) font-sans text-sm text-muted-foreground">{HELP[view]}</figcaption>
       </figure>
       <div className="space-y-2">
         <p className="font-sans text-sm text-muted-foreground" id="http-view">
@@ -262,7 +262,7 @@ export function HttpPanel({
           ["Steps so far", `${started ? tl.index + 1 : 0} of ${n}`],
         ]}
       />
-      {started && <p className="max-w-[70ch] font-sans text-sm">{fig.summary[0].toUpperCase() + fig.summary.slice(1)}.</p>}
+      {started && <p className="max-w-(--site-measure) font-sans text-sm">{fig.summary[0].toUpperCase() + fig.summary.slice(1)}.</p>}
 
       <WebPicker id="http-preset" value={preset} onPick={pickExample} />
 

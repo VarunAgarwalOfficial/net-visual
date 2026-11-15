@@ -82,7 +82,7 @@ export const VectorMatrix = memo(function VectorMatrix({
                         aria-label={`D_${name(p, x)}(${name(p, y)}) = ${showDist(d, p.infinity)}${hop >= 0 && hop !== x ? ` via ${name(p, hop)}` : ""}${off ? `; the true cost is ${showDist(epoch.shortest[x][y], p.infinity)}` : ""}`}
                       >
                         {x === y ? "0" : showDist(d, p.infinity)}
-                        {hop >= 0 && hop !== x && <span className="ml-0.5 text-[0.7rem] text-muted-foreground">{name(p, hop)}</span>}
+                        {hop >= 0 && hop !== x && <span className="ml-0.5 text-sm text-muted-foreground">{name(p, hop)}</span>}
                         {off && <span aria-hidden>*</span>}
                       </button>
                     </td>
@@ -93,7 +93,7 @@ export const VectorMatrix = memo(function VectorMatrix({
           </tbody>
         </table>
       </div>
-      <p className="max-w-[70ch] font-sans text-xs text-muted-foreground">
+      <p className="max-w-(--site-measure) font-sans text-xs text-muted-foreground">
         Each row is one router's table: its cost to reach each router named across the top, and in small letters the neighbour it sends
         through. ∞ means it knows no route yet. Shaded cells changed at this event. A red cell with a star is not yet the true cheapest cost
         on the network as it is now
@@ -127,7 +127,7 @@ export function BellmanCard({ p, s, event, x, y }: { p: RoutingParams; s: State;
       : `D_{${X}}(${Y}) = \\min \\{ ${terms.map((t) => `${t.c} + ${td(t.dv, p.infinity)}`).join(",\\ ")} \\} = ${td(best, p.infinity)}`
   return (
     <div className="space-y-2 rounded-sm border border-border p-3 max-sm:[&_.katex-display]:text-[0.85em]">
-      <p className="max-w-[70ch] font-sans text-sm">
+      <p className="max-w-(--site-measure) font-sans text-sm">
         Router {name(p, x)}'s cost to {name(p, y)}, from what it knows now. For each neighbour it adds the cost of the link to that
         neighbour to the cost the neighbour last reported, and keeps the smallest sum. In symbols, D<sub>x</sub>(y) is x's cost to y and
         c(x, v) is the cost of the link from x to its neighbour v; this is the Bellman-Ford equation.
@@ -184,7 +184,7 @@ export function MapCard({ p, s, event, x, y }: { p: RoutingParams; s: State; eve
   const hop = event.hop[x][y]
   return (
     <div className="space-y-2 rounded-sm border border-border p-3 font-sans text-sm">
-      <p className="max-w-[70ch]">
+      <p className="max-w-(--site-measure)">
         Router {name(p, x)}'s map: the newest list of links (LSA) it holds from each router. The number counts the lists that router has
         written; a higher one is newer.
       </p>

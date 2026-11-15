@@ -614,7 +614,7 @@ export function QueueInternals() {
         <li>At most four flows and 6,000 packets per run, so the trace stays small enough to replay in the browser.</li>
       </ul>
       <h3 className="pt-2 text-lg">References</h3>
-      <ul className="list-disc space-y-1 pl-5 text-[0.95rem]">
+      <ul className="list-disc space-y-1 pl-5 text-sm">
         <li>J. D. C. Little, “A proof for the queuing formula L = λW”, Operations Research 9(3), 1961.</li>
         <li>S. Stidham, “A last word on L = λW”, Operations Research 22(2), 1974.</li>
         <li>L. Kleinrock, Queueing Systems, Volume 1: Theory, Wiley, 1975; Volume 2: Computer Applications, 1976.</li>

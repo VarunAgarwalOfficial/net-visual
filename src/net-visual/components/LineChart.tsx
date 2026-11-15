@@ -3,7 +3,7 @@ import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "rea
 export interface Series {
   id: string
   label: string
-  /** A CSS colour, normally var(--chart-n), in fixed order per chart. */
+  /** A CSS colour, one of the four meaning colours, ink or muted; series also differ by dash or label. */
   color: string
   kind: "line" | "dots" | "step"
   points: [number, number][]
@@ -91,7 +91,7 @@ export function LineChart(props: Props) {
   const [hover, setHover] = useState<number | null>(null)
   const [table, setTable] = useState(false)
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, "")
-  const m = { l: 52, r: 16, t: 10, b: 40 }
+  const m = { l: 64, r: 16, t: 14, b: 54 }
   const w = width - m.l - m.r
   const h = height - m.t - m.b
 
@@ -144,10 +144,10 @@ export function LineChart(props: Props) {
       return [{ id: s.id, label: s.label, color: s.color, x: X, y: sy(Math.min(Math.max(p[1], y0), y1)) - 7 }]
     })
     out.sort((a, b) => a.y - b.y)
-    for (let k = 1; k < out.length; k++) if (out[k].y - out[k - 1].y < 13) out[k].y = out[k - 1].y + 13
+    for (let k = 1; k < out.length; k++) if (out[k].y - out[k - 1].y < 20) out[k].y = out[k - 1].y + 20
     const over = out.length ? out[out.length - 1].y - (m.t + h - 2) : 0
     if (over > 0) for (const l of out) l.y -= over
-    for (let k = 0; k < out.length; k++) out[k].y = Math.max(out[k].y, m.t + 10 + k * 13)
+    for (let k = 0; k < out.length; k++) out[k].y = Math.max(out[k].y, m.t + 14 + k * 20)
     return out
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [series, upTo, width, height, x0, x1, y0, y1])
@@ -170,7 +170,7 @@ export function LineChart(props: Props) {
       <figcaption className="mb-1 flex items-baseline justify-between gap-2 text-sm">
         <span className="font-serif text-base text-foreground">{props.title}</span>
         <button
-          className="shrink-0 rounded-sm border border-input bg-background px-2 py-0.5 text-xs hover:bg-muted"
+          className="shrink-0 rounded-sm border border-border bg-background px-2 py-0.5 text-xs hover:bg-muted"
           onClick={() => setTable(!table)}
         >
           {table ? "Show the chart" : "Show the numbers as a table"}
@@ -217,7 +217,7 @@ export function LineChart(props: Props) {
             {yt.map((v) => (
               <g key={`y${v}`}>
                 <line x1={m.l} x2={m.l + w} y1={sy(v)} y2={sy(v)} stroke="var(--chart-grid)" />
-                <text x={m.l - 6} y={sy(v) - (v === y0 ? 4 : 0)} dy="0.32em" textAnchor="end" fontSize="11" fill="var(--chart-ink)">
+                <text x={m.l - 6} y={sy(v) - (v === y0 ? 4 : 0)} dy="0.32em" textAnchor="end" fontSize="17" fill="var(--chart-ink)">
                   {yFormat(v)}
                 </text>
               </g>
@@ -226,19 +226,19 @@ export function LineChart(props: Props) {
               <text
                 key={`x${v}`}
                 x={sx(v) + (v === x0 ? 2 : 0)}
-                y={m.t + h + 16}
+                y={m.t + h + 22}
                 textAnchor={v === x0 ? "start" : "middle"}
-                fontSize="11"
+                fontSize="17"
                 fill="var(--chart-ink)"
               >
                 {xFormat(v)}
               </text>
             ))}
-            <line x1={m.l} x2={m.l + w} y1={m.t + h} y2={m.t + h} stroke="var(--chart-ink)" strokeOpacity={0.5} />
-            <text x={m.l + w / 2} y={height - 4} textAnchor="middle" fontSize="12" fill="var(--chart-ink)">
+            <line x1={m.l} x2={m.l + w} y1={m.t + h} y2={m.t + h} stroke="var(--chart-ink)" />
+            <text x={m.l + w / 2} y={height - 6} textAnchor="middle" fontSize="17" fill="var(--chart-ink)">
               {xLabel}
             </text>
-            <text transform={`translate(15 ${m.t + h / 2}) rotate(-90)`} textAnchor="middle" fontSize="12" fill="var(--chart-ink)">
+            <text transform={`translate(16 ${m.t + h / 2}) rotate(-90)`} textAnchor="middle" fontSize="17" fill="var(--chart-ink)">
               {yLabel}
             </text>
             {typeof props.children === "function"
@@ -255,7 +255,7 @@ export function LineChart(props: Props) {
               </defs>
             )}
             {(ahead === null ? [null] : ["past", "ahead"]).map((part) => (
-              <g key={part ?? "all"} clipPath={part ? `url(#${id}-${part})` : undefined} opacity={part === "ahead" ? 0.2 : undefined}>
+              <g key={part ?? "all"} clipPath={part ? `url(#${id}-${part})` : undefined} opacity={part === "ahead" ? 0.25 : undefined}>
                 {series.map((s, i) =>
                   s.kind === "dots" ? (
                     <g key={s.id}>
@@ -279,7 +279,7 @@ export function LineChart(props: Props) {
               </g>
             ))}
             {ahead !== null && m.l + w - ahead > 150 && (
-              <text x={m.l + w - 4} y={m.t + 12} textAnchor="end" fontSize="11" fill="var(--chart-ink)">
+              <text x={m.l + w - 4} y={m.t + 16} textAnchor="end" fontSize="17" fill="var(--chart-ink)">
                 faint: the rest of the run, not reached yet
               </text>
             )}
@@ -288,10 +288,9 @@ export function LineChart(props: Props) {
               <rect
                 x={m.l + 4}
                 y={m.t + 15}
-                width={Math.min(w - 8, 34 + 5.6 * Math.max(...keyRows.map((k) => (k.note ?? k.s.label).length)))}
-                height={keyRows.length * 14 + 4}
+                width={Math.min(w - 8, 40 + 8.2 * Math.max(...keyRows.map((k) => (k.note ?? k.s.label).length)))}
+                height={keyRows.length * 22 + 6}
                 fill="var(--background)"
-                fillOpacity={0.9}
                 pointerEvents="none"
               />
             )}
@@ -302,8 +301,8 @@ export function LineChart(props: Props) {
                     <line
                       x1={m.l + 8}
                       x2={m.l + 26}
-                      y1={m.t + 24 + row * 14}
-                      y2={m.t + 24 + row * 14}
+                      y1={m.t + 28 + row * 22}
+                      y2={m.t + 28 + row * 22}
                       stroke={s.color}
                       strokeWidth={2}
                       strokeDasharray={s.dashed ? "5 3" : undefined}
@@ -311,9 +310,9 @@ export function LineChart(props: Props) {
                   )}
                   <text
                     x={m.l + 30}
-                    y={m.t + 24 + row * 14}
+                    y={m.t + 28 + row * 22}
                     dy="0.32em"
-                    fontSize="11"
+                    fontSize="17"
                     fill={note ? "var(--chart-ink)" : s.color}
                     stroke="var(--background)"
                     strokeWidth={3}
@@ -329,7 +328,7 @@ export function LineChart(props: Props) {
                 x={l.x < m.l + w * 0.6 ? Math.max(l.x, m.l) + 6 : l.x - 6}
                 y={l.y}
                 textAnchor={l.x < m.l + w * 0.6 ? "start" : "end"}
-                fontSize="11"
+                fontSize="17"
                 fill={l.color}
                 stroke="var(--background)"
                 strokeWidth={3}
@@ -341,11 +340,11 @@ export function LineChart(props: Props) {
             ))}
             {props.overlay?.({ sx, sy, left: m.l, right: m.l + w, top: m.t, bottom: m.t + h })}
             {cursor !== undefined && cursor >= x0 && cursor <= x1 && (
-              <line x1={sx(cursor)} x2={sx(cursor)} y1={m.t} y2={m.t + h} stroke="var(--foreground)" strokeOpacity={0.6} />
+              <line x1={sx(cursor)} x2={sx(cursor)} y1={m.t} y2={m.t + h} stroke="var(--foreground)" />
             )}
             {hover !== null && (
               <g pointerEvents="none">
-                <line x1={sx(hover)} x2={sx(hover)} y1={m.t} y2={m.t + h} stroke="var(--chart-ink)" strokeOpacity={0.4} />
+                <line x1={sx(hover)} x2={sx(hover)} y1={m.t} y2={m.t + h} stroke="var(--chart-ink)" strokeDasharray="3 3" />
                 {series.map((s) => {
                   const p = nearest(s, hover)
                   return p ? (
@@ -358,7 +357,7 @@ export function LineChart(props: Props) {
         )}
         {!table && hover !== null && (
           <div
-            className="pointer-events-none absolute top-1 rounded-sm border border-border bg-popover px-2 py-1 text-xs shadow-sm"
+            className="pointer-events-none absolute top-1 rounded-sm border border-border bg-popover px-2 py-1 text-xs"
             style={sx(hover) > width / 2 ? { right: width - sx(hover) + 8 } : { left: sx(hover) + 8 }}
           >
             <div className="text-muted-foreground">

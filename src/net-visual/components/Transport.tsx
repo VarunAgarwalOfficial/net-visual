@@ -96,7 +96,7 @@ export function Transport({
           {events !== null && (
             <>
               {Noun} {Math.max(0, tl.index + 1)} of {events}
-              <span className="text-muted-foreground/90">
+              <span>
                 {" "}
                 (a {noun} is {stepIs})
               </span>

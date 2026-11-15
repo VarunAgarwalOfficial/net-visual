@@ -72,18 +72,18 @@ export function Disclosure({
 /** The example on screen: its name and what it shows, in plain words. */
 export function ExampleIntro({ title }: { title: string; note?: ReactNode }) {
   // Only the example's name above the player, so Play stays the first control and the picture reaches the first screen.
-  return <h2 className="max-w-[70ch] text-xl leading-snug">Example: {title}</h2>
+  return <h2 className="max-w-(--site-measure) text-xl leading-snug">Example: {title}</h2>
 }
 
 /** The example's paragraph, behind one line under the picture. */
 export function AboutExample({ note }: { note: ReactNode }) {
   return (
-    <details className="group/about max-w-[70ch]">
+    <details className="group/about max-w-(--site-measure)">
       <summary className="flex w-fit cursor-pointer list-none items-center gap-1 font-sans text-sm text-link [&::-webkit-details-marker]:hidden">
         <ChevronRight aria-hidden className="size-4 shrink-0 group-open/about:rotate-90" />
         About this example
       </summary>
-      <p className="mt-1 text-[0.98rem]">{note}</p>
+      <p className="mt-1 text-base">{note}</p>
     </details>
   )
 }
@@ -109,7 +109,7 @@ export function StepCard({
   empty?: ReactNode
 }) {
   return (
-    <section aria-labelledby="nv-step-h" className="max-w-[70ch]" aria-live={live ? "polite" : "off"}>
+    <section aria-labelledby="nv-step-h" className="max-w-(--site-measure)" aria-live={live ? "polite" : "off"}>
       <h2 id="nv-step-h" className="font-sans text-sm text-muted-foreground">
         What just happened
       </h2>
@@ -128,7 +128,7 @@ export function StepCard({
             {title && <b>{title}. </b>}
             {text}
           </p>
-          {why && <p className="mt-1 text-[0.98rem] text-muted-foreground">{why}</p>}
+          {why && <p className="mt-1 text-base text-muted-foreground">{why}</p>}
         </>
       )}
     </section>
@@ -169,7 +169,7 @@ export function TourCard({
   toggle(): void
 }) {
   return (
-    <div className="max-w-[70ch] space-y-2" aria-live="polite">
+    <div className="max-w-(--site-measure) space-y-2" aria-live="polite">
       <h2 className="text-xl leading-snug">
         Guided tour, stop {index + 1} of {steps.length}
       </h2>

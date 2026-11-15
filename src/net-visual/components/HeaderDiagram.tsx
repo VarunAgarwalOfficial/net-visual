@@ -31,7 +31,7 @@ export function HeaderDiagram({ title, fields, note }: { title: string; fields: 
     <figure className="font-sans text-sm">
       <figcaption className="mb-1 text-muted-foreground">{title}</figcaption>
       <div className="overflow-x-auto">
-        <div className="grid min-w-[22rem] grid-cols-32 text-[0.65rem] text-muted-foreground" aria-hidden>
+        <div className="grid min-w-[22rem] grid-cols-32 text-sm text-muted-foreground" aria-hidden>
           {Array.from({ length: 32 }, (_, i) => (
             <span key={i} className="text-center tabular-nums">
               {i % 8 === 0 ? i : ""}
@@ -45,18 +45,18 @@ export function HeaderDiagram({ title, fields, note }: { title: string; fields: 
               role="cell"
               className={
                 "border-r border-b border-border px-1 py-0.5 text-center leading-tight lining " +
-                (c.field.changed ? "bg-[color-mix(in_oklab,var(--link)_16%,transparent)]" : "")
+                (c.field.changed ? "bg-mark" : "")
               }
               style={{ gridColumn: `${c.start + 1} / span ${c.span}`, gridRow: c.row + 1 }}
             >
-              <div className="truncate text-[0.68rem] text-muted-foreground">{c.field.name}</div>
-              <div className="truncate font-mono text-[0.8rem] text-foreground">{c.field.value}</div>
+              <div className="truncate text-sm text-muted-foreground">{c.field.name}</div>
+              <div className="truncate font-mono text-sm text-foreground">{c.field.value}</div>
             </div>
           ))}
         </div>
       </div>
       {hidden.length > 0 && (
-        <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 text-[0.8rem]">
+        <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 text-sm">
           {hidden.map((f) => (
             <div key={f.name} className="contents">
               <dt className="text-muted-foreground">{f.name}</dt>
@@ -65,7 +65,7 @@ export function HeaderDiagram({ title, fields, note }: { title: string; fields: 
           ))}
         </dl>
       )}
-      {note && <p className="mt-1 text-[0.8rem] text-muted-foreground">{note}</p>}
+      {note && <p className="mt-1 text-sm text-muted-foreground">{note}</p>}
     </figure>
   )
 }

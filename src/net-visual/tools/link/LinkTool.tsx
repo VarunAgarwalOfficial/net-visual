@@ -396,7 +396,7 @@ function LinkLoaded({ sim }: { sim: Netsim }) {
         <div ref={figBox}>
           <ShapeView fig={fig} label={`${caption}. ${label}`} />
         </div>
-        <figcaption className="max-w-[70ch] font-sans text-sm text-muted-foreground">{HELP[mode]}</figcaption>
+        <figcaption className="max-w-(--site-measure) font-sans text-sm text-muted-foreground">{HELP[mode]}</figcaption>
       </figure>
       <AboutExample
         note={
@@ -426,7 +426,7 @@ function LinkLoaded({ sim }: { sim: Netsim }) {
           [coding ? "Steps done" : "Steps so far", `${started ? tl.index + 1 : 0} of ${run.run.events.length}`],
         ]}
       />
-      {!coding && started && <p className="max-w-[70ch] font-sans text-sm">{label[0].toUpperCase() + label.slice(1)}.</p>}
+      {!coding && started && <p className="max-w-(--site-measure) font-sans text-sm">{label[0].toUpperCase() + label.slice(1)}.</p>}
 
       <div className="space-y-2">
         <label className="block text-lg" htmlFor="link-preset">

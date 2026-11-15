@@ -236,7 +236,7 @@ function DnsPanel({
         <div ref={figBox}>
           <ShapeView fig={fig} label={caption} />
         </div>
-        <figcaption className="max-w-[70ch] font-sans text-sm text-muted-foreground">{HELP[mode]}</figcaption>
+        <figcaption className="max-w-(--site-measure) font-sans text-sm text-muted-foreground">{HELP[mode]}</figcaption>
       </figure>
       <AboutExample
         note={presetInfo?.note ?? 'Your own settings for the name lookups. Open "Change the settings", further down the page, to see them.'}
@@ -263,7 +263,7 @@ function DnsPanel({
           ["Steps so far", `${started ? tl.index + 1 : 0} of ${n}`],
         ]}
       />
-      {started && <p className="max-w-[70ch] font-sans text-sm">{fig.summary[0].toUpperCase() + fig.summary.slice(1)}.</p>}
+      {started && <p className="max-w-(--site-measure) font-sans text-sm">{fig.summary[0].toUpperCase() + fig.summary.slice(1)}.</p>}
 
       <WebPicker id="web-preset" value={preset} onPick={pickExample} />
       <div className="space-y-2">

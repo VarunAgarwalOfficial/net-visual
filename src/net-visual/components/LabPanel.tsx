@@ -73,7 +73,7 @@ export function LabPanel<P>({
         <h4 className="font-serif text-base font-bold">{lab.title}</h4>
         <Difficulty level={lab.difficulty} />
       </div>
-      <p className="text-[0.95rem]">{lab.task}</p>
+      <p className="text-sm">{lab.task}</p>
       <div className="flex flex-wrap gap-2">
         <Button size="sm" onClick={() => setResult(check(lab))}>
           Check my answer
@@ -95,9 +95,9 @@ export function LabPanel<P>({
           All tasks
         </Button>
       </div>
-      {hint && <p className="text-[0.95rem] text-muted-foreground italic">{lab.hint}</p>}
+      {hint && <p className="text-sm text-muted-foreground italic">{lab.hint}</p>}
       {result && (
-        <p role="status" className={cn("rounded-sm px-2 py-1.5 text-[0.95rem]", result.ok ? "text-status-checked" : "text-foreground")}>
+        <p role="status" className={cn("rounded-sm px-2 py-1.5 text-sm", result.ok ? "text-status-checked" : "text-foreground")}>
           <b>{result.ok ? "Correct. " : "Not yet. "}</b>
           {result.message}
         </p>

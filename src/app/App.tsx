@@ -1,6 +1,5 @@
 import { Suspense, useEffect, useState } from "react"
 
-import { Button } from "@/components/ui/button"
 import { TOOLS } from "@/net-visual/tools"
 
 const route = () => window.location.hash.slice(1).split("?")[0]
@@ -11,29 +10,20 @@ const route = () => window.location.hash.slice(1).split("?")[0]
  */
 export function App() {
   const [id, setId] = useState(route)
-  const [dark, setDark] = useState(() => document.documentElement.classList.contains("dark"))
 
   useEffect(() => {
     const on = () => setId(route())
     window.addEventListener("hashchange", on)
     return () => window.removeEventListener("hashchange", on)
   }, [])
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", dark)
-    try {
-      localStorage.setItem("nv-theme", dark ? "dark" : "light")
-    } catch {
-      // Private browsing: the choice lasts for this page only.
-    }
-  }, [dark])
 
   const tool = TOOLS.find((t) => t.id === id)
 
   return (
-    <div className="mx-auto max-w-[96rem] px-4 pb-24 sm:px-6">
-      <header className="border-b border-border py-3 sm:py-4">
-        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
-          <a href="#" className="text-xl text-foreground no-underline">
+    <div className="mx-auto max-w-[calc(58rem+2*var(--site-gutter))] px-(--site-gutter) pb-(--site-space-8)">
+      <header className="border-b border-border py-(--site-space-2)">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <a href="#" className="text-sm text-foreground no-underline sm:text-lg">
             Networks you can take apart
           </a>
           <div className="flex items-start gap-3">
@@ -55,16 +45,15 @@ export function App() {
                 </ul>
               </nav>
             </details>
-            <ThemeButton dark={dark} set={setDark} />
           </div>
         </div>
       </header>
 
-      <main className="pt-4">
+      <main className="pt-(--site-space-4)">
         {tool ? (
           <>
-            <h1 className="mb-1 text-3xl leading-tight">{tool.title}</h1>
-            <p className="mb-4 max-w-[70ch] [font-variant-numeric:lining-nums]">{tool.lead}</p>
+            <h1 className="mb-(--site-space-2) text-[length:var(--site-step-title-narrow)] leading-tight tracking-(--site-tracking-title) sm:text-3xl">{tool.title}</h1>
+            <p className="mb-(--site-space-4) max-w-(--site-measure) [font-variant-numeric:lining-nums]">{tool.lead}</p>
             <Suspense fallback={<p className="font-sans text-sm text-muted-foreground">Loading…</p>}>
               <tool.Component />
             </Suspense>
@@ -77,19 +66,10 @@ export function App() {
   )
 }
 
-/** The colour scheme, named in words: it says what pressing it will do. */
-function ThemeButton({ dark, set }: { dark: boolean; set(dark: boolean): void }) {
-  return (
-    <Button variant="outline" size="sm" onClick={() => set(!dark)}>
-      {dark ? "Use light colours" : "Use dark colours"}
-    </Button>
-  )
-}
-
 function Index() {
   return (
-    <div className="max-w-[70ch] space-y-6">
-      <h1 className="text-3xl">Networks you can take apart</h1>
+    <div className="max-w-(--site-measure) space-y-6">
+      <h1 className="text-[length:var(--site-step-title-narrow)] leading-tight sm:text-3xl">Networks you can take apart</h1>
       <p>
         Each tool runs a real, deterministic simulation compiled from Rust. You can stop time, step back, drop or delay a single packet,
         change the protocol's rules, and compare what happens with the formula that predicts it. Every state can be shared as a link.
@@ -100,7 +80,7 @@ function Index() {
             <a href={`#${t.id}`} className="text-lg">
               {i + 1}. {t.title}
             </a>
-            <p className="text-[0.98rem]">{t.summary}</p>
+            <p className="text-base">{t.summary}</p>
           </li>
         ))}
       </ol>

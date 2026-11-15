@@ -340,7 +340,7 @@ function TcpLoaded({ sim }: { sim: Netsim }) {
           band={ladderOpen && detail ? [model.w.from, detail.trace_end] : null}
           onSeek={seekTo}
         />
-        <figcaption className="max-w-[70ch] font-sans text-sm text-muted-foreground">
+        <figcaption className="max-w-(--site-measure) font-sans text-sm text-muted-foreground">
           Time runs left to right. Each line is a sender&apos;s window: how many packets it may have on the way at once, so a higher line
           means a faster sender. The faint lines are the whole run, still to come; once Play starts, the part already played is drawn in
           full colour and an upright line marks now. Where a line jumps up for a moment just after a loss, the sender is in fast recovery:
@@ -422,7 +422,7 @@ function TcpLoaded({ sim }: { sim: Netsim }) {
           onOpenChange={setLadderOpen}
         >
           <div className="space-y-2">
-            <p className="max-w-[70ch] font-sans text-sm text-muted-foreground">
+            <p className="max-w-(--site-measure) font-sans text-sm text-muted-foreground">
               A band from the sender is a packet, named by its number; a band back is an acknowledgement (ACK), named by the next packet the
               receiver expects. A repeated ACK is amber. A red cross is a lost packet. The dotted line is now
               {inside ? "" : racing ? "; the diagram catches up when you pause" : ""}. On the chart above, the shaded stretch is the part
@@ -472,7 +472,7 @@ function TcpLoaded({ sim }: { sim: Netsim }) {
           title="Which mode the sender is in"
           note="The three modes as a diagram, with the one it is in now filled and the move it just made drawn heavier."
         >
-          <p className="mb-2 max-w-[70ch] font-sans text-sm text-muted-foreground">
+          <p className="mb-2 max-w-(--site-measure) font-sans text-sm text-muted-foreground">
             On the diagram, cwnd is the congestion window and ssthresh the slow-start threshold, both in packets; a dup ACK is a repeated
             acknowledgement; recover is the highest packet sent when the loss was found.
           </p>

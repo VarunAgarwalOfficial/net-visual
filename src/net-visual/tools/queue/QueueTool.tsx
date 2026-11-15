@@ -211,7 +211,7 @@ function QueueLoaded({ sim }: { sim: Netsim }) {
 
       <figure className="space-y-2">
         <PathView fig={fig} label={`${caption}: ${fig.waiting.length} packets waiting, ${fig.delivered} arrived, ${fig.dropped} lost`} />
-        <figcaption className="max-w-[70ch] font-sans text-sm text-muted-foreground">
+        <figcaption className="max-w-(--site-measure) font-sans text-sm text-muted-foreground">
           {started ? "" : "Nothing has been sent yet. "}Packets go left to right.{" "}
           {many ? "Each flow has its own colour, named on the left. " : "They come from the source on the left. "}
           {shaped ? "They pass through a bucket that smooths bursts (the filled part is how full it is), then " : "They "}

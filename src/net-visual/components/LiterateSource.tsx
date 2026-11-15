@@ -86,7 +86,7 @@ function Prose({ lines }: { lines: string[] }) {
         const marker = p.match(/^([A-Z]\d+)\.\s(\[[^\]]+\])\s?/)
         const body = marker ? p.slice(marker[0].length) : p
         return (
-          <p key={i} className="my-1 font-serif text-[0.95rem] leading-snug">
+          <p key={i} className="my-1 font-serif text-sm leading-snug">
             {marker && (
               <>
                 <b className="lining">{marker[1]}.</b> <span>{marker[2]}</span>{" "}
@@ -138,16 +138,16 @@ export function LiterateSource({ source, active, className }: { source: string; 
           <div
             key={b.first}
             data-line={b.first}
-            className={cn("px-3 py-1", inRange(b.first) && "bg-[color-mix(in_oklab,var(--link)_10%,transparent)]")}
+            className={cn("px-3 py-1", inRange(b.first) && "bg-mark")}
           >
             <Prose lines={b.lines} />
           </div>
         ) : (
-          <pre key={b.first} className="m-0 text-[0.78rem] leading-[1.45]">
+          <pre key={b.first} className="m-0 text-sm leading-[1.45]">
             {b.lines.map((l, k) => {
               const n = b.first + k
               return (
-                <div key={n} data-line={n} className={cn("flex", inRange(n) && "bg-[color-mix(in_oklab,var(--link)_10%,transparent)]")}>
+                <div key={n} data-line={n} className={cn("flex", inRange(n) && "bg-mark")}>
                   <span className="w-10 shrink-0 pr-2 text-right text-muted-foreground select-none" aria-hidden>
                     {n + 1}
                   </span>

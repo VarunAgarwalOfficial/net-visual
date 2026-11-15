@@ -483,7 +483,7 @@ export function TcpInternals() {
         <li>The header in the Packet tab uses relative sequence numbers, a constant window and a stand-in payload for the checksum.</li>
       </ul>
       <h3 className="pt-2 text-lg">References</h3>
-      <ul className="space-y-1 text-[0.95rem]">
+      <ul className="space-y-1 text-sm">
         <li>V. Jacobson. Congestion avoidance and control. SIGCOMM 1988.</li>
         <li>
           D.-M. Chiu and R. Jain. Analysis of the increase and decrease algorithms for congestion avoidance. Computer Networks and ISDN

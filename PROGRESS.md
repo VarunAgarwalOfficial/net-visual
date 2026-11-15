@@ -376,6 +376,42 @@ web, TCP and link pictures still run past the first screen (their top
 part and Play show together); the HTTP view at 390 and the blue "1" on
 u-x in dark mode (not reproduced) were not examined further.
 
+## Editorial restyle (site tokens)
+
+Tokens: `src/styles/tokens/c-editorial-tokens.css`, copied verbatim from
+the website (read-only there). `host.css` maps every style variable onto
+them; light and dark follow `prefers-color-scheme` only.
+
+Meaning colours, the same in all six tools (CSS name, site token):
+
+| Meaning | Var | Token | Used for |
+|---|---|---|---|
+| got there | `--nv-ok` | `--site-mean-proved` (green) | delivered, ACK, answer, frame through, check passed |
+| under way | `--nv-busy` | `--site-mean-open` (purple) | data packet in flight, sent-not-settled, kept awaiting, route arrows, referral |
+| again / elsewhere | `--nv-again` | `--site-mean-measured` (amber) | duplicate ACK, resend, fast retransmit, CNAME alias, poisoned vector |
+| lost / wrong | `--nv-bad` | `--site-mean-against` (red) | lost, collided, stale, loop, NXDOMAIN, blocked, wrong message |
+
+Not meanings: "changed / current / selected" is the highlighter
+(`--site-color-mark`) or a heavier ink stroke; identity (flows, stations,
+protocols in a chart) is ink or muted with dash patterns, position and the
+in-place label. The accent is only the link underline and the focus ring.
+
+Removed: the light/dark/phosphor/blueprint themes and the colour toggle
+(and its localStorage script), the CMU Sans/Mono/Serif-bold fonts, the
+chart-1..6 palette, tw-animate, shadows, ring/translate transitions on
+controls, the slashed zero, unused shadcn parts (badge, kbd, label,
+separator, slider, tabs, tooltip).
+
+Moved for the new type (Newsreader 20px body, 17px small, 36/44px title):
+three sizes only (`text-xl` now the body step); header on one row at
+390 (site name 17px there); header/lead spacing 8/16px; ladder lanes
+start 62px down (lane names clear of the first label), its gutters and
+the chart margins widened for 17px labels; window strip gutter 136px;
+select triggers grow with wrapped text.
+
+Colour words changed in sentences (the colour of the thing changed):
+recorded per tool below.
+
 ## Next
 
 Only known gaps remain; all six tools are built.

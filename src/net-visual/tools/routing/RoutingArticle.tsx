@@ -518,7 +518,7 @@ export function RoutingInternals() {
         <li>A message in flight on a link that fails is lost; messages are otherwise never lost or corrupted.</li>
       </ul>
       <h3 className="pt-2 text-lg">References</h3>
-      <ul className="space-y-1 text-[0.95rem]">
+      <ul className="space-y-1 text-sm">
         <li>R. Bellman. On a routing problem. Quarterly of Applied Mathematics 16, 1958.</li>
         <li>L. R. Ford and D. R. Fulkerson. Flows in Networks. Princeton, 1962.</li>
         <li>E. W. Dijkstra. A note on two problems in connexion with graphs. Numerische Mathematik 1, 1959.</li>

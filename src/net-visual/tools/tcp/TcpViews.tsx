@@ -406,7 +406,7 @@ export const LiveEquations = memo(function LiveEquations({ run, p, s, t }: { run
   const reno = p.flows.length === 1 && f0.algo !== "cubic"
   const offered = (cwnd * p.mss_bytes * 8) / (rtt / 1e6)
   return (
-    <div className="space-y-3 text-[0.95rem] max-sm:[&_.katex-display]:text-[0.8em]">
+    <div className="space-y-3 text-sm max-sm:[&_.katex-display]:text-[0.8em]">
       <div>
         <p className="font-sans text-xs text-muted-foreground">The round trip now: propagation, one transmission, and the queue ahead</p>
         <Tex

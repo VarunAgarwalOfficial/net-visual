@@ -18,18 +18,21 @@ export interface LadderFigure {
 }
 
 // The light theme's tokens, so an exported figure reads on white paper.
-export const INK = "#141a24"
-export const MUTED = "#4d5766"
-export const ALARM = "#b42318"
+export const INK = "#211f1c"
+export const MUTED = "#625e57"
+export const ALARM = "#9b3f36"
+/** The site's light-scheme token values, for figures that leave the page. */
 const PALETTE: Record<string, string> = {
-  "var(--chart-1)": "#2a78d6",
-  "var(--chart-2)": "#eb6834",
-  "var(--chart-3)": "#1baf7a",
-  "var(--chart-4)": "#eda100",
-  "var(--chart-5)": "#e87ba4",
-  "var(--chart-6)": "#008300",
+  "var(--nv-ok)": "#3d6f48",
+  "var(--nv-busy)": "#6b5592",
+  "var(--nv-again)": "#8a6417",
+  "var(--nv-bad)": ALARM,
+  "var(--nv-mark)": "#ebe1bd",
   "var(--foreground)": INK,
   "var(--muted-foreground)": MUTED,
+  "var(--chart-ink)": MUTED,
+  "var(--border)": "#d8d5cd",
+  "var(--background)": "#f6f5f2",
 }
 export const hex = (c: string) => PALETTE[c] ?? (c.startsWith("#") ? c : INK)
 
@@ -69,13 +72,13 @@ export function ladderSvg(fig: LadderFigure): string {
   const y = (t: number) => top + ((t - start) / (upTo - start)) * H
   const out: string[] = []
   out.push(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${top + H + 40}" viewBox="0 0 ${W} ${top + H + 40}" font-family="'CMU Sans Serif', 'Latin Modern Sans', Helvetica, Arial, sans-serif">`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${top + H + 40}" viewBox="0 0 ${W} ${top + H + 40}" font-family="Newsreader, Georgia, serif">`,
     `<title>${esc(fig.caption)}</title>`,
-    `<rect width="100%" height="100%" fill="#ffffff"/>`,
+    `<rect width="100%" height="100%" fill="#f6f5f2"/>`,
     `<defs><clipPath id="past"><rect x="0" y="${top - 8}" width="${W}" height="${y(upTo) - top + 8}"/></clipPath></defs>`,
   )
   for (const v of ticks) {
-    out.push(`<line x1="${xs[0]}" x2="${xs[1]}" y1="${y(v)}" y2="${y(v)}" stroke="#e3e7ec"/>`)
+    out.push(`<line x1="${xs[0]}" x2="${xs[1]}" y1="${y(v)}" y2="${y(v)}" stroke="#d8d5cd"/>`)
     out.push(`<text x="8" y="${y(v)}" dy="0.32em" font-size="10" fill="${MUTED}">${esc(formatTime(v))}</text>`)
   }
   fig.lanes.forEach((name, i) => {
@@ -109,7 +112,7 @@ export function ladderSvg(fig: LadderFigure): string {
   for (const m of marks) {
     const x = xs[m.lane]
     out.push(
-      `<rect x="${x - 4}" y="${y(m.t) - 4}" width="8" height="8" fill="#ffffff" stroke="${INK}" transform="rotate(45 ${x} ${y(m.t)})"/>`,
+      `<rect x="${x - 4}" y="${y(m.t) - 4}" width="8" height="8" fill="#f6f5f2" stroke="${INK}" transform="rotate(45 ${x} ${y(m.t)})"/>`,
       `<text x="${x + (m.lane === 0 ? -8 : 8)}" y="${y(m.t)}" dy="0.32em" text-anchor="${m.lane === 0 ? "end" : "start"}" font-size="10.5" fill="${INK}">${esc(m.text)}</text>`,
     )
   }
@@ -266,12 +269,12 @@ export function chartSvg(fig: ChartFigure): string {
   const y = (v: number) => m.t + (1 - (v - y0) / (y1 - y0 || 1)) * (H - m.t - m.b)
   const n = (v: number) => v.toFixed(1)
   const out: string[] = [
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H + 24}" viewBox="0 0 ${W} ${H + 24}" font-family="'CMU Sans Serif', 'Latin Modern Sans', Helvetica, Arial, sans-serif">`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H + 24}" viewBox="0 0 ${W} ${H + 24}" font-family="Newsreader, Georgia, serif">`,
     `<title>${esc(fig.caption)}</title>`,
-    `<rect width="100%" height="100%" fill="#ffffff"/>`,
+    `<rect width="100%" height="100%" fill="#f6f5f2"/>`,
   ]
   for (const v of chartTicks(y0, y1, 5)) {
-    out.push(`<line x1="${m.l}" x2="${W - m.r}" y1="${n(y(v))}" y2="${n(y(v))}" stroke="#e3e7ec"/>`)
+    out.push(`<line x1="${m.l}" x2="${W - m.r}" y1="${n(y(v))}" y2="${n(y(v))}" stroke="#d8d5cd"/>`)
     out.push(
       `<text x="${m.l - 6}" y="${n(y(v))}" dy="0.32em" text-anchor="end" font-size="11" fill="${MUTED}">${esc(fig.yFormat(v))}</text>`,
     )

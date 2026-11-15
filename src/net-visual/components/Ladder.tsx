@@ -47,7 +47,7 @@ interface Props {
 }
 
 /** Labels closer than this many pixels to the last one on the same lane are left out. */
-const LABEL_GAP = 12
+const LABEL_GAP = 19
 
 /**
  * The flights whose send label and whose arrival label have room. Dense
@@ -86,10 +86,11 @@ export function Ladder(props: Props) {
   const [scroll, setScroll] = useState(0)
   const [drag, setDrag] = useState<{ id: number; y0: number; dy: number } | null>(null)
   const clip = useId().replace(/:/g, "")
-  const top = 28
+  // Two rows above the lanes: the axis unit, then the lane names.
+  const top = 62
   // The right gutter holds what happened to each arriving packet, so it is
   // never narrower than the longest of those words at phone width.
-  const xs = [Math.min(110, width * 0.22), width - Math.min(120, Math.max(92, width * 0.22))] as const
+  const xs = [Math.min(110, width * 0.22), width - Math.min(150, Math.max(112, width * 0.24))] as const
   const origin = props.start ?? 0
   const y = (time: number) => top + (time - origin) / usPerPx
   const total = y(props.duration) + 40
@@ -118,7 +119,7 @@ export function Ladder(props: Props) {
   return (
     <div ref={box} className="w-full overflow-hidden rounded-sm border border-border">
       {props.legend && (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-border px-2 py-1.5 font-sans text-xs text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-border px-2 py-1.5 font-sans text-sm text-muted-foreground">
           {props.legend}
         </div>
       )}
@@ -148,12 +149,12 @@ export function Ladder(props: Props) {
             .map((v) => (
               <g key={v}>
                 <line x1={xs[0]} x2={xs[1]} y1={y(v)} y2={y(v)} stroke="var(--chart-grid)" />
-                <text x={4} y={y(v)} dy="0.32em" fontSize="10" fill="var(--chart-ink)" className="font-sans">
+                <text x={4} y={y(v)} dy="0.32em" fontSize="17" fill="var(--chart-ink)" className="font-sans">
                   {inUnit(v, { ...unit, digits: 3 })}
                 </text>
               </g>
             ))}
-          <text x={4} y={16} fontSize="10" fill="var(--chart-ink)" className="font-sans">
+          <text x={4} y={18} fontSize="17" fill="var(--chart-ink)" className="font-sans">
             {unit.name}
           </text>
           {t < 0 &&
@@ -161,10 +162,13 @@ export function Ladder(props: Props) {
               <text
                 key={i}
                 x={(xs[0] + xs[1]) / 2}
-                y={top + 48 + i * 18}
+                y={top + 48 + i * 24}
                 textAnchor="middle"
-                fontSize="13"
+                fontSize="17"
                 fill="var(--muted-foreground)"
+                stroke="var(--background)"
+                strokeWidth={4}
+                paintOrder="stroke"
                 className="font-sans"
               >
                 {line}
@@ -172,10 +176,10 @@ export function Ladder(props: Props) {
             ))}
           {props.lanes.map((name, i) => (
             <g key={name}>
-              <text x={xs[i]} y={16} textAnchor="middle" fontSize="13" fill="var(--foreground)" className="font-sans">
+              <text x={xs[i]} y={40} textAnchor="middle" fontSize="17" fill="var(--foreground)" className="font-sans">
                 {name}
               </text>
-              <line x1={xs[i]} x2={xs[i]} y1={top} y2={total} stroke="var(--foreground)" strokeOpacity={0.5} />
+              <line x1={xs[i]} x2={xs[i]} y1={top} y2={total} stroke="var(--muted-foreground)" />
             </g>
           ))}
           <g clipPath={`url(#${clip})`}>
@@ -214,7 +218,7 @@ export function Ladder(props: Props) {
                     }
                   }}
                 >
-                  <polygon points={band} fill={f.color} fillOpacity={f.lost ? 0.12 : 0.22} />
+                  <polygon points={band} fill={f.color} fillOpacity={f.lost ? 0.1 : 0.18} />
                   <line
                     x1={a}
                     y1={y(f.t_start)}
@@ -222,7 +226,7 @@ export function Ladder(props: Props) {
                     y2={leadY}
                     stroke={f.color}
                     strokeWidth={sel ? 3 : 1.75}
-                    strokeOpacity={f.lost ? 0.6 : 1}
+                    strokeDasharray={f.lost ? "5 3" : undefined}
                   />
                   <line x1={a} y1={y(f.t_start)} x2={bx} y2={leadY} stroke="transparent" strokeWidth={14} />
                   {f.lost && <Cross x={bx} y={leadY} />}
@@ -231,7 +235,7 @@ export function Ladder(props: Props) {
                       x={a + (f.from === 0 ? 6 : -6)}
                       y={y(f.t_start) - 3}
                       textAnchor={f.from === 0 ? "start" : "end"}
-                      fontSize="11"
+                      fontSize="17"
                       fill="var(--foreground)"
                       className="font-sans"
                     >
@@ -244,8 +248,8 @@ export function Ladder(props: Props) {
                       y={y(arrive)}
                       dy="0.32em"
                       textAnchor={f.from === 0 ? "start" : "end"}
-                      fontSize="10.5"
-                      fill={f.alarm ? "var(--destructive)" : "var(--muted-foreground)"}
+                      fontSize="17"
+                      fill={f.alarm ? "var(--nv-bad)" : "var(--muted-foreground)"}
                       className="font-sans"
                     >
                       {f.fate}
@@ -272,7 +276,7 @@ export function Ladder(props: Props) {
                     y={y(mk.t)}
                     dy="0.32em"
                     textAnchor={mk.lane === 0 ? "end" : "start"}
-                    fontSize="10.5"
+                    fontSize="17"
                     fill="var(--foreground)"
                     className="font-sans"
                   >
@@ -299,7 +303,7 @@ export function Ladder(props: Props) {
                 />
               )
             })}
-          {t >= 0 && <line x1={0} x2={width} y1={yt} y2={yt} stroke="var(--foreground)" strokeOpacity={0.35} strokeDasharray="2 3" />}
+          {t >= 0 && <line x1={0} x2={width} y1={yt} y2={yt} stroke="var(--muted-foreground)" strokeDasharray="2 3" />}
           {props.onDelay &&
             visible
               .filter((f) => f.id === selected && !f.lost && t >= f.t_start)
@@ -313,7 +317,7 @@ export function Ladder(props: Props) {
                     cy={cy}
                     r={7}
                     fill="var(--background)"
-                    stroke="var(--link)"
+                    stroke="var(--foreground)"
                     strokeWidth={2}
                     className="cursor-ns-resize"
                     aria-label="Drag to delay this packet"
@@ -337,7 +341,7 @@ export function Ladder(props: Props) {
 
 function Cross({ x, y }: { x: number; y: number }) {
   return (
-    <g stroke="var(--destructive)" strokeWidth={2.25} strokeLinecap="round">
+    <g stroke="var(--nv-bad)" strokeWidth={2.25} strokeLinecap="round">
       <line x1={x - 5} y1={y - 5} x2={x + 5} y2={y + 5} />
       <line x1={x - 5} y1={y + 5} x2={x + 5} y2={y - 5} />
     </g>
@@ -352,7 +356,7 @@ function niceStep(raw: number): number {
 /** One entry of a ladder's key: a small drawing of the mark, then what it means. */
 export function LadderKey({
   mark,
-  color = "var(--chart-1)",
+  color = "var(--nv-busy)",
   children,
 }: {
   mark: "band" | "back" | "cross" | "now" | "timer"
@@ -364,13 +368,13 @@ export function LadderKey({
       <svg width="24" height="14" aria-hidden="true" className="shrink-0">
         {mark === "band" || mark === "back" ? (
           <>
-            <polygon points={mark === "band" ? "1,1 1,5 23,13 23,9" : "23,1 23,5 1,13 1,9"} fill={color} fillOpacity={0.3} />
+            <polygon points={mark === "band" ? "1,1 1,5 23,13 23,9" : "23,1 23,5 1,13 1,9"} fill={color} fillOpacity={0.18} />
             <line x1={mark === "band" ? 1 : 23} y1={1} x2={mark === "band" ? 23 : 1} y2={9} stroke={color} strokeWidth={1.75} />
           </>
         ) : mark === "cross" ? (
           <Cross x={12} y={7} />
         ) : mark === "now" ? (
-          <line x1={0} x2={24} y1={7} y2={7} stroke="var(--foreground)" strokeOpacity={0.6} strokeDasharray="2 3" />
+          <line x1={0} x2={24} y1={7} y2={7} stroke="var(--muted-foreground)" strokeDasharray="2 3" />
         ) : (
           <rect x={8} y={3} width={8} height={8} fill="var(--background)" stroke="var(--foreground)" transform="rotate(45 12 7)" />
         )}

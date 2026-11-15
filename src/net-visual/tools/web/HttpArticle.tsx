@@ -387,7 +387,7 @@ export function HttpInternals() {
       </ul>
 
       <h3 className="pt-2 text-lg">References</h3>
-      <ul className="list-disc space-y-1 pl-5 text-[0.95rem]">
+      <ul className="list-disc space-y-1 pl-5 text-sm">
         <li>RFC 1945, Hypertext Transfer Protocol, HTTP/1.0 (1996).</li>
         <li>RFC 9110, HTTP Semantics; RFC 9112, HTTP/1.1 (2022).</li>
         <li>RFC 9113, HTTP/2 (2022); RFC 7541, HPACK (2015).</li>

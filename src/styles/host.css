@@ -1,93 +1,56 @@
 @import "tailwindcss";
-@import "tw-animate-css";
 @import "katex/dist/katex.min.css";
 @import "shadcn/tailwind.css";
+/* The site's look, copied unchanged from the website (TOOLS.md, "The site's
+   look"): fonts and custom properties on :root, light with a
+   prefers-color-scheme dark block. Everything below resolves to its names. */
+@import "./tokens/c-editorial-tokens.css";
 
 /*
- * One theme, four renditions.
- * - light (default) and dark: the reading themes.
- * - phosphor and blueprint: optional period themes, chosen in the theme menu.
- *   Both also carry the .dark class so every dark: variant applies.
- * Colour roles follow shadcn's variable names; site-specific roles are
- * --link (the single accent), --status-* (result marks) and --series-* (charts).
+ * One look, the site's "Editorial", in light and dark by the system setting
+ * (Tailwind's dark: variant is the prefers-color-scheme media query). The
+ * shadcn colour roles and the tools' own roles below are names for the
+ * site's tokens, nothing more.
+ *
+ * Meaning in the pictures uses the site's four meaning colours, one meaning
+ * each in all six tools (PROGRESS.md, "Colour and meaning"):
+ *   --nv-ok    (--site-mean-proved)   got there: delivered, acknowledged, answered, passed;
+ *   --nv-busy  (--site-mean-open)     under way: sent and not yet settled, the route being followed;
+ *   --nv-again (--site-mean-measured) again or elsewhere: a repeat, a retransmission, a detour;
+ *   --nv-bad   (--site-mean-against)  lost or wrong: dropped, collided, stale, looping, refused.
+ * Everything else is ink (--foreground) or quieter ink (--muted-foreground);
+ * "changed at this step" or "the current one" is the highlighter (--nv-mark).
  */
 
-@custom-variant dark (&:is(.dark *));
-
-@font-face {
-  font-family: "CM Web Serif";
-  src: url("../../public/fonts/cmweb-serif-book.woff2") format("woff2");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: "CM Web Serif";
-  src: url("../../public/fonts/cmweb-serif-bookitalic.woff2") format("woff2");
-  font-weight: 400;
-  font-style: italic;
-  font-display: swap;
-}
-@font-face {
-  font-family: "CM Web Serif";
-  src: url("../../public/fonts/cmweb-serif-bold.woff2") format("woff2");
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: "CM Web Serif";
-  src: url("../../public/fonts/cmweb-serif-bolditalic.woff2") format("woff2");
-  font-weight: 700;
-  font-style: italic;
-  font-display: swap;
-}
-@font-face {
-  font-family: "CM Web Sans";
-  src: url("../../public/fonts/cmweb-sans-book.woff2") format("woff2");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: "CM Web Sans";
-  src: url("../../public/fonts/cmweb-sans-bold.woff2") format("woff2");
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: "CM Web Mono";
-  src: url("../../public/fonts/cmweb-mono-book.woff2") format("woff2");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: "CM Web Mono";
-  src: url("../../public/fonts/cmweb-mono-bold.woff2") format("woff2");
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-
 @theme inline {
-  --font-serif: "CM Web Serif", "Latin Modern Roman", "CMU Serif", Georgia, serif;
-  --font-sans: "CM Web Sans", "Latin Modern Sans", "CMU Sans Serif", system-ui, sans-serif;
-  --font-mono: "CM Web Mono", "Latin Modern Mono", "CMU Typewriter Text", ui-monospace, monospace;
-  --font-heading: var(--font-serif);
+  --font-serif: var(--site-font-body);
+  --font-sans: var(--site-font-body);
+  --font-mono: var(--site-font-mono);
+  --font-heading: var(--site-font-body);
+  --text-xs: var(--site-step--1);
+  --text-xs--line-height: 1.4;
+  --text-sm: var(--site-step--1);
+  --text-sm--line-height: 1.45;
+  --text-base: var(--site-step-0);
+  --text-base--line-height: var(--site-leading-body);
+  --text-lg: var(--site-step-0);
+  --text-lg--line-height: 1.4;
+  --text-xl: var(--site-step-0);
+  --text-xl--line-height: 1.4;
+  --text-2xl: var(--site-step-heading);
+  --text-2xl--line-height: var(--site-leading-tight);
+  --text-3xl: var(--site-step-1);
+  --text-3xl--line-height: var(--site-leading-tight);
+  --font-weight-medium: var(--site-weight-normal);
+  --font-weight-semibold: var(--site-weight-bold);
+  --font-weight-bold: var(--site-weight-bold);
   --color-link: var(--link);
-  --color-status-checked: var(--status-checked);
-  --color-status-paper: var(--status-paper);
-  --color-status-experiment: var(--status-experiment);
-  --color-status-open: var(--status-open);
-  --color-status-false: var(--status-false);
-  --color-chart-6: var(--chart-6);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
+  --color-mark: var(--nv-mark);
+  --color-ok: var(--nv-ok);
+  --color-busy: var(--nv-busy);
+  --color-again: var(--nv-again);
+  --color-bad: var(--nv-bad);
+  --color-status-checked: var(--nv-ok);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -106,254 +69,125 @@
   --color-card: var(--card);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
-  --color-sidebar: var(--background);
-  --color-sidebar-foreground: var(--foreground);
-  --color-sidebar-border: var(--border);
-  --color-sidebar-accent: var(--accent);
-  --color-sidebar-accent-foreground: var(--accent-foreground);
-  --color-sidebar-primary: var(--primary);
-  --color-sidebar-primary-foreground: var(--primary-foreground);
-  --color-sidebar-ring: var(--ring);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-sm: var(--site-radius-1);
+  --radius-md: var(--site-radius-1);
+  --radius-lg: var(--site-radius-1);
+  --radius-xl: var(--site-radius-1);
+  --radius-2xl: var(--site-radius-1);
+  --radius-3xl: var(--site-radius-1);
+  --radius-4xl: var(--site-radius-1);
+  --shadow-xs: none;
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
 }
 
 :root {
-  color-scheme: light;
-  --background: #fbfcfd;
-  --foreground: #141a24;
-  --card: #fbfcfd;
-  --card-foreground: #141a24;
-  --popover: #ffffff;
-  --popover-foreground: #141a24;
-  --primary: #141a24;
-  --primary-foreground: #fbfcfd;
-  --secondary: #eef1f5;
-  --secondary-foreground: #141a24;
-  --muted: #eef1f5;
-  --muted-foreground: #4d5766;
-  --accent: #eef1f5;
-  --accent-foreground: #141a24;
-  --destructive: #b42318;
-  --border: #d5dbe3;
-  --input: #c3cad4;
-  --ring: #1f4fbf;
-  --link: #1f4fbf;
-  --rule: #c3cad4;
-  --status-checked: #1f7a4d;
-  --status-paper: #2b5797;
-  --status-experiment: #8a5a00;
-  --status-open: #5e6672;
-  --status-false: #b42318;
-  /* Categorical series, validated (dataviz validator, light surface #fbfcfd):
-     worst adjacent CVD dE 9.1, normal-vision 19.6; slots 3-5 below 3:1, so every
-     chart ships axis labels or a table view. */
-  --chart-1: #2a78d6;
-  --chart-2: #eb6834;
-  --chart-3: #1baf7a;
-  --chart-4: #eda100;
-  --chart-5: #e87ba4;
-  --chart-6: #008300;
-  --chart-compare: #eb6834;
-  --chart-ink: #4d5766;
-  --chart-grid: #e3e7ed;
-  --radius: 0.125rem;
-  --measure: 66ch;
-  --margin-col: 15rem;
-  --gutter: 2.5rem;
-}
-
-.dark {
-  color-scheme: dark;
-  --background: #12161d;
-  --foreground: #d9dee6;
-  --card: #12161d;
-  --card-foreground: #d9dee6;
-  --popover: #181d26;
-  --popover-foreground: #d9dee6;
-  --primary: #d9dee6;
-  --primary-foreground: #12161d;
-  --secondary: #1b212b;
-  --secondary-foreground: #d9dee6;
-  --muted: #1b212b;
-  --muted-foreground: #9aa5b4;
-  --accent: #1f2631;
-  --accent-foreground: #d9dee6;
-  --destructive: #f97066;
-  --border: #2a323e;
-  --input: #3a4452;
-  --ring: #8ab4ff;
-  --link: #8ab4ff;
-  --rule: #3a4452;
-  --status-checked: #5cc58f;
-  --status-paper: #8fb1e8;
-  --status-experiment: #e0a84a;
-  --status-open: #a3abb8;
-  --status-false: #f97066;
-  /* Validated against #12161d: worst adjacent CVD dE 8.4, normal 19.3, all >= 3:1. */
-  --chart-1: #3987e5;
-  --chart-2: #d95926;
-  --chart-3: #199e70;
-  --chart-4: #c98500;
-  --chart-5: #d55181;
-  --chart-6: #008300;
-  --chart-compare: #d95926;
-  --chart-ink: #9aa5b4;
-  --chart-grid: #232a35;
-}
-
-/* Period theme: amber phosphor terminal. Monochrome by design; charts keep the
-   dark palette so data identity survives. */
-.dark[data-theme="phosphor"] {
-  --background: #0d0b07;
-  --foreground: #ffb000;
-  --card: #0d0b07;
-  --card-foreground: #ffb000;
-  --popover: #15110a;
-  --popover-foreground: #ffb000;
-  --primary: #ffb000;
-  --primary-foreground: #0d0b07;
-  --secondary: #1a150c;
-  --secondary-foreground: #ffb000;
-  --muted: #1a150c;
-  --muted-foreground: #c98a00;
-  --accent: #241c0e;
-  --accent-foreground: #ffd27a;
-  --border: #4a3812;
-  --input: #6a5018;
-  --ring: #ffd27a;
-  --link: #ffd27a;
-  --rule: #4a3812;
-  --status-checked: #ffd27a;
-  --status-paper: #ffb000;
-  --status-experiment: #c98a00;
-  --status-open: #c98a00;
-  --chart-ink: #c98a00;
-  --chart-grid: #2a210f;
-  --font-serif: "CM Web Mono", ui-monospace, monospace;
-}
-
-/* Period theme: blueprint on graph paper. */
-.dark[data-theme="blueprint"] {
-  --background: #0e2f5a;
-  --foreground: #eaf2ff;
-  --card: #0e2f5a;
-  --card-foreground: #eaf2ff;
-  --popover: #12386a;
-  --popover-foreground: #eaf2ff;
-  --primary: #eaf2ff;
-  --primary-foreground: #0e2f5a;
-  --secondary: #143e72;
-  --secondary-foreground: #eaf2ff;
-  --muted: #143e72;
-  --muted-foreground: #b5c9e6;
-  --accent: #184680;
-  --accent-foreground: #eaf2ff;
-  --border: #35609a;
-  --input: #4a74ad;
-  --ring: #ffe08a;
-  --link: #ffe08a;
-  --rule: #4a74ad;
-  --status-checked: #9be3bd;
-  --status-paper: #eaf2ff;
-  --status-experiment: #ffe08a;
-  --status-open: #b5c9e6;
-  --chart-ink: #b5c9e6;
-  --chart-grid: #1d4a82;
-}
-.dark[data-theme="blueprint"] body {
-  background-image:
-    linear-gradient(to right, rgb(234 242 255 / 0.07) 1px, transparent 1px),
-    linear-gradient(to bottom, rgb(234 242 255 / 0.07) 1px, transparent 1px),
-    linear-gradient(to right, rgb(234 242 255 / 0.03) 1px, transparent 1px),
-    linear-gradient(to bottom, rgb(234 242 255 / 0.03) 1px, transparent 1px);
-  background-size:
-    80px 80px,
-    80px 80px,
-    16px 16px,
-    16px 16px;
+  --background: var(--site-color-bg);
+  --foreground: var(--site-color-fg);
+  --card: var(--site-color-bg);
+  --card-foreground: var(--site-color-fg);
+  --popover: var(--site-color-bg);
+  --popover-foreground: var(--site-color-fg);
+  --primary: var(--site-color-fg);
+  --primary-foreground: var(--site-color-bg);
+  --secondary: var(--site-color-bg);
+  --secondary-foreground: var(--site-color-fg);
+  /* The ground for code and table cells; also the slider's track. */
+  --muted: var(--site-color-code-bg);
+  --muted-foreground: var(--site-color-muted);
+  /* Hover on a quiet control. */
+  --accent: var(--site-color-code-bg);
+  --accent-foreground: var(--site-color-fg);
+  --destructive: var(--site-mean-against);
+  --border: var(--site-color-rule);
+  --input: var(--site-color-rule);
+  --ring: var(--site-color-focus);
+  /* Links are set in the ink with the accent as the rule under them. */
+  --link: var(--site-color-link);
+  --rule: var(--site-color-rule);
+  --nv-mark: var(--site-color-mark);
+  --nv-ok: var(--site-mean-proved);
+  --nv-busy: var(--site-mean-open);
+  --nv-again: var(--site-mean-measured);
+  --nv-bad: var(--site-mean-against);
+  /* Charts: lines and labels in the ink, axes and the faint part in the quieter ink, grid in the rule. */
+  --chart-ink: var(--site-color-muted);
+  --chart-grid: var(--site-color-rule);
+  --radius: var(--site-radius-1);
+  --measure: var(--site-measure);
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/60;
+    @apply border-border;
   }
   html {
-    font-family: var(--font-serif);
+    font-family: var(--site-font-body);
+    background: var(--site-color-bg);
     -webkit-text-size-adjust: 100%;
     text-rendering: optimizeLegibility;
-    scroll-padding-top: 4.5rem;
+    scroll-padding-top: var(--site-space-6);
   }
   body {
     @apply bg-background text-foreground;
-    font-size: 1.125rem;
-    line-height: 1.55;
-    font-variant-numeric: oldstyle-nums proportional-nums;
+    font-size: var(--site-step-0);
+    line-height: var(--site-leading-body);
     font-kerning: normal;
-    font-feature-settings: "liga" 1;
   }
-  @media (min-width: 48rem) {
-    body {
-      font-size: 1.1875rem;
-    }
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-weight: var(--site-weight-normal);
+  }
+  b,
+  strong {
+    font-weight: var(--site-weight-bold);
   }
   button:not(:disabled),
-  [role="button"]:not(:disabled) {
+  [role="button"]:not(:disabled),
+  summary {
     cursor: pointer;
   }
   ::selection {
-    background: color-mix(in oklab, var(--link) 28%, transparent);
+    background: var(--site-color-selection);
     color: inherit;
   }
-  :focus-visible {
-    outline: 2px solid var(--ring);
-    outline-offset: 2px;
+  /* The site's focus ring on every control, never removed. */
+  :focus-visible:not([tabindex="-1"]),
+  [data-slot]:focus-visible {
+    outline: var(--site-focus-width) solid var(--site-color-focus) !important;
+    outline-offset: var(--site-focus-offset) !important;
+    box-shadow: none !important;
   }
-  a {
-    color: var(--link);
+  a,
+  .text-link {
+    color: var(--site-color-link);
     text-decoration-line: underline;
-    text-decoration-thickness: 0.06em;
-    text-underline-offset: 0.18em;
-    text-decoration-color: color-mix(in oklab, var(--link) 45%, transparent);
-  }
-  a:hover {
-    text-decoration-color: currentColor;
-  }
-  html {
-    scrollbar-color: var(--input) transparent;
-    scrollbar-width: thin;
+    text-decoration-thickness: var(--site-underline-width);
+    text-underline-offset: var(--site-underline-offset);
+    text-decoration-color: var(--site-color-link-line);
   }
   input,
   textarea {
-    caret-color: var(--link);
+    caret-color: var(--site-color-fg);
   }
   code,
   kbd,
   pre,
   samp {
-    font-family: var(--font-mono);
+    font-family: var(--site-font-mono);
     font-variant-numeric: lining-nums tabular-nums;
   }
   table {
     font-variant-numeric: lining-nums tabular-nums;
   }
-  /* Controls speak sans, like a TeX document's marginal apparatus. */
   button,
   input,
   select,
-  textarea,
-  [role="tab"],
-  [role="menuitem"],
-  [role="option"],
-  [data-slot="badge"],
-  [data-slot="tooltip-content"],
-  [data-slot="select-trigger"] {
-    font-family: var(--font-sans);
+  textarea {
+    font-family: var(--site-font-body);
     font-variant-numeric: lining-nums tabular-nums;
   }
 }
@@ -364,12 +198,12 @@
 
 @utility sc {
   font-variant-caps: small-caps;
-  letter-spacing: 0.03em;
+  letter-spacing: var(--site-tracking-caps);
 }
 @utility asc {
   /* acronyms: all small caps (c2sc + smcp) */
   font-variant-caps: all-small-caps;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--site-tracking-caps);
 }
 @utility lining {
   font-variant-numeric: lining-nums tabular-nums;
@@ -378,11 +212,13 @@
   max-width: var(--measure);
 }
 
-
 /* Display equations shrink to fit; any overflow left scrolls with a visible bar. */
 .nv-tex-display {
   scrollbar-width: thin;
   scrollbar-color: var(--muted-foreground) transparent;
+}
+.katex {
+  font-size: var(--site-math-size);
 }
 
 /* Motion only follows an action, and none at all when the reader asks for less. */
@@ -397,8 +233,8 @@
   }
 }
 
-/* Inside a tool nearly every number is data: lining figures, so a zero never
-   reads as the letter o, and a slashed zero where numbers are read off. */
+/* Inside a tool nearly every number is data: lining figures throughout, and
+   tabular ones where numbers are read off or line up. */
 .nv-tool {
   font-variant-numeric: lining-nums;
 }
@@ -406,5 +242,9 @@
 .nv-tool dd,
 .nv-tool table,
 .nv-tool [data-nv-num] {
-  font-variant-numeric: lining-nums tabular-nums slashed-zero;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+/* Labels inside pictures: the text family. */
+.nv-tool svg text {
+  font-family: var(--site-font-body);
 }
