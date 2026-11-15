@@ -22,7 +22,7 @@ const LAYER_NOTES: Record<string, string> = {
  */
 export function Layer({ id, layer, title, children }: { id: string; layer: string; title: string; children: ReactNode }) {
   return (
-    <details id={id} className="group/layer mt-2 max-w-[72ch] border-t border-border py-3 [.nv-present_&]:hidden">
+    <details id={id} className="group/layer mt-2 max-w-(--site-measure) border-t border-border py-3 [.nv-present_&]:hidden">
       <summary className="flex cursor-pointer list-none items-start gap-2 py-1 [&::-webkit-details-marker]:hidden">
         <ChevronRight aria-hidden className="mt-1.5 size-4 shrink-0 text-muted-foreground group-open/layer:rotate-90" />
         <span className="min-w-0">
@@ -47,8 +47,8 @@ export function Exercise({ rating, children, answer }: { rating: string; childre
         <span className="mr-2 font-sans text-sm text-muted-foreground tabular-nums">[{rating}]</span>
         {children}
       </p>
-      <details className="text-[0.95rem]">
-        <summary className="cursor-pointer font-sans text-sm text-[var(--link)]">Answer</summary>
+      <details className="text-sm">
+        <summary className="cursor-pointer font-sans text-sm text-link">Answer</summary>
         <div className="mt-1 border-l-2 border-border pl-3">{answer}</div>
       </details>
     </li>
@@ -128,28 +128,28 @@ export function RdtAnalysis({ sim, p, run }: { sim: Netsim; p: RdtParams; run: R
         {
           id: "sr-sim",
           label: `Selective Repeat, simulated (N = ${sweepBase.window})`,
-          color: "var(--chart-2)",
+          color: "var(--foreground)",
           kind: "dots",
           points: rows.map((r) => [r[0], r[3]]),
         },
-        { id: "sr-th", label: "Selective Repeat, bound", color: "var(--chart-2)", kind: "line", points: rows.map((r) => [r[0], r[6]]) },
+        { id: "sr-th", label: "Selective Repeat, bound", color: "var(--foreground)", kind: "line", points: rows.map((r) => [r[0], r[6]]) },
         {
           id: "gbn-sim",
           label: `Go-Back-N, simulated (N = ${sweepBase.window})`,
-          color: "var(--chart-1)",
+          color: "var(--muted-foreground)",
           kind: "dots",
           points: rows.map((r) => [r[0], r[2]]),
         },
         {
           id: "gbn-th",
           label: "Go-Back-N, Stallings",
-          color: "var(--chart-1)",
+          color: "var(--muted-foreground)",
           kind: "line",
           dashed: true,
           points: rows.map((r) => [r[0], r[5]]),
         },
-        { id: "sw-sim", label: "Stop-and-wait, simulated", color: "var(--chart-3)", kind: "dots", points: rows.map((r) => [r[0], r[1]]) },
-        { id: "sw-th", label: "Stop-and-wait, exact", color: "var(--chart-3)", kind: "line", points: rows.map((r) => [r[0], r[4]]) },
+        { id: "sw-sim", label: "Stop-and-wait, simulated", color: "var(--foreground)", kind: "dots", points: rows.map((r) => [r[0], r[1]]) },
+        { id: "sw-th", label: "Stop-and-wait, exact", color: "var(--foreground)", kind: "line", dashed: true, points: rows.map((r) => [r[0], r[4]]) },
       ]
     : []
 
@@ -392,7 +392,7 @@ export function RdtInternals() {
         <li>Utilisation counts each message's bits once, over the time to deliver them all.</li>
       </ul>
       <h3 className="pt-2 text-lg">References</h3>
-      <ul className="space-y-1 text-[0.95rem]">
+      <ul className="space-y-1 text-sm">
         <li>
           K. A. Bartlett, R. A. Scantlebury and P. T. Wilkinson. A note on reliable full-duplex transmission over half-duplex links. CACM
           12(5), 1969.

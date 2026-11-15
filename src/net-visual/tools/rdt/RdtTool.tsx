@@ -84,7 +84,7 @@ const toLadder = (run: RdtRun): LadderFlight[] =>
     lost: f.lost,
     label: f.kind === "data" ? `packet ${f.wire}${f.occurrence > 1 ? ", again" : ""}` : `ACK ${f.wire}`,
     fate: FATES[f.fate] ?? f.fate,
-    color: f.kind === "data" ? "var(--chart-1)" : "var(--chart-2)",
+    color: f.kind === "data" ? "var(--nv-busy)" : "var(--nv-ok)",
     alarm: f.fate.includes("wrong"),
   }))
 
@@ -253,7 +253,7 @@ function RdtLoaded({ sim }: { sim: Netsim }) {
             legend={
               <>
                 <LadderKey mark="band">data packet; in &quot;packet 0&quot;, 0 is its sequence number, its place in the order</LadderKey>
-                <LadderKey mark="back" color="var(--chart-2)">
+                <LadderKey mark="back" color="var(--nv-ok)">
                   acknowledgement (ACK): the receiver&apos;s note that it arrived
                 </LadderKey>
                 <LadderKey mark="cross">lost on the way</LadderKey>
@@ -468,7 +468,7 @@ const Totals = memo(function Totals({ run, p }: { run: RdtRun; p: RdtParams }) {
           ],
         ]}
       />
-      <p className="max-w-[70ch] font-sans text-sm text-muted-foreground">
+      <p className="max-w-(--site-measure) font-sans text-sm text-muted-foreground">
         The bound is the smaller of two limits: the link cannot be busier than the share of packets that survive, and a window of N messages
         can keep it busy at most N packet-sending times out of every time a message holds its place in the window. The reading section
         &ldquo;How fast can it go?&rdquo; derives it.

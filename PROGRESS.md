@@ -412,6 +412,13 @@ select triggers grow with wrapped text.
 Colour words changed in sentences (the colour of the thing changed):
 recorded per tool below.
 
+- rdt: data band purple (under way), ACK green (got there), wrong
+  delivery red; window strip boxes: waiting grey ground, sent and kept
+  purple, acknowledged and handed over green, wrong red, numbers in page
+  colour on solid boxes; sweep chart in ink (Selective Repeat,
+  stop-and-wait) and muted (Go-Back-N), theory dashed. No colour words
+  changed ("red cross", "red boxes" stay true).
+
 ## Next
 
 Only known gaps remain; all six tools are built.

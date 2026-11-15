@@ -5,19 +5,19 @@ import { scrollBehavior } from "../../components/ToolFrame"
 
 const BOX = 30
 const GAP = 4
-const GUTTER = 112
+const GUTTER = 136
 
 const SENDER: Record<string, { fill: string; label: string }> = {
   ".": { fill: "transparent", label: "not sent yet" },
-  q: { fill: "color-mix(in oklab, var(--chart-1) 12%, transparent)", label: "waiting for the link" },
-  s: { fill: "color-mix(in oklab, var(--chart-1) 35%, transparent)", label: "sent, waiting for its acknowledgement" },
-  a: { fill: "var(--chart-1)", label: "acknowledged" },
+  q: { fill: "var(--muted)", label: "waiting for the link" },
+  s: { fill: "var(--nv-busy)", label: "sent, waiting for its acknowledgement" },
+  a: { fill: "var(--nv-ok)", label: "acknowledged" },
 }
 const RECEIVER: Record<string, { fill: string; label: string }> = {
   ".": { fill: "transparent", label: "not received yet" },
-  b: { fill: "color-mix(in oklab, var(--chart-2) 35%, transparent)", label: "kept, waiting for an earlier one" },
-  d: { fill: "var(--chart-2)", label: "handed to the application" },
-  x: { fill: "var(--destructive)", label: "handed over, but it was the wrong message" },
+  b: { fill: "var(--nv-busy)", label: "kept, waiting for an earlier one" },
+  d: { fill: "var(--nv-ok)", label: "handed to the application" },
+  x: { fill: "var(--nv-bad)", label: "handed over, but it was the wrong message" },
 }
 
 /**
@@ -55,8 +55,8 @@ export function WindowView({ p, s, t, started }: { p: RdtParams; s: Snapshot; t:
   const next = started ? s.next : 0
   const rcvBase = started ? s.rcv_base : 0
   const timer = new Map(started ? s.timers : [])
-  const ySend = 18
-  const yRecv = 18
+  const ySend = 22
+  const yRecv = 22
   const present = (row: string, keys: string[]) => keys.filter((k) => k === "." || row.includes(k))
 
   const row = (who: "sender" | "receiver") => {
@@ -68,11 +68,11 @@ export function WindowView({ p, s, t, started }: { p: RdtParams; s: Snapshot; t:
     const y = isSender ? ySend : yRecv
     return (
       <svg width={width} height={y + BOX + 10} role="img" aria-label={`${who}: ${states.length} messages`}>
-        <text x={0} y={y + BOX / 2} dy="0.35em" fontSize="11" fill="var(--muted-foreground)">
+        <text x={0} y={y + BOX / 2} dy="0.35em" fontSize="17" fill="var(--muted-foreground)">
           sequence number
         </text>
         {isSender && timer.size > 0 && (
-          <text x={0} y={y - 9} dy="0.35em" fontSize="11" fill="var(--muted-foreground)">
+          <text x={0} y={y - 9} dy="0.35em" fontSize="17" fill="var(--muted-foreground)">
             timer, time left
           </text>
         )}
@@ -92,19 +92,19 @@ export function WindowView({ p, s, t, started }: { p: RdtParams; s: Snapshot; t:
           const st = table[states[i]] ?? table["."]
           const exp = isSender ? timer.get(i) : undefined
           const rest = exp !== undefined ? Math.max(0, Math.min(1, (exp - t) / p.timeout_us)) : null
-          const solid = states[i] === "a" || states[i] === "d" || states[i] === "x"
+          const solid = states[i] !== "." && states[i] !== "q"
           return (
             <g key={i}>
               <title>{`message ${i}, sequence number ${i % m}: ${st.label}`}</title>
-              {rest !== null && <rect x={x(i)} y={y - 12} width={BOX * rest} height={4} fill="var(--foreground)" opacity={0.7} />}
+              {rest !== null && <rect x={x(i)} y={y - 12} width={BOX * rest} height={4} fill="var(--foreground)" />}
               <rect x={x(i)} y={y} width={BOX} height={BOX} fill={st.fill} stroke="var(--input)" rx={2} />
               <text
                 x={x(i) + BOX / 2}
                 y={y + BOX / 2}
                 dy="0.35em"
                 textAnchor="middle"
-                fontSize="13"
-                fill={solid ? "white" : "var(--foreground)"}
+                fontSize="17"
+                fill={solid ? "var(--background)" : "var(--foreground)"}
               >
                 {i % m}
               </text>
@@ -130,7 +130,7 @@ export function WindowView({ p, s, t, started }: { p: RdtParams; s: Snapshot; t:
 
   return (
     <figure className="space-y-4 font-sans text-sm lining">
-      <figcaption className="max-w-[70ch] text-[0.98rem] text-foreground">
+      <figcaption className="max-w-(--site-measure) text-base text-foreground">
         Each box is one message, in order from the left. The number in it is the sequence number the message travels with
         {m < n ? `; the numbers run from 0 to ${m - 1} and then start again` : ""}. The outline is the window.
       </figcaption>
