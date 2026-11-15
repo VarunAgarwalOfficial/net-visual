@@ -142,62 +142,96 @@ export const CwndChart = memo(function CwndChart({
         cursor={t}
         upTo={t}
         onSeek={onSeek}
-        overlay={({ sx, sy, right, top: y0, bottom, ground }) => (
-          // Words and marks go over the lines, each on a ground of the page colour.
-          <g pointerEvents="none">
-            {band && (
-              <text x={sx(band[0]) + 4} y={y0 + 18} fontSize="17" fill="var(--chart-ink)">
-                shaded: in the sequence diagram
-              </text>
-            )}
-            {refs.map(([v, text]) =>
-              v <= top ? (
-                <text
-                  key={text}
-                  x={right - 4}
-                  y={sy(v) - 4}
-                  textAnchor="end"
-                  fontSize="17"
-                  fill="var(--chart-ink)"
-                  {...HALO}
-                  filter={ground}
-                >
-                  {text}
+        overlay={({ sx, sy, left, right, top: y0, bottom, ground, words }) => {
+          // Each word takes the first of its places that is clear of the line names and of the
+          // words already placed; with none clear it is left out, and its mark stays.
+          const taken = [...words]
+          const place = (text: string, spots: [number, number][]) => {
+            const len = 7.6 * text.length
+            for (const [x, y] of spots) {
+              const b = { l: x, r: x + len, t: y - 14, b: y + 5 }
+              if (b.l < left || b.r > right || b.t < y0) continue
+              if (taken.some((o) => b.l < o.r && o.l < b.r && b.t < o.b && o.t < b.b)) continue
+              taken.push(b)
+              return [x, y] as const
+            }
+            return null
+          }
+          const lost = marks.drops.length > 1 ? "packet lost (ticks, one row per flow)" : "packet lost (ticks)"
+          const lostAt =
+            firstDrop < Infinity
+              ? place(lost, [
+                  ...Array.from({ length: 30 }, (_, k): [number, number] => [sx(firstDrop) + 5 + 12 * k, bottom - 4]),
+                  [sx(firstDrop) - 5 - 7.6 * lost.length, bottom - 4],
+                ])
+              : null
+          const above = (x: number, y: number, dy: number) =>
+            [0, 1, 2, 3, -1, -2].map((k): [number, number] => [x + 7, k >= 0 ? y - dy - 20 * k : y + 14 - 20 * k])
+          const fastAt = marks.fast.slice(0, 1).map(([x, y]) => place("fast retransmit", above(sx(x), sy(y), 12)))[0] ?? null
+          const timeoutAt = marks.timeout.slice(0, 1).map(([x, y]) => place("timer ran out", above(sx(x), sy(y), 3)))[0] ?? null
+          return (
+            // Words and marks go over the lines, each on a ground of the page colour.
+            <g pointerEvents="none">
+              {band && (
+                <text x={sx(band[0]) + 4} y={y0 + 18} fontSize="17" fill="var(--chart-ink)">
+                  shaded: in the sequence diagram
                 </text>
-              ) : null,
-            )}
-            {firstDrop < Infinity && (
-              <text x={sx(firstDrop) + 5} y={bottom - 4} fontSize="17" fill="var(--chart-ink)" {...HALO} filter={ground}>
-                {marks.drops.length > 1 ? "packet lost (ticks, one row per flow)" : "packet lost (ticks)"}
-              </text>
-            )}
-            {marks.fast.slice(0, 1).map(([x, y]) => (
-              <text key="fast-label" x={sx(x) + 7} y={sy(y) - 12} fontSize="17" fill="var(--nv-again)" {...HALO} filter={ground}>
-                fast retransmit
-              </text>
-            ))}
-            {marks.timeout.slice(0, 1).map(([x, y]) => (
-              <text key="timeout-label" x={sx(x) + 7} y={sy(y) - 3} fontSize="17" fill="var(--nv-bad)" {...HALO} filter={ground}>
-                timer ran out
-              </text>
-            ))}
-            {marks.fast.map(([x, y], i) => (
-              <path key={`f${i}`} d={`M${sx(x)},${sy(y) - 3}l-4,-7h8z`} fill="var(--nv-again)" stroke="var(--background)" strokeWidth={1} />
-            ))}
-            {marks.timeout.map(([x, y], i) => (
-              <rect
-                key={`t${i}`}
-                x={sx(x) - 4}
-                y={sy(y) - 12}
-                width={8}
-                height={8}
-                fill="var(--background)"
-                stroke="var(--nv-bad)"
-                strokeWidth={2}
-              />
-            ))}
-          </g>
-        )}
+              )}
+              {refs.map(([v, text]) =>
+                v <= top ? (
+                  <text
+                    key={text}
+                    x={right - 4}
+                    y={sy(v) - 4}
+                    textAnchor="end"
+                    fontSize="17"
+                    fill="var(--chart-ink)"
+                    {...HALO}
+                    filter={ground}
+                  >
+                    {text}
+                  </text>
+                ) : null,
+              )}
+              {lostAt && (
+                <text x={lostAt[0]} y={lostAt[1]} fontSize="17" fill="var(--chart-ink)" {...HALO} filter={ground}>
+                  {lost}
+                </text>
+              )}
+              {fastAt && (
+                <text x={fastAt[0]} y={fastAt[1]} fontSize="17" fill="var(--nv-again)" {...HALO} filter={ground}>
+                  fast retransmit
+                </text>
+              )}
+              {timeoutAt && (
+                <text x={timeoutAt[0]} y={timeoutAt[1]} fontSize="17" fill="var(--nv-bad)" {...HALO} filter={ground}>
+                  timer ran out
+                </text>
+              )}
+              {marks.fast.map(([x, y], i) => (
+                <path
+                  key={`f${i}`}
+                  d={`M${sx(x)},${sy(y) - 3}l-4,-7h8z`}
+                  fill="var(--nv-again)"
+                  stroke="var(--background)"
+                  strokeWidth={1}
+                />
+              ))}
+              {marks.timeout.map(([x, y], i) => (
+                <rect
+                  key={`t${i}`}
+                  x={sx(x) - 4}
+                  y={sy(y) - 12}
+                  width={8}
+                  height={8}
+                  fill="var(--background)"
+                  stroke="var(--nv-bad)"
+                  strokeWidth={2}
+                />
+              ))}
+            </g>
+          )
+        }}
       >
         {({ sx, sy, left, right, top: y0, bottom }) => (
           // Under the lines: the shaded span, the two reference levels, the loss ticks.

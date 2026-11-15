@@ -58,6 +58,15 @@ export interface Scale {
   bottom: number
   /** A filter that sets a label on a box of the page colour, so no line runs between its letters. */
   ground: string
+  /** Where the names at the ends of the lines are, so marks drawn over the chart can keep clear of them. */
+  words: Box[]
+}
+
+export interface Box {
+  l: number
+  r: number
+  t: number
+  b: number
 }
 
 function ticks(lo: number, hi: number, count: number): number[] {
@@ -203,6 +212,12 @@ export function LineChart(props: Props) {
     return out
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [series, upTo, width, height, x0, x1, y0, y1])
+  const words: Box[] = (!!props.keyEarly && series.length >= 2 && (upTo ?? Infinity) < x0 + 0.15 * (x1 - x0) ? [] : labels).map((l) => ({
+    l: l.x,
+    r: l.x + 7.6 * Math.max(...l.lines.map((t) => t.length)),
+    t: l.y - 14,
+    b: l.y + 20 * (l.lines.length - 1) + 5,
+  }))
   const ahead = upTo !== undefined && upTo < x1 ? Math.max(m.l, sx(Math.max(upTo, x0))) : null
   const asKey = !!props.keyEarly && series.length >= 2 && (upTo ?? Infinity) < x0 + 0.15 * (x1 - x0)
 
@@ -296,10 +311,10 @@ export function LineChart(props: Props) {
               {yLabel}
             </text>
             {typeof props.children === "function"
-              ? props.children({ sx, sy, left: m.l, right: m.l + w, top: m.t, bottom: m.t + h, ground })
+              ? props.children({ sx, sy, left: m.l, right: m.l + w, top: m.t, bottom: m.t + h, ground, words })
               : props.children}
             <defs>
-              <filter id={`${id}-ground`} x="-0.02" y="-0.1" width="1.04" height="1.2" colorInterpolationFilters="sRGB">
+              <filter id={`${id}-ground`} x="0" y="0" width="1" height="1" colorInterpolationFilters="sRGB">
                 <feFlood style={{ floodColor: "var(--background)" }} />
                 <feMerge>
                   <feMergeNode />
@@ -399,7 +414,7 @@ export function LineChart(props: Props) {
                 ))}
               </text>
             ))}
-            {props.overlay?.({ sx, sy, left: m.l, right: m.l + w, top: m.t, bottom: m.t + h, ground })}
+            {props.overlay?.({ sx, sy, left: m.l, right: m.l + w, top: m.t, bottom: m.t + h, ground, words })}
             {hover !== null && (
               <g pointerEvents="none">
                 <line x1={sx(hover)} x2={sx(hover)} y1={m.t} y2={m.t + h} stroke="var(--chart-ink)" strokeDasharray="3 3" />

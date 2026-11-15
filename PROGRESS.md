@@ -577,9 +577,15 @@ wrapped end labels cover part of the played line between 1 and 1.5 s.
 No message is left undrawn in any routing sweep. By eye, lines still
 ran between the letters of halo'd labels in the tcp chart (the check
 counts text against text only): the chart's labels and line-end
-labels now sit on a filter-drawn box of the page colour (sRGB, so it
-matches the ground exactly), and the ladder's and chart's halos are 8
-wide instead of 4.
+labels now sit on a filter-drawn box of the page colour, exactly the
+text's box so the check covers it (sRGB, so it matches the ground),
+and the ladder's and chart's halos are 8 wide instead of 4. A sweep of
+the whole tcp run (to 2.999 of 3 s, both widths) then found "window,
+Tahoe" on "packet lost" and "window, Reno" on "fast retransmit" at
+1440 just after the loss: the chart's own words now take the first
+clear place beside their mark, clear of the line names (left out if
+none is clear; the mark stays). The other default runs are under 60
+steps, so the 60-step sweeps covered them whole.
 
 ## Next
 
