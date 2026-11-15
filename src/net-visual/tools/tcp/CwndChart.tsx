@@ -203,7 +203,9 @@ export const CwndChart = memo(function CwndChart({
               />
             )}
             {refs.map(([v, text]) =>
-              v <= top ? <line key={text} x1={left} x2={right} y1={sy(v)} y2={sy(v)} stroke="var(--chart-ink)" strokeDasharray="1 3" /> : null,
+              v <= top ? (
+                <line key={text} x1={left} x2={right} y1={sy(v)} y2={sy(v)} stroke="var(--chart-ink)" strokeDasharray="1 3" />
+              ) : null,
             )}
             {marks.drops.map((ts, i) => (
               <path key={i} d={ts.map((x) => `M${sx(x).toFixed(1)},${bottom}v-${5 + 3 * i}`).join("")} stroke="var(--nv-bad)" fill="none" />
