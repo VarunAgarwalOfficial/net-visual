@@ -68,7 +68,9 @@ export function HttpPanel({
 }) {
   const first = HTTP_PRESETS.find((pr) => pr.mode === (startMode ?? HTTP_PRESETS[0].mode))!
   const [params, setParams] = useState<HttpWeb>(shared?.h ?? first.params)
-  const [preset, setPreset] = useState<string>(shared ? "" : first.id)
+  const [preset, setPreset] = useState<string>(() =>
+    shared ? (HTTP_PRESETS.find((q) => JSON.stringify(q.params) === JSON.stringify(shared.h))?.id ?? "") : first.id,
+  )
   const [view, setView] = useState<View>(DEFAULT_VIEW[params.mode])
   const [tab, setTab] = useState("trace")
   const [tour, setTour] = useState<number | null>(null)

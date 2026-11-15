@@ -110,8 +110,18 @@ function HolEquations({ p, run, t }: { p: HttpParams; run: HttpRun; t: number })
   const lost = run.packets.findIndex((q) => q.lost && q.retx_of === null)
   const fix = lost >= 0 ? run.packets.find((q) => q.retx_of === lost && q.arrive_ns !== null) : undefined
   const due = lost >= 0 ? run.packets[lost].depart_ns + (p.rtt_us * 1000) / 2 : 0
+  // Pipelined responses wait to be sent, not to be delivered: the delay is the
+  // time from the request reaching the server to its response starting.
+  const rtt = p.rtt_us * 1000
+  const waits = run.objects.map((o, i) => ({ i, w: o.first_byte_ns - o.requested_ns - rtt }))
+  const worst = p.protocol === "h11" && p.pipelining ? waits.reduce((a, b) => (b.w > a.w ? b : a)) : null
   return (
     <>
+      {worst && worst.w > 0 && (
+        <Tex
+          display
+        >{`W_{\text{${run.objects[worst.i].name.replace(/_/g, "\\_")}}} = t_{\text{first byte}} - t_{\text{asked}} - \text{RTT} = ${ms(run.objects[worst.i].first_byte_ns)} - ${ms(run.objects[worst.i].requested_ns)} - ${texNum(p.rtt_us / 1000, 3)} = ${ms(worst.w)}\text{ ms}`}</Tex>
+      )}
       <Tex
         display
       >{`H = \\sum_{\\text{packets}} \\big(t_{\\text{delivered}} - t_{\\text{arrived}}\\big) = ${ms(run.stats.held_ns)}\\text{ ms over } ${run.stats.held_objects} \\text{ stream${run.stats.held_objects === 1 ? "" : "s"}}`}</Tex>
@@ -140,6 +150,12 @@ function HolEquations({ p, run, t }: { p: HttpParams; run: HttpRun; t: number })
           ))}
         </tbody>
       </table>
+      {worst && worst.w > 0 && (
+        <p className="font-sans text-xs text-muted-foreground">
+          W is head-of-line blocking in the application: the server had the request, but its response had to wait on the same connection for
+          every response asked for before it. Nothing arrives early, so nothing is held and H can be zero.
+        </p>
+      )}
       <p className="font-sans text-xs text-muted-foreground">
         A stream is frozen when bytes have arrived that the browser cannot have yet. A hole lasts about a round trip while three later
         packets are acknowledged and the repair crosses the path, plus any queue at the bottleneck ahead of it.
