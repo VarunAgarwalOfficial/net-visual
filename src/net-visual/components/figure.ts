@@ -18,9 +18,9 @@ export interface LadderFigure {
 }
 
 // The light theme's tokens, so an exported figure reads on white paper.
-const INK = "#141a24"
-const MUTED = "#4d5766"
-const ALARM = "#b42318"
+export const INK = "#141a24"
+export const MUTED = "#4d5766"
+export const ALARM = "#b42318"
 const PALETTE: Record<string, string> = {
   "var(--chart-1)": "#2a78d6",
   "var(--chart-2)": "#eb6834",
@@ -31,7 +31,7 @@ const PALETTE: Record<string, string> = {
   "var(--foreground)": INK,
   "var(--muted-foreground)": MUTED,
 }
-const hex = (c: string) => PALETTE[c] ?? (c.startsWith("#") ? c : INK)
+export const hex = (c: string) => PALETTE[c] ?? (c.startsWith("#") ? c : INK)
 
 interface Seg {
   f: LadderFlight
@@ -58,7 +58,7 @@ function prepare(fig: LadderFigure) {
   return { start: from, upTo, segs, ticks, marks: fig.marks.filter((m) => m.t <= upTo && m.t >= from) }
 }
 
-const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!)
+export const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!)
 
 export function ladderSvg(fig: LadderFigure): string {
   const { start, upTo, segs, ticks, marks } = prepare(fig)
@@ -120,7 +120,7 @@ export function ladderSvg(fig: LadderFigure): string {
 }
 
 /** TeX-safe text: escapes the special characters and turns the prime into math. */
-const tex = (s: string) =>
+export const tex = (s: string) =>
   s
     .replace(/\\/g, "\\textbackslash{}")
     .replace(/([&%$#_{}])/g, "\\$1")
@@ -130,6 +130,9 @@ const tex = (s: string) =>
     .replace(/′/g, () => "$'$")
     .replace(/µ/g, () => "$\\mu$")
     .replace(/−/g, "--")
+    .replace(/–/g, "--")
+    .replace(/∞/g, () => "$\\infty$")
+    .replace(/→/g, () => "$\\to$")
 
 export function ladderTikz(fig: LadderFigure): string {
   const { start, upTo, segs, ticks, marks } = prepare(fig)

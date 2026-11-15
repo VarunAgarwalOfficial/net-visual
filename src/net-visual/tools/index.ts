@@ -25,4 +25,12 @@ export const TOOLS: ToolInfo[] = [
     layers: ["intuition", "mechanics", "analysis", "frontier", "internals"],
     Component: lazy(() => import("./tcp/TcpTool").then((m) => ({ default: m.TcpTool }))),
   },
+  {
+    id: "routing",
+    title: "Routing: distance vector and link state",
+    summary:
+      "Bellman-Ford exchanges and Dijkstra on the same network: every vector on the wire, count to infinity, poisoned reverse and its limits.",
+    layers: ["intuition", "mechanics", "analysis", "frontier", "internals"],
+    Component: lazy(() => import("./routing/RoutingTool").then((m) => ({ default: m.RoutingTool }))),
+  },
 ]

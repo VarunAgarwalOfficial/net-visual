@@ -50,8 +50,27 @@ const chart: ChartFigure = {
   xDomain: [0, 3e6],
   yDomain: [0, 30],
   series: [
-    { label: "Reno cwnd", color: "var(--chart-1)", points: [[0, 1], [1e6, 12], [2e6, 6], [3e6, 9]], step: true },
-    { label: "Tahoe & 50% <cwnd>", color: "var(--chart-2)", points: [[0, 1], [1e6, 12], [1.2e6, 1]], dashed: true },
+    {
+      label: "Reno cwnd",
+      color: "var(--chart-1)",
+      points: [
+        [0, 1],
+        [1e6, 12],
+        [2e6, 6],
+        [3e6, 9],
+      ],
+      step: true,
+    },
+    {
+      label: "Tahoe & 50% <cwnd>",
+      color: "var(--chart-2)",
+      points: [
+        [0, 1],
+        [1e6, 12],
+        [1.2e6, 1],
+      ],
+      dashed: true,
+    },
   ],
   refs: [{ y: 8, label: "ssthresh_0 = 8" }],
   caption: "A chart with 100% & $5 #1 {a_b}",
@@ -69,4 +88,36 @@ test("the chart TikZ export compiles with pdflatex", { skip: !hasLatex && "pdfla
   writeFileSync(join(dir, "chart.tex"), chartTikz(chart))
   execFileSync("pdflatex", ["-interaction=nonstopmode", "-halt-on-error", "chart.tex"], { cwd: dir, stdio: "pipe" })
   assert.ok(readFileSync(join(dir, "chart.pdf")).length > 1000)
+})
+
+// The routing graph at the worst moment of the count to infinity: a loop in
+// the tree, a link at a new cost, and labels with ∞, – and →.
+const routing = await import("../src/net-visual/core/routing.ts")
+const { graphAt, graphSvg, graphTikz } = await import("../src/net-visual/tools/routing/graphFigure.ts")
+const bad = routing.PRESETS.find((p) => p.id === "bad-news")!.params
+const failed = { ...bad, changes: [...bad.changes, { at_us: 60_000, a: 1, b: 2, cost: null }] }
+const badRun = routing.runRouting(sim, failed)
+const loopAt = badRun.events.findIndex((e) => routing.forwardingTo(e.hop, 0).cycles.length > 0)
+const graph = { ...graphAt(badRun, failed, loopAt, 0), caption: "D_y(x) 6 via z → 8 via z; link x–y costs ∞ & 50%" }
+const lastGraph = { ...graphAt(badRun, failed, badRun.events.length - 1, 0), caption: "after y–z fails" }
+
+test("the routing graph export marks loops and failed links", () => {
+  assert.ok(graph.tree.some((t) => t.loop))
+  assert.ok(lastGraph.links.some((l) => l.cost === null))
+  const svg = graphSvg(graph)
+  assert.ok(svg.includes("∞ &amp; 50%"))
+  assert.ok(!svg.includes("var(--"))
+  assert.ok(svg.includes("#b42318"))
+})
+
+test("the routing graph TikZ export compiles with pdflatex", { skip: !hasLatex && "pdflatex is not installed" }, () => {
+  const dir = mkdtempSync(join(tmpdir(), "nv-tikz-"))
+  for (const [name, g] of [
+    ["loop", graph],
+    ["failed", lastGraph],
+  ] as const) {
+    writeFileSync(join(dir, `${name}.tex`), graphTikz(g))
+    execFileSync("pdflatex", ["-interaction=nonstopmode", "-halt-on-error", `${name}.tex`], { cwd: dir, stdio: "pipe" })
+    assert.ok(readFileSync(join(dir, `${name}.pdf`)).length > 1000)
+  }
 })
