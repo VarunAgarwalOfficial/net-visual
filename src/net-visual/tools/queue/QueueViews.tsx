@@ -33,7 +33,18 @@ import {
   type QueueRun,
   type SweepPoint,
 } from "../../core/queue"
-import { CSS, FLOW_COLORS, pathBox, pathShapes, type PathFigure } from "./pathFigure"
+import { CSS, FLOW_COLORS, FLOW_DASH, FLOW_HOLLOW, W, pathBox, pathShapes, type PathFigure } from "./pathFigure"
+
+/** A source's mark beside its name, as it is drawn in the path: filled, or an outline. */
+function Swatch({ k, className }: { k: number; className?: string }) {
+  return (
+    <span
+      aria-hidden
+      className={cn("mr-1.5 inline-block size-2.5 rounded-[2px] border", className)}
+      style={{ background: FLOW_HOLLOW[k % 4] ? "transparent" : FLOW_COLORS[k % 4], borderColor: FLOW_COLORS[k % 4] }}
+    />
+  )
+}
 
 const ms = (v: number) => String(Number((v / 1000).toPrecision(4)))
 const DISCIPLINE: Record<Discipline, string> = { fifo: "FIFO", priority: "strict priority", wfq: "WFQ" }
@@ -124,10 +135,13 @@ export function eventWhy(p: QueueParams, e: QEvent): string | undefined {
 export const PathView = memo(function PathView({ fig, label }: { fig: PathFigure; label: string }) {
   const [box, width] = useWidth<HTMLDivElement>()
   // On a phone the parts are packed closer (about 400 units across instead of 640), so text can stay near full size.
+  // Text is 12 units times k, kept at 17px or more at the width the drawing is shown.
   const narrow = width > 0 && width < 560
-  const k = narrow ? Math.min(1.35, Math.max(1, 480 / width)) : 1
+  // The packed layout widens with its text, so the size settles in a few rounds.
+  let k = 1
+  for (let round = 0; round < 4; round++) k = Math.max(1, (17 * pathBox(fig, narrow, k).w) / (12 * (width || W)))
+  const vb = pathBox(fig, narrow, k)
   const shapes = useMemo(() => pathShapes(fig, k, narrow), [fig, k, narrow])
-  const vb = pathBox(fig, narrow)
   return (
     <div ref={box}>
       <svg viewBox={`0 ${vb.y0} ${vb.w} ${vb.h}`} className="block h-auto w-full font-sans" role="img" aria-label={label}>
@@ -145,7 +159,6 @@ export const PathView = memo(function PathView({ fig, label }: { fig: PathFigure
               width={Math.max(0, s.w)}
               height={Math.max(0, s.h)}
               fill={s.fill ? CSS[s.fill] : "none"}
-              fillOpacity={s.opacity}
               stroke={s.stroke ? CSS[s.stroke] : "none"}
               strokeWidth={s.stroke === "ink" && s.fill?.startsWith("flow") ? 2 : 1.2}
               strokeDasharray={s.dashed ? "3 3" : undefined}
@@ -427,7 +440,7 @@ function SchedulingEquations({ p, run }: { p: QueueParams; run: QueueRun }) {
             {p.flows.map((f, k) => (
               <tr key={k}>
                 <td className="pr-2">
-                  <span className="mr-1.5 inline-block size-2.5 rounded-[2px]" style={{ background: FLOW_COLORS[k] }} />
+                  <Swatch k={k} />
                   {f.name}
                 </td>
                 <td className="pr-2">{p.discipline === "priority" ? f.priority : f.weight}</td>
@@ -455,7 +468,7 @@ export function modeChart(mode: Mode, p: QueueParams, run: QueueRun, end: number
     const occ = occupancy(run)
     const th = isSingleQueue(p) ? theory(p) : null
     const series: Series[] = [
-      { id: "n", label: "packets in the system", color: FLOW_COLORS[0], kind: "step", points: occ.map((o) => [o.t, o.n]) },
+      { id: "n", label: "packets in the system", color: "var(--foreground)", kind: "step", points: occ.map((o) => [o.t, o.n]) },
     ]
     const lTh = th?.l ?? null
     const lRun = run.stats.l
@@ -488,15 +501,16 @@ export function modeChart(mode: Mode, p: QueueParams, run: QueueRun, end: number
     const c = cumulative(run, k)
     const f = p.flows[k]
     const series: Series[] = [
-      { id: "in", label: "bytes the source sent", color: FLOW_COLORS[1], kind: "step", points: c.input, dashed: true },
-      { id: "out", label: "bytes the shaper released", color: FLOW_COLORS[0], kind: "step", points: c.output },
+      { id: "in", label: "bytes the source sent", color: "var(--muted-foreground)", kind: "step", points: c.input, dashed: true },
+      { id: "out", label: "bytes the shaper released", color: "var(--foreground)", kind: "step", points: c.output },
     ]
     const b = burstOf(p, k)
     if (b !== null && f.shaper.kind !== "none") {
       series.push({
         id: "env",
         label: "ceiling: least over s of out(s) + b + r(t − s)",
-        color: FLOW_COLORS[2],
+        color: "var(--foreground)",
+        dash: "2 3",
         kind: "line",
         points: bound(releases(run, k), b, f.shaper.rate_bps, end),
       })
@@ -516,6 +530,7 @@ export function modeChart(mode: Mode, p: QueueParams, run: QueueRun, end: number
     id: `w${k}`,
     label: f.name,
     color: FLOW_COLORS[k],
+    hollow: FLOW_HOLLOW[k],
     kind: "dots" as const,
     points: run.packets
       .filter((q) => q.flow === k && q.t_start !== null && q.t_join !== null)
@@ -580,14 +595,13 @@ export function RefLines({ refs, s }: { refs: { y: number; label: string }[]; s:
             y1={s.sy(r.y)}
             y2={s.sy(r.y)}
             stroke="var(--chart-ink)"
-            strokeOpacity={0.55}
             strokeDasharray={i === 0 ? "6 4" : "2 3"}
           />
           <text
             x={s.right - 4}
             y={s.sy(r.y) - 4}
             textAnchor="end"
-            fontSize="11"
+            fontSize="17"
             fill="var(--chart-ink)"
             className="stroke-background"
             strokeWidth={4}
@@ -650,13 +664,13 @@ export const PacketTable = memo(function PacketTable({
                 className={cn(
                   "cursor-pointer text-right hover:bg-muted",
                   future && "text-muted-foreground",
-                  q.id === selected && "bg-[color-mix(in_oklab,var(--link)_14%,transparent)]",
+                  q.id === selected && "bg-mark",
                 )}
                 onClick={() => onPick(q)}
               >
                 <td className="pr-2 text-left">
                   <button type="button" className="text-left" aria-label={`Show ${packetName(p, q).toLowerCase()}`}>
-                    <span className="mr-1.5 inline-block size-2.5 rounded-[2px]" style={{ background: FLOW_COLORS[q.flow] }} />
+                    <Swatch k={q.flow} />
                     {q.id}
                   </button>
                 </td>
@@ -712,10 +726,17 @@ export function SweepPanel({ sim, p }: { sim: Netsim; p: QueueParams }) {
   const curve = (k: number): [number, number][] => grid.map((r) => [r, (1 + (k * r) / (1 - r)) * s])
   const dots = (pts: SweepPoint[] | null): [number, number][] => (pts ?? []).map((x) => [x.rho, x.system_us])
   const series: Series[] = [
-    { id: "mm1", label: "M/M/1: W = 1/(μ − λ)", color: FLOW_COLORS[0], kind: "line", points: curve(1) },
-    { id: "md1", label: "M/D/1: W = 1/μ + ρ/(2μ(1 − ρ))", color: FLOW_COLORS[1], kind: "line", points: curve(0.5) },
-    { id: "mm1s", label: "simulated, exponential sizes", color: FLOW_COLORS[0], kind: "dots", points: dots(sweep.exp) },
-    { id: "md1s", label: "simulated, fixed sizes", color: FLOW_COLORS[1], kind: "dots", points: dots(sweep.fixed) },
+    { id: "mm1", label: "M/M/1: W = 1/(μ − λ)", color: "var(--foreground)", kind: "line", points: curve(1) },
+    { id: "md1", label: "M/D/1: W = 1/μ + ρ/(2μ(1 − ρ))", color: "var(--muted-foreground)", kind: "line", points: curve(0.5), dash: "7 3" },
+    { id: "mm1s", label: "simulated, exponential sizes", color: "var(--foreground)", kind: "dots", points: dots(sweep.exp) },
+    {
+      id: "md1s",
+      label: "simulated, fixed sizes",
+      color: "var(--muted-foreground)",
+      kind: "dots",
+      points: dots(sweep.fixed),
+      hollow: true,
+    },
   ]
   return (
     <div className="space-y-3">
@@ -807,7 +828,7 @@ export function ShaperPanel({
       {tokens && (
         <LineChart
           title={`Tokens in flow ${f.name}'s bucket`}
-          series={[{ id: "tok", label: "tokens (bytes)", color: FLOW_COLORS[0], kind: "line", points: tokens }]}
+          series={[{ id: "tok", label: "tokens (bytes)", color: "var(--foreground)", kind: "line", points: tokens }]}
           xLabel="time (ms)"
           yLabel="bytes"
           xFormat={ms}
@@ -821,7 +842,7 @@ export function ShaperPanel({
       )}
       <LineChart
         title={`Packets held in flow ${f.name}'s shaper`}
-        series={[{ id: "held", label: "held", color: FLOW_COLORS[1], kind: "step", points: held }]}
+        series={[{ id: "held", label: "held", color: "var(--foreground)", kind: "step", points: held }]}
         xLabel="time (ms)"
         yLabel="packets"
         xFormat={ms}
@@ -862,6 +883,7 @@ export function SchedulerPanel({
         id: `l${k}`,
         label: f.name,
         color: FLOW_COLORS[k],
+        hollow: FLOW_HOLLOW[k],
         kind: "dots" as const,
         points: run.packets
           .filter((q) => q.flow === k && q.t_depart !== null)
@@ -884,8 +906,8 @@ export function SchedulerPanel({
     const real = curves((q) => q.t_depart)
     const gps = curves((q) => (q.dropped ? null : q.gps_finish))
     return p.flows.flatMap((f, k) => [
-      { id: `r${k}`, label: `${f.name}, sent`, color: FLOW_COLORS[k], kind: "step" as const, points: real[k] },
-      { id: `g${k}`, label: `${f.name}, under GPS`, color: FLOW_COLORS[k], kind: "step" as const, points: gps[k], dashed: true },
+      { id: `r${k}`, label: `${f.name}, sent`, color: FLOW_COLORS[k], kind: "step" as const, points: real[k], dash: FLOW_DASH[k] },
+      { id: `g${k}`, label: `${f.name}, under GPS`, color: FLOW_COLORS[k], kind: "step" as const, points: gps[k], dash: "1 3" },
     ])
   }, [p, run])
   const ys = late.flatMap((s) => s.points.map((x) => x[1]))
@@ -1040,7 +1062,7 @@ export function QueueSetup({ p, set }: { p: QueueParams; set(p: QueueParams): vo
       {p.flows.map((f, i) => (
         <fieldset key={i} className="space-y-4 rounded-sm border border-border p-3">
           <legend className="flex items-center gap-2 px-1 font-sans text-xs text-muted-foreground">
-            <span className="inline-block size-2.5 rounded-[2px]" style={{ background: FLOW_COLORS[i] }} />
+            <Swatch k={i} className="mr-0" />
             Flow {f.name}
           </legend>
           <Radios

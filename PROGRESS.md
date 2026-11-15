@@ -442,6 +442,18 @@ recorded per tool below.
   changed: "blue arrow" and "thick blue arrow" to purple, "a blue
   outline" to "a thick outline".
 
+- queue: sources told apart without colour: filled ink, filled grey,
+  ink outline, grey outline (path blocks and table marks), the same as
+  solid, solid, 7-3 and 2-3 dashes in line charts and dots, dots, rings,
+  rings in dot charts; a selected packet gets an ink frame; shaper fill
+  grey (no tint); "buffer full" and losses red; the selected table row
+  on the highlighter; reference lines without fading. Path text one
+  size, 12 units scaled to at least 17px; on a phone the packed layout
+  puts "waiting in line" on its own row and widens to fit "arrived".
+  Colour words changed: "Each blue block" to "Each filled block"; "Each
+  flow has its own colour" to "its own mark ... filled or outlined, in
+  ink or grey".
+
 ## Next
 
 Only known gaps remain; all six tools are built.

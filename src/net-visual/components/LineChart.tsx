@@ -10,6 +10,8 @@ export interface Series {
   dashed?: boolean
   /** A dash pattern of its own, where several series share a colour. */
   dash?: string
+  /** Dots drawn as rings, where several dot series share a colour. */
+  hollow?: boolean
   /** Lines under the series' name, in the key only, separated by newlines. */
   note?: string
 }
@@ -295,7 +297,15 @@ export function LineChart(props: Props) {
                   s.kind === "dots" ? (
                     <g key={s.id}>
                       {s.points.map(([x, y], k) => (
-                        <circle key={k} cx={sx(x)} cy={sy(y)} r={4} fill={s.color} stroke="var(--background)" strokeWidth={2} />
+                        <circle
+                          key={k}
+                          cx={sx(x)}
+                          cy={sy(y)}
+                          r={4}
+                          fill={s.hollow ? "var(--background)" : s.color}
+                          stroke={s.hollow ? s.color : "var(--background)"}
+                          strokeWidth={s.hollow ? 1.75 : 2}
+                        />
                       ))}
                     </g>
                   ) : (
@@ -365,7 +375,17 @@ export function LineChart(props: Props) {
                 const { s, row, note, more } = k
                 return (
                   <g key={`key${row}`} pointerEvents="none">
-                    {!note && !more && (
+                    {!note && !more && s.kind === "dots" && (
+                      <circle
+                        cx={m.l + 17}
+                        cy={m.t + 28 + row * 22}
+                        r={4}
+                        fill={s.hollow ? "var(--background)" : s.color}
+                        stroke={s.hollow ? s.color : "none"}
+                        strokeWidth={1.75}
+                      />
+                    )}
+                    {!note && !more && s.kind !== "dots" && (
                       <line
                         x1={m.l + 8}
                         x2={m.l + 26}
