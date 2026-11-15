@@ -202,7 +202,39 @@
 - Vault notes for tool six part A: DNS resolution, DNS caching and TTLs,
   and a naming section in the subject index.
 
+- Tool 6 part B, HTTP modes on the same page: Rust model `http.rs`
+  (wasm tool `http`, run and sweep with bounds) for HTTP/1.0 with up to
+  k connections, persistent HTTP/1.1 with optional pipelining, HTTP/2 on
+  one TCP connection with interleaved or sequential streams, and HTTP/3
+  over QUIC; TCP, TLS 1.3, TLS early data, QUIC and QUIC 0-RTT setup;
+  per-connection slow start and one halving per recovery period; loss
+  found by packet threshold 3 or a 2-RTT timer (RFC 9002's time threshold
+  and PTO abstracted, as stated on the page). Eight Rust tests: TTFB
+  101.168 / 151.168 / 101.168 / 51.168 ms exactly; HTTP/1.0 952.8 ms and
+  HTTP/1.1 552.8 ms equal to the textbook formulas, plus the parallel
+  case; a pipelined 1 kB icon done after the 300 kB video; one scripted
+  loss holding 4 HTTP/2 streams (553.68 ms) and 1 HTTP/3 stream
+  (118.912 ms); tail loss by timer; byte conservation per object; seed
+  determinism; sweep against single runs. Rust 84 (2 ignored) and TS 62
+  tests green. Page: six modes in two groups (DNS, HTTP) with panels
+  swapped by the switcher; 15 HTTP presets, 14 tour stops, 4 labs, all
+  tested against their runs; streams view (arrived against delivered,
+  held bars, loss lines), packet ladder, live equations (TTFB, both
+  formulas, the bound, the hole, the pipelining wait, the setup table),
+  PLT against RTT and against loss sweeps, objects table, setup with an
+  object editor, source and labs; SVG and TikZ of both figures and the
+  chart; five-layer article. Browser-checked at 1440 and 390, light and
+  dark.
+- Vault notes for tool six part B: HTTP persistent connections,
+  Head-of-line blocking, QUIC and HTTP-3, and a web section in the
+  subject index.
+
 ## Next
 
-1. Tool 6 part B, on the same page: HTTP/1.1, HTTP/2 and HTTP/3 with
-   head-of-line blocking, as the wasm tool `http` beside `dns`.
+Only known gaps remain; all six tools are built.
+
+1. The CRC-8 division figure is too small to read at 390 px (it fits).
+2. HTTP model limits that a later pass could lift: losses on handshakes,
+   requests and acknowledgements; a finite bottleneck buffer; RFC 9002's
+   time threshold and PTO in place of the 2-RTT timer; per-frame and
+   per-packet header overhead.
