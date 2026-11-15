@@ -151,7 +151,8 @@ export const SLOTS = 13
 export const pathBox = (fig: PathFigure, narrow = false, k = 1) => {
   const w = geometry(fig, narrow, k).W
   // Packed, the line's label takes a row of its own below the router.
-  const extra = narrow ? Math.round(15 * k) : 0
+  // and the line under the picture takes two rows when there are several sources.
+  const extra = narrow ? Math.round(15 * k * (fig.flows.length > 1 ? 2 : 1)) : 0
   return fig.flows.length === 1 ? { y0: 26, h: 192 + extra, w } : { y0: 0, h: H + 18 + extra, w }
 }
 
@@ -186,7 +187,7 @@ export function pathShapes(fig: PathFigure, k = 1, narrow = false): Shape[] {
   // Sources and shapers.
   fig.flows.forEach((f, i) => {
     const y = rowY(i, n)
-    out.push({ kind: "rect", x: 6, y: y - 9, w: 18, h: 18, ...block(i, "ink") })
+    out.push({ kind: "rect", x: 6, y: y - 9, w: 18, h: 18, ...block(i, FLOW_HOLLOW[i % 4] ? undefined : "ink") })
     // One flow is just "source"; several are told apart by name.
     const name = n === 1 ? "source" : f.name
     let from: number
@@ -225,7 +226,7 @@ export function pathShapes(fig: PathFigure, k = 1, narrow = false): Shape[] {
     out.push({
       kind: "text",
       x: narrow ? 4 : bx + 17,
-      y: sb.y0 + sb.h - 8 - 15 * k,
+      y: sb.y0 + sb.h - 8 - 15 * k * (narrow && n > 1 ? 2 : 1),
       text: `shaper (fill: ${what})`,
       size: fs(12),
       anchor: narrow ? "start" : "middle",
@@ -235,15 +236,19 @@ export function pathShapes(fig: PathFigure, k = 1, narrow = false): Shape[] {
 
   // What a coloured block is, in the picture rather than only in the caption.
   const box = pathBox(fig, narrow, k)
-  out.push({
-    kind: "text",
-    x: 4,
-    y: box.y0 + box.h - 8,
-    text: n === 1 ? "Each filled block is one packet." : "Each block is one packet, coloured by the source it came from.",
-    size: fs(12),
-    anchor: "start",
-    fill: "muted",
-  })
+  const said = n === 1 ? ["Each filled block is one packet."] : ["Each block is one packet,", "marked by the source it came from."]
+  const rows = narrow ? said : [said.join(" ")]
+  rows.forEach((text, j) =>
+    out.push({
+      kind: "text",
+      x: 4,
+      y: box.y0 + box.h - 8 - (rows.length - 1 - j) * 15 * k,
+      text,
+      size: fs(12),
+      anchor: "start",
+      fill: "muted",
+    }),
+  )
 
   // The router: processing, then the queue, then the transmitter.
   out.push({ kind: "rect", x: RX, y: MID - 30, w: RX2 - RX, h: 60, stroke: "ink", fill: "surface" })
@@ -307,7 +312,8 @@ export function pathShapes(fig: PathFigure, k = 1, narrow = false): Shape[] {
     out.push({
       kind: "text",
       x: (RX + RX2) / 2,
-      y: MID - 38 - (lines.length - 1 - j) * 14 * k,
+      // Above the "+N more" count, which sits over the line.
+      y: Math.min(MID - 38, MID - 24 - 12 * k) - (lines.length - 1 - j) * 14 * k,
       text,
       size: fs(12),
       anchor: "middle",
@@ -325,8 +331,17 @@ export function pathShapes(fig: PathFigure, k = 1, narrow = false): Shape[] {
       y: MID - 7,
       w: Math.max(1.5, (w.head - w.tail) * (WIRE1 - WIRE0)),
       h: 14,
-      ...block(w.flow, w.id === fig.selected ? "ink" : undefined),
+      ...block(w.flow),
     })
+    if (w.id === fig.selected)
+      out.push({
+        kind: "rect",
+        x: WIRE0 + w.tail * (WIRE1 - WIRE0) - 2,
+        y: MID - 10,
+        w: Math.max(1.5, (w.head - w.tail) * (WIRE1 - WIRE0)) + 4,
+        h: 20,
+        stroke: "ink",
+      })
   }
   out.push({ kind: "text", x: (WIRE0 + WIRE1) / 2, y: MID + 46, text: "travel", size: fs(12), anchor: "middle", fill: "muted" })
   out.push({ kind: "rect", x: WIRE1 + 4, y: MID - 18, w: 40, h: 36, stroke: "ink", fill: "surface" })

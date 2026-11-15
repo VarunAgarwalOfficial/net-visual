@@ -432,8 +432,8 @@ recorded per tool below.
 
 - routing: next-hop arrows purple (the route being followed), loop
   arrows red, failed link dashed with a red ×, no fading; messages ink
-  boxes, a poisoned one amber and dashed, a lost one grey and dashed
-  (still "faded"); changed-table ring and changed table cells on the
+  boxes, a poisoned one amber and dashed, a lost one grey and solid
+  (still "faded"; dashed keeps meaning "cannot reach"); changed-table ring and changed table cells on the
   highlighter; the selected router has a thick ink outline (was the
   accent), the link editor is between two rules (was a tinted box). Cost
   chart routers in ink and muted, told apart by dash and name. Network
@@ -449,8 +449,11 @@ recorded per tool below.
   grey (no tint); "buffer full" and losses red; the selected table row
   on the highlighter; reference lines without fading. Path text one
   size, 12 units scaled to at least 17px; on a phone the packed layout
-  puts "waiting in line" on its own row and widens to fit "arrived".
-  Colour words changed: "Each blue block" to "Each filled block"; "Each
+  puts "waiting in line" on its own row, widens to fit "arrived", sets
+  the line under the picture in two rows when there are several sources,
+  and lifts the link's label clear of the "+N more" count.
+  Colour words changed: "Each blue block" to "Each filled block"; "coloured
+  by the source" to "marked by the source" in the picture; "Each
   flow has its own colour" to "its own mark ... filled or outlined, in
   ink or grey".
 

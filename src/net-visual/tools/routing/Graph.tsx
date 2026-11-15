@@ -220,7 +220,7 @@ export function Graph({
                 rx={4}
                 className={cn("fill-background", m.lost ? "stroke-muted-foreground" : m.poisoned ? "stroke-again" : "stroke-foreground")}
                 strokeWidth={m.poisoned ? 2 : 1.25}
-                strokeDasharray={m.poisoned || m.lost ? "4 2" : undefined}
+                strokeDasharray={m.poisoned && !m.lost ? "4 2" : undefined}
               />
               <text
                 dy="0.35em"
