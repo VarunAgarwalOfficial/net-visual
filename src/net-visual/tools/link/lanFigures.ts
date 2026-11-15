@@ -188,8 +188,9 @@ export function stpFigure(p: StpParams, run: StpRun, t: number, index: number, w
   const ports = lanPorts(p.bridges.length, p.links)
   const offs = linkOffsets(p.links)
   const shapes: Shape[] = []
-  const hw = w < 480 ? 26 : 32
-  const hh = 21
+  // Sized for the 11-unit labels the page renders at 17px.
+  const hw = w < 480 ? 32 : 36
+  const hh = 25
   const failed = p.failure && t >= p.failure.at_ms ? p.failure.link : -1
   const ends = (i: number): [Place, Place] => shifted(pos[p.links[i].a], pos[p.links[i].b], offs[i])
   const portView = (b: number, link: number) => views[b].ports.find((x) => x.link === link)!
@@ -245,9 +246,9 @@ export function stpFigure(p: StpParams, run: StpRun, t: number, index: number, w
       const [a, c] = ends(pv.link)
       const self = p.links[pv.link].a === b ? a : c
       const peer = p.links[pv.link].a === b ? c : a
-      const m = beyond(self, peer, hw, hh, 9)
-      shapes.push({ kind: "circle", cx: m.x, cy: m.y, r: 7.5, fill: STATE_INK[pv.state], stroke: "surface" })
-      shapes.push(text(m.x, m.y + 3.5, ROLE_LETTER[pv.role], { fill: "surface", size: 9.5, bold: true }))
+      const m = beyond(self, peer, hw, hh, 10)
+      shapes.push({ kind: "circle", cx: m.x, cy: m.y, r: 8.5, fill: STATE_INK[pv.state], stroke: "surface" })
+      shapes.push(text(m.x, m.y + 3.8, ROLE_LETTER[pv.role], { fill: "surface", size: 11, bold: true }))
     }
   })
 
@@ -259,12 +260,12 @@ export function stpFigure(p: StpParams, run: StpRun, t: number, index: number, w
     const isRoot = v.root === br.id
     if (e && e.bridge === b)
       shapes.push({ kind: "rect", x: c.x - hw - 5, y: c.y - hh - 5, w: 2 * hw + 10, h: 2 * hh + 10, stroke: "ink", dashed: true })
-    shapes.push({ kind: "rect", x: c.x - hw, y: c.y - hh, w: 2 * hw, h: 2 * hh, fill: isRoot ? "mark" : "surface", stroke: "ink" })
+    shapes.push({ kind: "rect", x: c.x - hw, y: c.y - hh, w: 2 * hw, h: 2 * hh, fill: "surface", stroke: "ink" })
     // Name, ID, and what the bridge believes: that it is the root, or its cost to the root it believes in.
-    shapes.push(text(c.x, c.y - 6, br.name, { fill: "ink", bold: true, size: 11.5 }))
-    shapes.push(text(c.x, c.y + 5, bridgeId(br.id), { size: 8.5 }))
+    shapes.push(text(c.x, c.y - 9, br.name, { fill: "ink", bold: true, size: 12 }))
+    shapes.push(text(c.x, c.y + 3.5, bridgeId(br.id), { size: 11 }))
     const rootName = p.bridges[byId.get(v.root) ?? b].name
-    shapes.push(text(c.x, c.y + 16, isRoot ? "root" : `${v.cost} to ${rootName}`, { size: 8.5, fill: "ink", bold: isRoot }))
+    shapes.push(text(c.x, c.y + 16, isRoot ? "root" : `${v.cost} to ${rootName}`, { size: 11, fill: "ink", bold: isRoot }))
   })
 
   // The legend.
@@ -284,13 +285,13 @@ export function stpFigure(p: StpParams, run: StpRun, t: number, index: number, w
         ]
   let x = 8
   if (w >= 480) {
-    shapes.push(text(x, ly, "R root, D designated, A alternate:", { anchor: "start", size: 9.5 }))
-    x += 168
+    shapes.push(text(x, ly, "R root, D designated, A alternate:", { anchor: "start", size: 11 }))
+    x += 196
   }
   for (const [ink, label] of items) {
     shapes.push({ kind: "circle", cx: x + 5, cy: ly - 3.5, r: 5, fill: ink })
-    shapes.push(text(x + 13, ly, label, { anchor: "start", size: 9.5 }))
-    x += 20 + label.length * 5.2
+    shapes.push(text(x + 13, ly, label, { anchor: "start", size: 11 }))
+    x += 24 + label.length * 5.8
   }
 
   const count = (s: PortState) => views.reduce((a, v) => a + v.ports.filter((x) => x.state === s).length, 0)

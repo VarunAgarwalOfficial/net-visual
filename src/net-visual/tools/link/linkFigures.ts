@@ -301,6 +301,17 @@ export function cdFigure(p: CdParams, run: CdRun, t: number, w: number): CdFigur
     const ly = Math.abs(yb - 4 - dy) < 14 ? dy - 15 : yb - 4
     shapes.push(text(bx + dx / 2, ly, `2τ = ${fmtTime(2 * tau, "csmacd")}`, { anchor, fill: "ink", size: 11.5 }))
   }
+  // Labels from the two ends can meet in the middle on a narrow picture: a label that would overlap one
+  // already placed moves up a line.
+  const placed: [number, number, number][] = []
+  const clear = (x: number, y: number, label: string, anchor: "start" | "end") => {
+    const wd = label.length * 11.5 * 0.5
+    const [a, b] = anchor === "start" ? [x, x + wd] : [x - wd, x]
+    let yy = y
+    while (placed.some(([pa, pb, py]) => pa < b && a < pb && Math.abs(py - yy) < 14)) yy -= 15
+    placed.push([a, b, yy])
+    return yy
+  }
   for (const tx of run.txs) {
     if (tx.start_ns > tEnd || tx.end_ns < t0) continue
     const x = X(p.stations[tx.station].pos_m)
@@ -309,19 +320,9 @@ export function cdFigure(p: CdParams, run: CdRun, t: number, w: number): CdFigur
       const y = Y(tx.detect_ns)
       shapes.push({ kind: "line", x1: x - 5, y1: y - 5, x2: x + 5, y2: y + 5, stroke: "alarm", width: 2 })
       shapes.push({ kind: "line", x1: x - 5, y1: y + 5, x2: x + 5, y2: y - 5, stroke: "alarm", width: 2 })
-      shapes.push(
-        text(
-          x + dx,
-          // Above the mark: below it the jam spreads out from the station.
-          y - 9,
-          `${narrow ? "heard after" : "hears it after"} ${fmtTime(tx.detect_ns - tx.start_ns, "csmacd")}${narrow ? "" : "; jams"}`,
-          {
-            anchor,
-            fill: "alarm",
-            size: 11.5,
-          },
-        ),
-      )
+      const label = `${narrow ? "heard after" : "hears it after"} ${fmtTime(tx.detect_ns - tx.start_ns, "csmacd")}${narrow ? "" : "; jams"}`
+      // Above the mark: below it the jam spreads out from the station.
+      shapes.push(text(x + dx, clear(x + dx, y - 9, label, anchor), label, { anchor, fill: "alarm", size: 11.5 }))
     }
     if (tx.end_ns <= tEnd && tx.end_ns >= t0) {
       const y = Y(tx.end_ns) + 12
