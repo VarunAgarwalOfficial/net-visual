@@ -134,6 +134,8 @@
   and the article is memoised against a stable loader; the scheduling chart
   plots waits by start time so backlogged runs spread out; wide display
   equations wrap at 390; the sweep's axis fits the simulated dots.
+- Vault notes for tool four: Queueing delay and M-M-1, Token bucket, Fair
+  queueing, and a queueing section in the subject index.
 
 ## Next
 
