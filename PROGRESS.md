@@ -174,6 +174,13 @@
 - Vault notes for tool five part B: Switch learning, Spanning tree
   protocol, Cyclic redundancy check, Hamming codes, and a switching and
   error-control section in the subject index.
+- Coordinator check of tools four and five: Rust (66) and TS (46) tests,
+  clippy and fmt rerun green; the TikZ export of every link mode compiles
+  with pdflatex and renders as on screen; STP roles checked by hand
+  against the tie-breaks; the hidden-terminal starvation under RTS/CTS is
+  a 100 ms effect only (over 1 s the two flows share 395/184, 210/366,
+  266/318 across seeds). Known phone limit: the CRC-8 "123456789"
+  division (80-bit rows) fits 390 px but is too small to read there.
 
 ## Next
 
