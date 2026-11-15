@@ -536,11 +536,14 @@ last filled shape under it, or its halo) and reports anything under
   clear of costs, routers, router labels, other messages and the
   picture's edge, a little further out if need be; where none is clear
   it is drawn as a dot on its link without its label (or not drawn).
-  Below 600px the network is stretched up to 2.3 times in height
-  instead of scrolling sideways; flooding (link state) lets the picture
-  grow to 80% of the window's height; LSAs going the same way on a link
-  share one box ("u #1 +2"). The destination's word moves off any link
-  cost.
+  The dot is a new mark with no key of its own. Below 600px the
+  network is stretched up to 2.3 times in height (3 times when crowded)
+  instead of scrolling sideways; a crowded run (more than 24 messages
+  in flight at once: link state, and six routers with a failure) lets
+  the picture grow to 80% of the window's height. All LSAs going the
+  same way on a link now share one box at the first one's place
+  ("u #1 +2"), where before only those close together did. The
+  destination's word moves off any link cost.
 - link: ALOHA ticks "11"/"14" overlapped "ms" (first tick now starts
   left-aligned) and the vulnerable-window note ran off the left at 390
   (wraps to two lines, kept inside). STP and switch pictures crowded at
@@ -565,12 +568,18 @@ widths (no clipped text, no overlaps, nothing under 4.5), as are Next
 sweeps of rdt, tcp, queue and web (60 steps), all 13 routing presets
 to the end at 390 and 1440, and the STP presets. What remains: at 390
 some routing messages have no clear place and are drawn as a dot on
-their link without their label (link state up to 6 at once, six
+their link without their label, the dot placed anywhere clear along
+the link (link state up to 6 at once, six
 routers with a failure up to 2; none at 1440); LAN pictures keep 720px
 and scroll sideways below it, so labels at the right edge are cut by
-the scroll box until scrolled ("scrollEdge"); lines still pass behind
-some halo'd labels (tcp "slow-start threshold", "packet lost"), which
-the check does not count.
+the scroll box until scrolled ("scrollEdge"); at 390 the tcp chart's
+wrapped end labels cover part of the played line between 1 and 1.5 s.
+No message is left undrawn in any routing sweep. By eye, lines still
+ran between the letters of halo'd labels in the tcp chart (the check
+counts text against text only): the chart's labels and line-end
+labels now sit on a filter-drawn box of the page colour (sRGB, so it
+matches the ground exactly), and the ladder's and chart's halos are 8
+wide instead of 4.
 
 ## Next
 

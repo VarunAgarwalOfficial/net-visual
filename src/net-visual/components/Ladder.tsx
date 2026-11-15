@@ -365,7 +365,7 @@ export function Ladder(props: Props) {
 }
 
 /** A page-coloured outline under a label, so lines passing behind it stop short of the letters. */
-const HALO = { stroke: "var(--background)", strokeWidth: 4, strokeLinejoin: "round", paintOrder: "stroke" } as const
+const HALO = { stroke: "var(--background)", strokeWidth: 8, strokeLinejoin: "round", paintOrder: "stroke" } as const
 
 function Cross({ x, y }: { x: number; y: number }) {
   return (

@@ -142,7 +142,7 @@ export const CwndChart = memo(function CwndChart({
         cursor={t}
         upTo={t}
         onSeek={onSeek}
-        overlay={({ sx, sy, right, top: y0, bottom }) => (
+        overlay={({ sx, sy, right, top: y0, bottom, ground }) => (
           // Words and marks go over the lines, each on a ground of the page colour.
           <g pointerEvents="none">
             {band && (
@@ -152,23 +152,32 @@ export const CwndChart = memo(function CwndChart({
             )}
             {refs.map(([v, text]) =>
               v <= top ? (
-                <text key={text} x={right - 4} y={sy(v) - 4} textAnchor="end" fontSize="17" fill="var(--chart-ink)" {...HALO}>
+                <text
+                  key={text}
+                  x={right - 4}
+                  y={sy(v) - 4}
+                  textAnchor="end"
+                  fontSize="17"
+                  fill="var(--chart-ink)"
+                  {...HALO}
+                  filter={ground}
+                >
                   {text}
                 </text>
               ) : null,
             )}
             {firstDrop < Infinity && (
-              <text x={sx(firstDrop) + 5} y={bottom - 4} fontSize="17" fill="var(--chart-ink)" {...HALO}>
+              <text x={sx(firstDrop) + 5} y={bottom - 4} fontSize="17" fill="var(--chart-ink)" {...HALO} filter={ground}>
                 {marks.drops.length > 1 ? "packet lost (ticks, one row per flow)" : "packet lost (ticks)"}
               </text>
             )}
             {marks.fast.slice(0, 1).map(([x, y]) => (
-              <text key="fast-label" x={sx(x) + 7} y={sy(y) - 12} fontSize="17" fill="var(--nv-again)" {...HALO}>
+              <text key="fast-label" x={sx(x) + 7} y={sy(y) - 12} fontSize="17" fill="var(--nv-again)" {...HALO} filter={ground}>
                 fast retransmit
               </text>
             ))}
             {marks.timeout.slice(0, 1).map(([x, y]) => (
-              <text key="timeout-label" x={sx(x) + 7} y={sy(y) - 3} fontSize="17" fill="var(--nv-bad)" {...HALO}>
+              <text key="timeout-label" x={sx(x) + 7} y={sy(y) - 3} fontSize="17" fill="var(--nv-bad)" {...HALO} filter={ground}>
                 timer ran out
               </text>
             ))}
@@ -218,7 +227,7 @@ export const CwndChart = memo(function CwndChart({
 })
 
 /** A ground of the page colour round a label, so a line under it does not run through its letters. */
-const HALO = { stroke: "var(--background)", strokeWidth: 4, strokeLinejoin: "round", paintOrder: "stroke" } as const
+const HALO = { stroke: "var(--background)", strokeWidth: 8, strokeLinejoin: "round", paintOrder: "stroke" } as const
 
 /** The window chart as an exportable figure. */
 export function cwndFigure(run: TcpRun, compare: TcpRun | null, cmp: Algo | null, p: TcpParams, caption: string): ChartFigure {

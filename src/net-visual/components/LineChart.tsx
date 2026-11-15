@@ -56,6 +56,8 @@ export interface Scale {
   right: number
   top: number
   bottom: number
+  /** A filter that sets a label on a box of the page colour, so no line runs between its letters. */
+  ground: string
 }
 
 function ticks(lo: number, hi: number, count: number): number[] {
@@ -111,6 +113,7 @@ export function LineChart(props: Props) {
   const [hover, setHover] = useState<number | null>(null)
   const [table, setTable] = useState(false)
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, "")
+  const ground = `url(#${id}-ground)`
   const m = { l: 64, r: 16, t: 14, b: 54 }
   const w = width - m.l - m.r
   // Key lines wrap to the chart's width, so a phone shows the whole key at the small size.
@@ -293,8 +296,17 @@ export function LineChart(props: Props) {
               {yLabel}
             </text>
             {typeof props.children === "function"
-              ? props.children({ sx, sy, left: m.l, right: m.l + w, top: m.t, bottom: m.t + h })
+              ? props.children({ sx, sy, left: m.l, right: m.l + w, top: m.t, bottom: m.t + h, ground })
               : props.children}
+            <defs>
+              <filter id={`${id}-ground`} x="-0.02" y="-0.1" width="1.04" height="1.2" colorInterpolationFilters="sRGB">
+                <feFlood style={{ floodColor: "var(--background)" }} />
+                <feMerge>
+                  <feMergeNode />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
             {ahead !== null && (
               <defs>
                 <clipPath id={`${id}-past`}>
@@ -349,9 +361,10 @@ export function LineChart(props: Props) {
                 fontSize="17"
                 fill="var(--chart-ink)"
                 stroke="var(--background)"
-                strokeWidth={4}
+                strokeWidth={8}
                 strokeLinejoin="round"
                 paintOrder="stroke"
+                filter={ground}
               >
                 {noteWrap ? (
                   <>
@@ -373,10 +386,11 @@ export function LineChart(props: Props) {
                 fontSize="17"
                 fill={l.color}
                 stroke="var(--background)"
-                strokeWidth={4}
+                strokeWidth={8}
                 strokeLinejoin="round"
                 paintOrder="stroke"
                 pointerEvents="none"
+                filter={ground}
               >
                 {l.lines.map((line, i) => (
                   <tspan key={i} x={l.x} dy={i ? 20 : 0}>
@@ -385,7 +399,7 @@ export function LineChart(props: Props) {
                 ))}
               </text>
             ))}
-            {props.overlay?.({ sx, sy, left: m.l, right: m.l + w, top: m.t, bottom: m.t + h })}
+            {props.overlay?.({ sx, sy, left: m.l, right: m.l + w, top: m.t, bottom: m.t + h, ground })}
             {hover !== null && (
               <g pointerEvents="none">
                 <line x1={sx(hover)} x2={sx(hover)} y1={m.t} y2={m.t + h} stroke="var(--chart-ink)" strokeDasharray="3 3" />

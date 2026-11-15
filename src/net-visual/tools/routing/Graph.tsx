@@ -179,7 +179,9 @@ export function Graph({
     if (hw) return []
     const s = segment(P[m.from], P[m.to], r + 2)
     const d = 0.25 * fMsg + 1
-    for (const f of [0, 0.06, -0.06, 0.12, -0.12, 0.18, -0.18, 0.24, -0.24, 0.3, -0.3].map((e) => f0 + e)) {
+    // Nearest to its place first, then anywhere along the link.
+    const along = Array.from({ length: 19 }, (_, j) => 0.05 * (j + 1)).sort((a, b) => Math.abs(a - f0) - Math.abs(b - f0))
+    for (const f of along) {
       if (f < 0 || f > 1) continue
       const [x, y] = [s.x1 + (s.x2 - s.x1) * f, s.y1 + (s.y2 - s.y1) * f]
       const box = { l: x - d, r: x + d, t: y - d, b: y + d }
