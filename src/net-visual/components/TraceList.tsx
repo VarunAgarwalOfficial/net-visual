@@ -18,7 +18,19 @@ function scrollWithin(el: HTMLElement | null) {
   else if (top + el.offsetHeight > box.scrollTop + box.clientHeight) box.scrollTop = top + el.offsetHeight - box.clientHeight
 }
 
-const TraceRow = memo(function TraceRow({ e, i, active, onSeek }: { e: TraceItem; i: number; active: boolean; onSeek(i: number): void }) {
+const TraceRow = memo(function TraceRow({
+  e,
+  i,
+  active,
+  onSeek,
+  format,
+}: {
+  e: TraceItem
+  i: number
+  active: boolean
+  onSeek(i: number): void
+  format(t: number): string
+}) {
   return (
     <li>
       <button
@@ -29,7 +41,7 @@ const TraceRow = memo(function TraceRow({ e, i, active, onSeek }: { e: TraceItem
         onClick={() => onSeek(i)}
         ref={active ? scrollWithin : undefined}
       >
-        <span className="text-muted-foreground tabular-nums">{formatTime(e.t)}</span>
+        <span className="text-muted-foreground tabular-nums">{format(e.t)}</span>
         <b>{e.step}</b>
         <span>{e.text}</span>
       </button>
@@ -47,16 +59,19 @@ export const TraceList = memo(function TraceList({
   index,
   onSeek,
   className,
+  format = formatTime,
 }: {
   events: readonly TraceItem[]
   index: number
   onSeek(i: number): void
   className?: string
+  /** How to print an event's time; microseconds by default. */
+  format?: (t: number) => string
 }) {
   return (
     <ol className={cn("relative max-h-80 overflow-auto font-sans text-sm", className)} aria-label="Event trace">
       {events.map((e, i) => (
-        <TraceRow key={i} e={e} i={i} active={i === index} onSeek={onSeek} />
+        <TraceRow key={i} e={e} i={i} active={i === index} onSeek={onSeek} format={format} />
       ))}
     </ol>
   )

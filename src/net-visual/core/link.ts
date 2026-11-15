@@ -673,7 +673,7 @@ export const TOUR: TourStep[] = [
   {
     preset: "ca-hidden-rts",
     at: 3_000,
-    text: "With RTS/CTS, B's CTS reaches C too. Its duration field sets C's NAV, the striped bar, and C stays quiet until the ACK. Collisions still happen, but between 20-byte RTS frames, not 1028-byte data frames.",
+    text: "With RTS/CTS, B's CTS reaches C too. Its duration field sets C's NAV, the dashed bar in its lane, and C stays quiet until the ACK. Collisions still happen, but between 20-byte RTS frames, not 1028-byte data frames.",
   },
   {
     preset: "ca-exposed",

@@ -41,4 +41,12 @@ export const TOOLS: ToolInfo[] = [
     layers: ["intuition", "mechanics", "analysis", "frontier", "internals"],
     Component: lazy(() => import("./queue/QueueTool").then((m) => ({ default: m.QueueTool }))),
   },
+  {
+    id: "link",
+    title: "Link layer and wireless",
+    summary:
+      "ALOHA against its formulas, CSMA/CD on a space-time diagram with binary exponential backoff, and 802.11 CSMA/CA with hidden and exposed terminals, RTS/CTS and the NAV.",
+    layers: ["intuition", "mechanics", "analysis", "frontier", "internals"],
+    Component: lazy(() => import("./link/LinkTool").then((m) => ({ default: m.LinkTool }))),
+  },
 ]
