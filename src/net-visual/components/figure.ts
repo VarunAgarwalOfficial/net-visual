@@ -133,6 +133,27 @@ export const tex = (s: string) =>
     .replace(/–/g, "--")
     .replace(/∞/g, () => "$\\infty$")
     .replace(/→/g, () => "$\\to$")
+    // Symbols the figures draw, as math, so pdflatex needs no Unicode set-up.
+    .replace(/[⁻⁰¹²³⁴⁵⁶⁷⁸⁹]+/g, (m) => `$^{${[...m].map((c) => (c === "⁻" ? "-" : String("⁰¹²³⁴⁵⁶⁷⁸⁹".indexOf(c)))).join("")}}$`)
+    .replace(/[τ×≤≥·⊕↓⋮✓✗≠σ←↑]/g, (c) => `$${MATH[c]}$`)
+    .replace(/…/g, () => "\\ldots{}")
+
+const MATH: Record<string, string> = {
+  τ: "\\tau",
+  σ: "\\sigma",
+  "×": "\\times",
+  "≤": "\\le",
+  "≥": "\\ge",
+  "·": "\\cdot",
+  "⊕": "\\oplus",
+  "↓": "\\downarrow",
+  "↑": "\\uparrow",
+  "←": "\\leftarrow",
+  "⋮": "\\vdots",
+  "✓": "\\surd",
+  "✗": "\\times",
+  "≠": "\\neq",
+}
 
 export function ladderTikz(fig: LadderFigure): string {
   const { start, upTo, segs, ticks, marks } = prepare(fig)

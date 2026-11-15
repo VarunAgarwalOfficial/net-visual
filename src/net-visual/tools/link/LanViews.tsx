@@ -146,9 +146,11 @@ export function SwitchEquations({ p, run, index }: { p: SwitchParams; run: Switc
 export function switchChart(sim: Netsim, p: SwitchParams, run: SwitchRun): LinkChart {
   const other = { ...p, stp: !p.stp }
   const alt = cached(sim, `sw:${JSON.stringify(other)}`, () => runSwitch(sim, other))
-  // The other run's ageing can sit long after its traffic, so its part of the axis ends when its last frame moves.
+  // Ageing can sit far after the traffic (the storm's long ageing time, say). The axis keeps this run's ageing only when it is
+  // close to the traffic, and ignores the other run's.
   const last = (r: SwitchRun, ages: boolean) => Math.max(1, ...r.events.filter((e) => ages || e.what !== "age").map((e) => e.t))
-  const end = Math.max(last(run, true), last(alt, false) * 1.1)
+  const own = last(run, true) <= 5 * last(run, false) ? last(run, true) : last(run, false) * 1.1
+  const end = Math.max(own, last(alt, false) * 1.1)
   const curve = (r: SwitchRun): [number, number][] => {
     const pts = r.events.filter((e) => e.t <= end).map((e): [number, number] => [e.t, e.sent])
     return [[0, 0], ...pts, [end, pts.length ? pts[pts.length - 1][1] : 0]]

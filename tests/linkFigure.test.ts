@@ -43,6 +43,10 @@ test("every scenario's figure is finite and inside its box", () => {
         assert.ok(!svg.includes("NaN") && svg.startsWith("<svg") && svg.endsWith("</svg>"), pr.id)
         const tikz = figTikz({ ...fig, caption: pr.title })
         assert.ok(!tikz.includes("NaN") && tikz.includes("\\end{tikzpicture}"), pr.id)
+        assert.ok(
+          /^[\x00-\x7f]*$/.test(tikz),
+          `${pr.id}: TikZ has characters pdflatex cannot set: ${[...new Set(tikz.replace(/[\x00-\x7f]/g, ""))].join(" ")}`,
+        )
       }
     }
   }

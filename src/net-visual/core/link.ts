@@ -764,7 +764,7 @@ export const PRESETS: Preset[] = [
     mode: "stp",
     title: "A link fails and both ends notice",
     source: "IEEE 802.1D-1998, Clauses 8.5 and 8.6",
-    note: "At 40 s the link between B2 and B3, B3's root port, is cut, and both bridges see the carrier drop. B3 discards what it learned on that port and takes its next best path, through B4 at cost 12. Its old alternate port must still pass through listening and learning, so the LAN is cut off from B3 for 30 s.",
+    note: "At 40 s the link between B2 and B3, B3's root port, is cut, and both bridges see the carrier drop. B3 discards what it learned on that port and takes its next best path, through B4 at cost 12. But B4's end of the B3–B4 link was blocked, and it must pass through listening and learning before it forwards, so B3 is cut off from the LAN for 30 s.",
     params: stp(STP_FAIL),
   },
   {

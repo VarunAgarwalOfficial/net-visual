@@ -142,7 +142,7 @@ const HELP: Record<Mode, string> = {
 function rateFor(p: LinkParams, duration: number): number {
   // Real seconds per frame at speed 1: half a second for ALOHA's frames, a second and a half for an Ethernet frame, a millisecond of air per second for Wi-Fi.
   // A switch hop in 0.8 s; three seconds of spanning tree per second; one and a half division or parity steps per second.
-  if (p.mode === "switch") return p.sw.hop_us * 1.25
+  if (p.mode === "switch") return Math.max(p.sw.hop_us * 1.25, duration / 300)
   if (p.mode === "stp") return 3000
   if (p.mode === "crc" || p.mode === "hamming") return 1.5
   const base = p.mode === "aloha" ? 2 * p.aloha.frame_us : p.mode === "csmacd" ? frameNs(p.cd) / 1.5 : 1000
