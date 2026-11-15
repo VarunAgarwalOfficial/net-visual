@@ -181,6 +181,14 @@
   a 100 ms effect only (over 1 s the two flows share 395/184, 210/366,
   266/318 across seeds). Known phone limit: the CRC-8 "123456789"
   division (80-bit rows) fits 390 px but is too small to read there.
+- Coordinator pass after tool six: Escape leaves present mode where full
+  screen is refused; after choosing a scenario, Home, End and the side
+  arrows drive the timeline instead of scrolling the page (all six tools,
+  checked with real clicks); toggle groups no longer move focus on arrow
+  keys. Stale shots retaken: link-crc-division-1440,
+  web-dns-1440-light-cname (every referral labelled; the earlier gap was
+  a full-page capture artefact), web-dns-1440-dark-ttl,
+  queue-390-light-top. Hamming (15,11) at 390 is still unviewed.
 
 - Tool 6 part A, "Naming and the web" (`#web`), DNS modes: Rust model
   `dns.rs` (stub and recursive resolvers, root, top-level and
