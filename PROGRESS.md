@@ -314,6 +314,10 @@ disclosures, TourAndSharing, "Read about it".
   wider than 390 px, no truncation on the first screen, nothing side by
   side at 1440, Play first focusable, no animation at load. Lint, tsc and
   tests (Rust 84 + 3, Node 62) pass.
+- After the checks: a pick that swaps the web panels now hands focus to
+  the new panel (arrow keys step again), and the HTTP pictures are empty
+  before the first event. Checked by hand on web: shared HTTP link, tour,
+  Present, SVG export, picks across panels.
 - Known gaps left: the queue path figure is small at 390 px; in spanning
   tree mode the dashed "acted last" box marks the first event's bridge at
   load; HTTP ladder labels take two or three lines at 390 px; the DNS
