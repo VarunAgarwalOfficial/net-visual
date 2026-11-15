@@ -397,7 +397,7 @@ export interface LabTask {
 const sameExcept = (a: TcpParams, b: TcpParams, keys: (keyof TcpParams)[]) =>
   (Object.keys(b) as (keyof TcpParams)[]).every((k) => keys.includes(k) || JSON.stringify(a[k]) === JSON.stringify(b[k]))
 
-const withAlgo = (p: TcpParams, algo: Algo): TcpParams => ({ ...p, flows: p.flows.map((f, i) => (i === 0 ? { ...f, algo } : f)) })
+export const withAlgo = (p: TcpParams, algo: Algo): TcpParams => ({ ...p, flows: p.flows.map((f, i) => (i === 0 ? { ...f, algo } : f)) })
 
 const bufferStart: TcpParams = { ...BASE, buffer_pkts: 5, duration_us: 30_000_000 }
 const ssthreshStart: TcpParams = { ...BASE, init_ssthresh: 8, duration_us: 6_000_000 }

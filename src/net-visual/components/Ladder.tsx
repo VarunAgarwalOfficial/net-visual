@@ -38,6 +38,33 @@ interface Props {
   onDelay?(id: number, extraUs: number): void
   follow: boolean
   height: number
+  /** The diagram begins here (default 0), for a trace that covers a window of a long run. */
+  start?: number
+}
+
+/** Labels closer than this many pixels to the last one on the same lane are left out. */
+const LABEL_GAP = 12
+
+/**
+ * The flights whose send label and whose arrival label have room. Dense
+ * bursts (a congestion window of 80 packets) would otherwise print labels on
+ * top of each other; every packet is still drawn and still has its name.
+ */
+function roomy(list: LadderFlight[], y: (t: number) => number) {
+  const send = new Set<number>()
+  const arrive = new Set<number>()
+  const last = [-Infinity, -Infinity, -Infinity, -Infinity]
+  for (const f of [...list].sort((a, b) => a.t_start - b.t_start))
+    if (y(f.t_start) - last[f.from] >= LABEL_GAP) {
+      send.add(f.id)
+      last[f.from] = y(f.t_start)
+    }
+  for (const f of [...list].sort((a, b) => a.t_arrive - b.t_arrive))
+    if (!f.lost && y(f.t_arrive) - last[2 + f.from] >= LABEL_GAP) {
+      arrive.add(f.id)
+      last[2 + f.from] = y(f.t_arrive)
+    }
+  return { send, arrive }
 }
 
 /**
@@ -55,7 +82,8 @@ export function Ladder(props: Props) {
   const clip = useId().replace(/:/g, "")
   const top = 28
   const xs = [Math.min(110, width * 0.22), width - Math.min(110, width * 0.22)] as const
-  const y = (time: number) => top + time / usPerPx
+  const origin = props.start ?? 0
+  const y = (time: number) => top + (time - origin) / usPerPx
   const total = y(props.duration) + 40
 
   useEffect(() => {
@@ -66,9 +94,10 @@ export function Ladder(props: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [t, usPerPx, props.follow, height])
 
-  const lo = (scroll - 200) * usPerPx
-  const hi = (scroll + height + 200) * usPerPx
+  const lo = origin + (scroll - 200) * usPerPx
+  const hi = origin + (scroll + height + 200) * usPerPx
   const visible = flights.filter((f) => f.t_start <= t && f.t_arrive >= lo && f.t_start <= hi)
+  const labelled = roomy(visible, y)
   const yt = y(t)
   const tickStep = niceStep(usPerPx * 80)
 
@@ -92,7 +121,10 @@ export function Ladder(props: Props) {
               <rect x={0} y={0} width={width} height={yt} />
             </clipPath>
           </defs>
-          {Array.from({ length: Math.floor(props.duration / tickStep) + 1 }, (_, i) => i * tickStep)
+          {Array.from(
+            { length: Math.floor((props.duration - origin) / tickStep) + 2 },
+            (_, i) => (Math.ceil(origin / tickStep) + i) * tickStep,
+          )
             .filter((v) => v >= lo && v <= hi)
             .map((v) => (
               <g key={v}>
@@ -158,17 +190,19 @@ export function Ladder(props: Props) {
                   />
                   <line x1={a} y1={y(f.t_start)} x2={bx} y2={leadY} stroke="transparent" strokeWidth={14} />
                   {f.lost && <Cross x={bx} y={leadY} />}
-                  <text
-                    x={a + (f.from === 0 ? 6 : -6)}
-                    y={y(f.t_start) - 3}
-                    textAnchor={f.from === 0 ? "start" : "end"}
-                    fontSize="11"
-                    fill="var(--foreground)"
-                    className="font-sans"
-                  >
-                    {f.label}
-                  </text>
-                  {!f.lost && t >= arrive && (
+                  {labelled.send.has(f.id) && (
+                    <text
+                      x={a + (f.from === 0 ? 6 : -6)}
+                      y={y(f.t_start) - 3}
+                      textAnchor={f.from === 0 ? "start" : "end"}
+                      fontSize="11"
+                      fill="var(--foreground)"
+                      className="font-sans"
+                    >
+                      {f.label}
+                    </text>
+                  )}
+                  {!f.lost && t >= arrive && labelled.arrive.has(f.id) && (
                     <text
                       x={b + (f.from === 0 ? 6 : -6)}
                       y={y(arrive)}

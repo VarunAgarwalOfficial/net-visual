@@ -11,7 +11,8 @@ export interface LadderFigure {
   lanes: [string, string]
   flights: LadderFlight[]
   marks: LadderMark[]
-  /** Draw everything up to this time, in microseconds. */
+  /** Draw everything from this time (default 0) up to `upTo`, in microseconds. */
+  from?: number
   upTo: number
   caption: string
 }
@@ -45,28 +46,33 @@ function niceStep(raw: number): number {
 }
 
 function prepare(fig: LadderFigure) {
-  const upTo = Math.max(1, fig.upTo)
-  const segs: Seg[] = fig.flights.filter((f) => f.t_start <= upTo).map((f) => ({ f, from: f.from, reach: f.lost ? 0.5 : 1 }))
-  const tick = niceStep(upTo / 8)
-  const ticks = Array.from({ length: Math.floor(upTo / tick) + 1 }, (_, i) => i * tick)
-  return { upTo, segs, ticks, marks: fig.marks.filter((m) => m.t <= upTo) }
+  const from = fig.from ?? 0
+  const upTo = Math.max(from + 1, fig.upTo)
+  const segs: Seg[] = fig.flights
+    .filter((f) => f.t_start <= upTo && f.t_start >= from)
+    .map((f) => ({ f, from: f.from, reach: f.lost ? 0.5 : 1 }))
+  const tick = niceStep((upTo - from) / 8)
+  const ticks = Array.from({ length: Math.floor((upTo - from) / tick) + 2 }, (_, i) => (Math.ceil(from / tick) + i) * tick).filter(
+    (v) => v <= upTo,
+  )
+  return { start: from, upTo, segs, ticks, marks: fig.marks.filter((m) => m.t <= upTo && m.t >= from) }
 }
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!)
 
 export function ladderSvg(fig: LadderFigure): string {
-  const { upTo, segs, ticks, marks } = prepare(fig)
+  const { start, upTo, segs, ticks, marks } = prepare(fig)
   const W = 560
   const H = 680
   const top = 40
   const xs = [130, W - 130]
-  const y = (t: number) => top + (t / upTo) * H
+  const y = (t: number) => top + ((t - start) / (upTo - start)) * H
   const out: string[] = []
   out.push(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${top + H + 40}" viewBox="0 0 ${W} ${top + H + 40}" font-family="'CMU Sans Serif', 'Latin Modern Sans', Helvetica, Arial, sans-serif">`,
     `<title>${esc(fig.caption)}</title>`,
     `<rect width="100%" height="100%" fill="#ffffff"/>`,
-    `<defs><clipPath id="past"><rect x="0" y="0" width="${W}" height="${y(upTo)}"/></clipPath></defs>`,
+    `<defs><clipPath id="past"><rect x="0" y="${top - 8}" width="${W}" height="${y(upTo) - top + 8}"/></clipPath></defs>`,
   )
   for (const v of ticks) {
     out.push(`<line x1="${xs[0]}" x2="${xs[1]}" y1="${y(v)}" y2="${y(v)}" stroke="#e3e7ec"/>`)
@@ -126,11 +132,11 @@ const tex = (s: string) =>
     .replace(/−/g, "--")
 
 export function ladderTikz(fig: LadderFigure): string {
-  const { upTo, segs, ticks, marks } = prepare(fig)
+  const { start, upTo, segs, ticks, marks } = prepare(fig)
   const H = 14 // cm of paper for the whole time span
   const xs = [0, 7]
   const n = (v: number) => Number(v.toFixed(3))
-  const y = (t: number) => n(-(t / upTo) * H)
+  const y = (t: number) => n(-((t - start) / (upTo - start)) * H)
   const colours = [...new Set(segs.map((s) => hex(s.f.color)))]
   const name = (c: string) => `nv${colours.indexOf(c)}`
   const L: string[] = [
