@@ -126,7 +126,7 @@ export function CongestionFsm({ event, before, algo }: { event: TcpEvent | null;
       </figcaption>
       <svg
         viewBox="-40 20 540 330"
-        className="h-auto w-full max-w-[34rem]"
+        className="h-auto w-full max-w-[34rem] max-sm:[&_text]:text-[14.5px]"
         role="img"
         aria-label={`Current phase: ${phase ? NODES.find((n) => n.id === phase)!.label : "not started"}${lit ? `; transition taken: ${[edges.find((e) => e.id === lit)!.label].flat().join(" ")}` : ""}`}
       >

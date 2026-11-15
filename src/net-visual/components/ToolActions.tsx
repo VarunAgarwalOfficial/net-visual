@@ -60,10 +60,10 @@ export function ToolActions({ link, figures, root }: { link(): string; figures: 
         <Link2 data-icon="inline-start" />
         {copied ? "Link copied" : "Copy link to this moment"}
       </Button>
-      <span className="flex items-center gap-1" role="group" aria-label="Export a figure">
+      <span className="flex max-w-full min-w-0 items-center gap-1" role="group" aria-label="Export a figure">
         {figures.length > 1 && (
           <select
-            className="h-8 rounded-sm border border-input bg-background px-1 font-sans text-sm"
+            className="h-8 max-w-[14rem] min-w-0 flex-1 truncate rounded-sm border border-input bg-background px-1 font-sans text-sm"
             aria-label="Figure to export"
             value={which}
             onChange={(e) => setWhich(Number(e.target.value))}

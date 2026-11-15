@@ -161,7 +161,14 @@ function TcpLoaded({ sim }: { sim: Netsim }) {
 
   // Move the trace window when the clock leaves it (a guarded update during render, so no extra pass).
   if (!inside && !racing) {
-    const w = windowFor(params, tl.t)
+    let w = windowFor(params, tl.t)
+    // The model caps a trace's length, so a busy window can end before its
+    // nominal end; past that point the aligned window is the same one again.
+    // Start the next window at the clock instead.
+    if (w.from === model.w.from && tl.t > hi) {
+      const { lead } = windowSpan(params)
+      w = { from: tl.t, to: Math.min(params.duration_us, tl.t + span), lead }
+    }
     if (w.from !== model.w.from || w.to !== model.w.to) setModel({ p: params, w })
   }
 

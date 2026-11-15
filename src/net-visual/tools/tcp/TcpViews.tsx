@@ -34,7 +34,7 @@ export function Dumbbell({ run, p, t }: { run: TcpRun; p: TcpParams; t: number }
     <figure className="font-sans">
       <figcaption className="mb-1 text-sm text-muted-foreground">The path at {seconds(t)} s</figcaption>
       <svg
-        viewBox="0 0 520 200"
+        viewBox="0 0 520 175"
         className="h-auto w-full max-w-[40rem]"
         role="img"
         aria-label={`Bottleneck queue: ${q} of ${B} packets waiting`}
@@ -102,10 +102,10 @@ export function Dumbbell({ run, p, t }: { run: TcpRun; p: TcpParams; t: number }
         <text x={487} y={100} dy="0.35em" textAnchor="middle" fontSize="11" fill="var(--foreground)">
           rcv
         </text>
-        <text x={260} y={190} textAnchor="middle" fontSize="10.5" fill="var(--muted-foreground)">
-          ACKs return over an uncongested path; each flow's round trip is its own propagation delay plus the queue
-        </text>
       </svg>
+      <p className="mt-1 text-xs text-muted-foreground">
+        ACKs return over an uncongested path; each flow's round trip is its own propagation delay plus the queue.
+      </p>
     </figure>
   )
 }
@@ -319,7 +319,7 @@ export const PhasePlane = memo(function PhasePlane({ run, p, t }: { run: TcpRun;
         <text x={pad + S / 2} y={S + pad + 28} textAnchor="middle" fontSize="11" fill="var(--foreground)">
           flow 1 goodput (x)
         </text>
-        <text x={12} y={pad + S / 2} textAnchor="middle" fontSize="11" fill="var(--foreground)" transform={`rotate(-90 12 ${pad + S / 2})`}>
+        <text x={pad} y={pad - 8} fontSize="11" fill="var(--foreground)">
           flow 2 goodput (y)
         </text>
       </svg>
@@ -416,18 +416,18 @@ export const LiveEquations = memo(function LiveEquations({ run, p, s, t }: { run
   const reno = p.flows.length === 1 && f0.algo !== "cubic"
   const offered = (cwnd * p.mss_bytes * 8) / (rtt / 1e6)
   return (
-    <div className="space-y-3 text-[0.95rem]">
+    <div className="space-y-3 text-[0.95rem] max-sm:[&_.katex-display]:text-[0.8em]">
       <div>
         <p className="font-sans text-xs text-muted-foreground">The round trip now: propagation, one transmission, and the queue ahead</p>
         <Tex
           display
-        >{`\\mathit{RTT} = \\mathit{RTT}_0 + (1 + q)\\,\\frac{\\mathit{MSS}}{R} = ${ms(f0.rtt_us)} + (1 + ${q})\\times ${ms(tx)} = ${ms(rtt)}\\ \\text{ms}`}</Tex>
+        >{`\\begin{aligned}\\mathit{RTT} &= \\mathit{RTT}_0 + (1 + q)\\,\\frac{\\mathit{MSS}}{R} \\\\ &= ${ms(f0.rtt_us)} + (1 + ${q})\\times ${ms(tx)} = ${ms(rtt)}\\ \\text{ms}\\end{aligned}`}</Tex>
       </div>
       <div>
         <p className="font-sans text-xs text-muted-foreground">What the window allows, against the link</p>
         <Tex
           display
-        >{`\\frac{\\mathit{cwnd}\\cdot\\mathit{MSS}}{\\mathit{RTT}} = \\frac{${texNum(cwnd, 1)}\\times ${p.mss_bytes * 8}\\ \\text{b}}{${ms(rtt)}\\ \\text{ms}} = ${texNum(offered / 1e6, 2)}\\ \\text{Mb/s} \\quad\\text{vs}\\quad R = ${texNum(p.rate_bps / 1e6, 2)}\\ \\text{Mb/s}`}</Tex>
+        >{`\\begin{gathered}\\frac{\\mathit{cwnd}\\cdot\\mathit{MSS}}{\\mathit{RTT}} = \\frac{${texNum(cwnd, 1)}\\times ${p.mss_bytes * 8}\\ \\text{b}}{${ms(rtt)}\\ \\text{ms}} = ${texNum(offered / 1e6, 2)}\\ \\text{Mb/s} \\\\ \\text{against}\\ R = ${texNum(p.rate_bps / 1e6, 2)}\\ \\text{Mb/s}\\end{gathered}`}</Tex>
         <p className="font-sans text-xs text-muted-foreground">
           While cwnd is below the bandwidth-delay product {P.toFixed(1)} the link idles part of the time; above it the extra packets queue.
         </p>
