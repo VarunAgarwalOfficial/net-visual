@@ -155,7 +155,7 @@ const SLICE = 200
 
 const HELP: Record<Mode, string> = {
   aloha:
-    "One row per station (S1, S2 and so on), time left to right in milliseconds (ms). The picture shows 12 ms at a time (8 on a phone) and slides along as the run plays. A frame is drawn as a bar while it is sent, with its number (#0 is the first): in its station's colour when it got through, red when another frame overlapped it. The bottom row, air, is the channel as a receiver hears it, every frame at once. Once frames appear, a grey band marks the latest frame's vulnerable window: any other frame starting inside it destroys this one.",
+    "One row per station (S1, S2 and so on), time left to right in milliseconds (ms). The picture shows 12 frame times at a time (8 on a phone; a frame time is how long one frame takes to send) and slides along as the run plays. A frame is drawn as a bar while it is sent, with its number (#0 is the first): in its station's colour when it got through, red when another frame overlapped it. The bottom row, air, is the channel as a receiver hears it, every frame at once. Once frames appear, a grey band marks the latest frame's vulnerable window: any other frame starting inside it destroys this one.",
   csmacd:
     "Position along the cable across, time down. Each transmission spreads both ways along the cable at the speed of the signal, so it fills a widening band; a station hears another only once that band reaches its line. Red is the jam after a collision is heard.",
   csmaca:
@@ -354,7 +354,11 @@ function LinkLoaded({ sim }: { sim: Netsim }) {
 
   const presetInfo = PRESETS.find((q) => q.id === preset)
   const title = presetInfo?.title ?? "Your own setup"
-  const fmt = mode === "crc" || mode === "hamming" ? FORMAT[mode] : (t: number) => timeIn(toUs(t), toUs(tl.duration))
+  // A frame already on the air when the run begins has a time before 0: say so rather than print a minus sign.
+  const fmt =
+    mode === "crc" || mode === "hamming"
+      ? FORMAT[mode]
+      : (t: number) => (t < 0 ? `${timeIn(-toUs(t), toUs(tl.duration))} before the start` : timeIn(toUs(t), toUs(tl.duration)))
   const caption = `${title}, at ${fmt(tl.t)}`
   const started = tl.index >= 0 && !!event
   const coding = mode === "crc" || mode === "hamming"
@@ -419,7 +423,7 @@ function LinkLoaded({ sim }: { sim: Netsim }) {
         cols={2}
         items={[
           ...(coding ? [] : [["Simulated time", fmt(tl.t)] as [string, string]]),
-          [coding ? "Steps done" : "Events so far", `${started ? tl.index + 1 : 0} of ${run.run.events.length}`],
+          [coding ? "Steps done" : "Steps so far", `${started ? tl.index + 1 : 0} of ${run.run.events.length}`],
         ]}
       />
       {!coding && started && <p className="max-w-[70ch] font-sans text-sm">{label[0].toUpperCase() + label.slice(1)}.</p>}

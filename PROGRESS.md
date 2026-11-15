@@ -321,7 +321,7 @@ disclosures, TourAndSharing, "Read about it".
 - Known gaps left: the queue path figure is small at 390 px; in spanning
   tree mode the dashed "acted last" box marks the first event's bridge at
   load; HTTP ladder labels take two or three lines at 390 px; the DNS
-  ladder is tall and empty at load ("No lookup yet").
+  ladder is tall at 390 px.
 
 Checks: `/tmp/nv-work/check.js` (overflow, truncation, side-by-side,
 first focusable, animations) and `/tmp/nv-work/capture.sh <tool>` write

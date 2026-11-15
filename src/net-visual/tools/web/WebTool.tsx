@@ -254,7 +254,7 @@ function DnsPanel({
         cols={2}
         items={[
           ["Simulated time", timeIn(started ? event.t : 0, clockUs(n - 1))],
-          ["Events so far", `${started ? tl.index + 1 : 0} of ${n}`],
+          ["Steps so far", `${started ? tl.index + 1 : 0} of ${n}`],
         ]}
       />
       {started && <p className="max-w-[70ch] font-sans text-sm">{fig.summary[0].toUpperCase() + fig.summary.slice(1)}.</p>}
@@ -262,7 +262,7 @@ function DnsPanel({
       <WebPicker id="web-preset" value={preset} onPick={pickExample} />
       <div className="space-y-2">
         <p className="font-sans text-sm text-muted-foreground" id="web-resolve">
-          How the servers are asked
+          How the servers are asked: now {params.dns.mode === "iterative" ? "the resolver asks each" : "each asks the next"}. To change it:
         </p>
         <ToggleGroup
           type="single"

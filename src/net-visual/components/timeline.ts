@@ -184,6 +184,12 @@ export const timeIn = (us: number, durationUs: number) => {
   return `${inUnit(us, u)} ${u.name}`
 }
 
+/** A length of time by its own size, spelled out: "300 microseconds", "1.2 milliseconds". */
+export const spanIn = (us: number) => {
+  const [name, per] = us >= 1e6 ? ["seconds", 1e6] : us >= 1e3 ? ["milliseconds", 1e3] : ["microseconds", 1]
+  return `${Number((us / per).toPrecision(3))} ${name}`
+}
+
 export function formatTime(us: number): string {
   if (us < 1000) return `${us.toFixed(0)} µs`
   if (us < 1_000_000) return `${(us / 1000).toFixed(us < 10_000 ? 2 : 1)} ms`

@@ -342,10 +342,10 @@ function TcpLoaded({ sim }: { sim: Netsim }) {
         />
         <figcaption className="max-w-[70ch] font-sans text-sm text-muted-foreground">
           Time runs left to right. Each line is a sender&apos;s window: how many packets it may have on the way at once, so a higher line
-          means a faster sender. The faint lines are the whole run, still to come; once Play starts, the part already played is drawn solid
-          and an upright line marks now. Where a line jumps up for a moment just after a loss, the sender is in fast recovery: each repeated
-          acknowledgement lets it send one more packet while it waits for the lost one to be resent. Select a point on the chart to jump
-          there.
+          means a faster sender. The faint lines are the whole run, still to come; once Play starts, the part already played is drawn in
+          full colour and an upright line marks now. Where a line jumps up for a moment just after a loss, the sender is in fast recovery:
+          each repeated acknowledgement lets it send one more packet while it waits for the lost one to be resent. Select a point on the
+          chart to jump there.
         </figcaption>
       </figure>
       <AboutExample

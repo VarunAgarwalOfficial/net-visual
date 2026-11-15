@@ -139,6 +139,7 @@ export function ladderFigure(p: DnsParams, run: DnsRun, index: number, width: nu
         fill: "muted",
       })
     }
+    shapes.push({ kind: "text", x: L - 6, y: top - 4, text: "ms", size: fs - 1, anchor: "end", fill: "muted" })
     // What was cached, and where, as the lookup went.
     const marks = new Set<string>()
     for (const e of run.entries) {

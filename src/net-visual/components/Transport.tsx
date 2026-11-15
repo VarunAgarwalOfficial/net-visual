@@ -45,7 +45,7 @@ export function Transport({
   const atEnd = tl.t >= tl.duration && tl.duration > 0
   const unit = runUnit(us(tl.duration))
   const time = format
-    ? `${format(tl.t)} of ${format(tl.duration)}`
+    ? `${format(tl.t)} of ${format(tl.duration).replace(/^[a-z ]+/, "")}`
     : `${inUnit(us(tl.t), unit)} of ${inUnit(us(tl.duration), unit)} ${unit.name}`
   const Noun = noun[0].toUpperCase() + noun.slice(1)
   return (
@@ -96,7 +96,7 @@ export function Transport({
               {clock && "; "}
             </>
           )}
-          {clock && (events === null ? `Time ${time}` : `time ${time}`)}
+          {clock && (format ? time : events === null ? `Time ${time}` : `time ${time}`)}
         </span>
         <label className="flex items-center gap-1.5">
           Playing speed

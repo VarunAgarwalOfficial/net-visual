@@ -377,8 +377,10 @@ function RoutingLoaded({ sim }: { sim: Netsim }) {
               ? `${started ? "A" : "a"} box on a link is a router's list of its links on its way, named by the router that wrote it and its number ("${p.nodes[0]} #1"); "+2" means two more on the same link.`
               : `${started ? "A" : "a"} box on a link is a table on its way, showing the sender's cost to ${D}${p.poison ? "; dashed when the sender says it cannot reach it" : ""}${p.split_horizon ? "; a dash when the sender leaves it out" : ""}.`}{" "}
             A shaded ring marks a router whose table just changed.
-            {sync ? ` Each message takes one round, ${Number((p.delay_us / 1000).toFixed(2))} milliseconds, to cross a link.` : ""} Select a
-            router to see its working under Go deeper, further down the page, or a link to change it.
+            {sync
+              ? ` Each message takes one round, ${Number((p.delay_us / 1000).toFixed(2))} millisecond${p.delay_us === 1000 ? "" : "s"}, to cross a link.`
+              : ""}{" "}
+            Select a router to see its working under Go deeper, further down the page, or a link to change it.
             {picked ? ` The router you selected, ${p.nodes[x]}, has a blue outline.` : ""}
           </span>
         </figcaption>

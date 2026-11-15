@@ -60,7 +60,7 @@ export const TOOLS: ToolInfo[] = [
     id: "web",
     title: "Naming and the web",
     summary: "How a computer turns a name such as www.example.com into an address, and how a web page then arrives over HTTP.",
-    lead: "Press Play to watch a laptop and a phone look up the address behind a web site's name (the number, such as 93.184.215.14, that computers use to find it), and see how a remembered answer makes later lookups faster.",
+    lead: "Press Play to watch a laptop and a phone look up the address behind a web site's name (the number, such as 203.0.113.10, that computers use to find it), and see how a remembered answer makes later lookups faster.",
     layers: ["intuition", "mechanics", "analysis", "frontier", "internals"],
     Component: lazy(() => import("./web/WebTool").then((m) => ({ default: m.WebTool }))),
   },

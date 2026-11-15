@@ -19,7 +19,7 @@ import {
   scrollBehavior,
   sourceLine,
 } from "../../components/ToolFrame"
-import { keepFocus, timeIn, timelineKeys, useTimeline } from "../../components/timeline"
+import { keepFocus, spanIn, timeIn, timelineKeys, useTimeline } from "../../components/timeline"
 import { loadNetsim } from "../../core/load"
 import type { Netsim } from "../../core/netsim"
 import {
@@ -249,7 +249,7 @@ function QueueLoaded({ sim }: { sim: Netsim }) {
           ["Waiting in line now", `${fig.waiting.length} packet${fig.waiting.length === 1 ? "" : "s"}`],
           ["Arrived at the far end", `${fig.delivered} of ${run.packets.length} packets`],
           ["Lost", fig.dropped ? `${fig.dropped} packet${fig.dropped === 1 ? "" : "s"}` : "none"],
-          ["Average time in line and being sent, packets sent so far", now.w === null ? "none sent yet" : timeIn(now.w, tl.duration)],
+          ["Average time in line and being sent, packets sent so far", now.w === null ? "none sent yet" : spanIn(now.w)],
         ]}
       />
 

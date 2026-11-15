@@ -259,7 +259,7 @@ export function HttpPanel({
         cols={2}
         items={[
           ["Simulated time", timeIn(tl.t, tl.duration)],
-          ["Events so far", `${started ? tl.index + 1 : 0} of ${n}`],
+          ["Steps so far", `${started ? tl.index + 1 : 0} of ${n}`],
         ]}
       />
       {started && <p className="max-w-[70ch] font-sans text-sm">{fig.summary[0].toUpperCase() + fig.summary.slice(1)}.</p>}
