@@ -154,6 +154,12 @@ function DnsPanel({
 
   // After a mode, scenario or tour button the keys belong to the clock again, not to the button group.
   const focusRoot = () => setTimeout(() => root.current?.focus({ preventScroll: true }), 0)
+  // Arriving from the other panel's picker, whose button is now gone: take the keys for the clock.
+  const switchedIn = useRef(!!startPreset)
+  useEffect(() => {
+    if (switchedIn.current) focusRoot()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const apply = (next: WebParams, id = "") => {
     setParams(next)
     setPreset(id)

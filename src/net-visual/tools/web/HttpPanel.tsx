@@ -107,13 +107,15 @@ export function HttpPanel({
   const duration = Math.max(1, run.stats.plt_ns / 1000)
   const tl = useTimeline(times, duration, duration / PLAY_SECONDS, shared?.t ?? 0)
   const tNs = Math.round(tl.t * 1000)
+  // Before the first event the pictures are empty, even where events fall at 0 ns.
+  const figT = tl.index < 0 ? -1 : tNs
   const index = Math.max(0, Math.min(n - 1, tl.index))
   const event = run.events[index]
 
   const w = Math.max(320, Math.round(width))
   const fig = useMemo(
-    () => (view === "streams" ? streamsFigure(p.http, run, tNs, w) : ladderFigure(p.http, run, tNs, w)),
-    [view, p, run, tNs, w],
+    () => (view === "streams" ? streamsFigure(p.http, run, figT, w) : ladderFigure(p.http, run, figT, w)),
+    [view, p, run, figT, w],
   )
   const chart = useMemo(() => httpChart(sim, p, run), [sim, p, run])
 
@@ -122,6 +124,12 @@ export function HttpPanel({
   const traceSlice = useMemo(() => trace.slice(offset, offset + 3 * SLICE), [trace, offset])
 
   const focusRoot = () => setTimeout(() => root.current?.focus({ preventScroll: true }), 0)
+  // Arriving from the other panel's picker, whose button is now gone: take the keys for the clock.
+  const switchedIn = useRef(!!startPreset)
+  useEffect(() => {
+    if (switchedIn.current) focusRoot()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const apply = (next: HttpWeb, id = "") => {
     if (next.mode !== params.mode) setView(DEFAULT_VIEW[next.mode])
     setParams(next)
@@ -157,7 +165,7 @@ export function HttpPanel({
   const figLabel = view === "streams" ? "each object's bytes, arrived and delivered" : "the handshakes, requests and packets"
   const caption = `${title}, at ${fmtNs(tNs)}: ${fig.summary}`
   const other: View = view === "streams" ? "ladder" : "streams"
-  const otherFig = () => (other === "streams" ? streamsFigure(p.http, run, tNs, w) : ladderFigure(p.http, run, tNs, w))
+  const otherFig = () => (other === "streams" ? streamsFigure(p.http, run, figT, w) : ladderFigure(p.http, run, figT, w))
   const who =
     started && event
       ? [

@@ -247,6 +247,6 @@ export function ladderFigure(p: HttpParams, run: HttpRun, t: number, width: numb
 
   s.push({ kind: "line", x1: axisW, y1: sy(t), x2: w - 4, y2: sy(t), stroke: "ink", width: 0.6, dashed: true })
   const sent = run.packets.filter((q) => q.start_ns <= t).length
-  const summary = `${sent} data packet${sent === 1 ? "" : "s"} sent by ${fmtNs(t)}; ${summaryAt(run, t)}`
+  const summary = `${sent} data packet${sent === 1 ? "" : "s"} sent by ${fmtNs(Math.max(0, t))}; ${summaryAt(run, t)}`
   return { w, h, shapes: s, caption: "", summary }
 }
