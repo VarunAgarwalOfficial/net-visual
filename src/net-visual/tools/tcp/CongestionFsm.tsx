@@ -124,9 +124,12 @@ export function CongestionFsm({ event, before, algo }: { event: TcpEvent | null;
       <figcaption className="mb-1 text-sm text-muted-foreground">
         Congestion control state, flow 1 ({tahoe ? "Tahoe has no fast recovery" : "RFC 5681 and 6582"})
       </figcaption>
+      <div className="overflow-x-auto">
       <svg
         viewBox="-40 20 540 330"
-        className="h-auto w-full max-w-[34rem]"
+        width={540 * (17 / 13)}
+        height={330 * (17 / 13)}
+        className="block"
         role="img"
         aria-label={`Current phase: ${phase ? NODES.find((n) => n.id === phase)!.label : "not started"}${lit ? `; transition taken: ${[edges.find((e) => e.id === lit)!.label].flat().join(" ")}` : ""}`}
       >
@@ -138,11 +141,12 @@ export function CongestionFsm({ event, before, algo }: { event: TcpEvent | null;
         {edges.map((e) => {
           const on = e.id === lit
           return (
-            <g key={e.id} opacity={e.off ? 0.18 : 1}>
+            <g key={e.id}>
               <path
                 d={e.d}
                 fill="none"
-                stroke={on ? "var(--link)" : "var(--chart-ink)"}
+                stroke={on ? "var(--foreground)" : e.off ? "var(--border)" : "var(--chart-ink)"}
+                strokeDasharray={e.off ? "3 4" : undefined}
                 strokeWidth={on ? 2.75 : 1.25}
                 markerEnd={`url(#${marker})`}
               />
@@ -150,9 +154,9 @@ export function CongestionFsm({ event, before, algo }: { event: TcpEvent | null;
                 x={e.x}
                 y={e.y}
                 textAnchor={e.anchor ?? "middle"}
-                fontSize="12"
+                fontSize="13"
                 fill={on ? "var(--foreground)" : "var(--muted-foreground)"}
-                fontWeight={on ? 700 : 400}
+                fontWeight={on ? 600 : 400}
               >
                 {(Array.isArray(e.label) ? e.label : [e.label]).map((line, i) => (
                   <tspan key={i} x={e.x} dy={i ? "1.2em" : 0}>
@@ -167,24 +171,26 @@ export function CongestionFsm({ event, before, algo }: { event: TcpEvent | null;
           const on = n.id === phase
           const off = tahoe && n.id === "R"
           return (
-            <g key={n.id} opacity={off ? 0.25 : 1}>
+            <g key={n.id}>
               <rect
                 x={n.x - W / 2}
                 y={n.y - H / 2}
                 width={W}
                 height={H}
                 rx={H / 2}
-                fill={on ? "color-mix(in oklab, var(--link) 22%, var(--background))" : "var(--background)"}
-                stroke={on ? "var(--link)" : "var(--foreground)"}
+                fill={on ? "var(--nv-mark)" : "var(--background)"}
+                stroke={off ? "var(--border)" : "var(--foreground)"}
+                strokeDasharray={off ? "3 4" : undefined}
                 strokeWidth={on ? 2.5 : 1.25}
               />
-              <text x={n.x} y={n.y} dy="0.35em" textAnchor="middle" fontSize="13" fill="var(--foreground)" fontWeight={on ? 700 : 400}>
+              <text x={n.x} y={n.y} dy="0.35em" textAnchor="middle" fontSize="13" fill={off ? "var(--muted-foreground)" : "var(--foreground)"} fontWeight={on ? 600 : 400}>
                 {n.label}
               </text>
             </g>
           )
         })}
       </svg>
+      </div>
     </figure>
   )
 }

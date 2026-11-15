@@ -418,6 +418,17 @@ recorded per tool below.
   colour on solid boxes; sweep chart in ink (Selective Repeat,
   stop-and-wait) and muted (Go-Back-N), theory dashed. No colour words
   changed ("red cross", "red boxes" stay true).
+- tcp: ladder data purple, ACK green, repeated ACK amber; window chart
+  flows in ink and muted told apart by dash (solid, solid, 7-3, 2-3) and
+  named at line ends, Tahoe comparison long-dashed ink, ssthresh short
+  grey dashes; loss ticks and "timer ran out" red, fast retransmit amber;
+  the ladder's stretch on the chart is the highlighter ground. Queue
+  chart purple, its buffer line red. State machine: current state on the
+  highlighter with ink outline, Tahoe's unused parts dashed in rule
+  colour (no fading). Router view, phase plane and state machine are
+  drawn at a fixed scale (13 units = 17px) and scroll sideways inside
+  their own box on a phone. Early key wraps to the chart width; a chart
+  with an early key is tall enough for all of it. No colour words changed.
 
 ## Next
 

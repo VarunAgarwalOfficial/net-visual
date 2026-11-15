@@ -4,9 +4,10 @@ import type { ChartFigure } from "../../components/figure"
 import { LineChart, type Series } from "../../components/LineChart"
 import { algoName, thinMarks, valueAt, type Algo, type TcpParams, type TcpRun } from "../../core/tcp"
 
-/** One colour per flow, in order; flow 0 matches the data packets in the ladder. */
-export const FLOW_COLORS = ["var(--chart-1)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"]
-const COMPARE_COLOR = "var(--chart-2)"
+/** Flows are told apart by tone and dash, and named at their line ends; colour is kept for meaning. */
+export const FLOW_COLORS = ["var(--foreground)", "var(--muted-foreground)", "var(--foreground)", "var(--muted-foreground)"]
+export const FLOW_DASH = [undefined, undefined, "7 3", "2 3"]
+const COMPARE_COLOR = "var(--foreground)"
 const SSTHRESH_COLOR = "var(--muted-foreground)"
 
 /** Microseconds as seconds, with as many decimals as the value needs (up to three; one from 10 s). */
@@ -46,6 +47,7 @@ function build(run: TcpRun, compare: TcpRun | null, cmp: Algo | null, p: TcpPara
     id: `cwnd${i}`,
     label: `window, ${flowLabel(p, i)}`,
     color: FLOW_COLORS[i],
+    dash: FLOW_DASH[i],
     kind: "step",
     points: s.cwnd,
     note: p.flows.length === 1 ? afterLoss(p.flows[0].algo) : undefined,
@@ -58,6 +60,7 @@ function build(run: TcpRun, compare: TcpRun | null, cmp: Algo | null, p: TcpPara
       kind: "step",
       points: compare.series[0].cwnd,
       dashed: true,
+      dash: "10 5",
       note: afterLoss(cmp),
     })
   if (p.flows.length === 1) {
@@ -72,6 +75,7 @@ function build(run: TcpRun, compare: TcpRun | null, cmp: Algo | null, p: TcpPara
         kind: "step",
         points: ss,
         dashed: true,
+        dash: "3 4",
       })
   }
   return { series, top }
@@ -143,12 +147,11 @@ export const CwndChart = memo(function CwndChart({
                 y={y0}
                 width={Math.max(1, sx(Math.min(band[1], p.duration_us)) - sx(band[0]))}
                 height={bottom - y0}
-                fill="var(--link)"
-                fillOpacity={0.07}
+                fill="var(--nv-mark)"
               />
             )}
             {band && (
-              <text x={sx(band[0]) + 4} y={y0 + 12} fontSize="10.5" fill="var(--chart-ink)">
+              <text x={sx(band[0]) + 4} y={y0 + 18} fontSize="17" fill="var(--chart-ink)">
                 shaded: in the sequence diagram
               </text>
             )}
@@ -159,7 +162,7 @@ export const CwndChart = memo(function CwndChart({
               (v as number) <= top ? (
                 <g key={text}>
                   <line x1={left} x2={right} y1={sy(v as number)} y2={sy(v as number)} stroke="var(--chart-ink)" strokeDasharray="1 3" />
-                  <text x={right - 4} y={sy(v as number) - 4} textAnchor="end" fontSize="10.5" fill="var(--chart-ink)">
+                  <text x={right - 4} y={sy(v as number) - 4} textAnchor="end" fontSize="17" fill="var(--chart-ink)">
                     {text}
                   </text>
                 </g>
@@ -169,15 +172,15 @@ export const CwndChart = memo(function CwndChart({
               <path
                 key={i}
                 d={ts.map((x) => `M${sx(x).toFixed(1)},${bottom}v-${5 + 3 * i}`).join("")}
-                stroke={FLOW_COLORS[i]}
-                strokeOpacity={0.7}
+                stroke="var(--nv-bad)"
+                fill="none"
               />
             ))}
             {firstDrop < Infinity && (
               <text
                 x={sx(firstDrop) + 5}
                 y={bottom - 4}
-                fontSize="10.5"
+                fontSize="17"
                 fill="var(--chart-ink)"
                 stroke="var(--background)"
                 strokeWidth={3}
@@ -191,8 +194,8 @@ export const CwndChart = memo(function CwndChart({
                 key="fast-label"
                 x={sx(x) + 7}
                 y={sy(y) - 12}
-                fontSize="10.5"
-                fill="var(--foreground)"
+                fontSize="17"
+                fill="var(--nv-again)"
                 stroke="var(--background)"
                 strokeWidth={3}
                 paintOrder="stroke"
@@ -205,8 +208,8 @@ export const CwndChart = memo(function CwndChart({
                 key="timeout-label"
                 x={sx(x) + 7}
                 y={sy(y) - 3}
-                fontSize="10.5"
-                fill="var(--destructive)"
+                fontSize="17"
+                fill="var(--nv-bad)"
                 stroke="var(--background)"
                 strokeWidth={3}
                 paintOrder="stroke"
@@ -218,7 +221,7 @@ export const CwndChart = memo(function CwndChart({
               <path
                 key={`f${i}`}
                 d={`M${sx(x)},${sy(y) - 3}l-4,-7h8z`}
-                fill="var(--foreground)"
+                fill="var(--nv-again)"
                 stroke="var(--background)"
                 strokeWidth={1}
               />
@@ -231,7 +234,7 @@ export const CwndChart = memo(function CwndChart({
                 width={8}
                 height={8}
                 fill="var(--background)"
-                stroke="var(--destructive)"
+                stroke="var(--nv-bad)"
                 strokeWidth={2}
               />
             ))}

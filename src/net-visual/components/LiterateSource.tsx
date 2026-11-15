@@ -94,7 +94,7 @@ function Prose({ lines }: { lines: string[] }) {
             )}
             {body.split(/(`[^`]+`)/).map((part, j) =>
               part.startsWith("`") ? (
-                <code key={j} className="text-[0.85em]">
+                <code key={j}>
                   {part.slice(1, -1)}
                 </code>
               ) : (

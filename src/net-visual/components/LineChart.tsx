@@ -8,6 +8,8 @@ export interface Series {
   kind: "line" | "dots" | "step"
   points: [number, number][]
   dashed?: boolean
+  /** A dash pattern of its own, where several series share a colour. */
+  dash?: string
   /** Lines under the series' name, in the key only, separated by newlines. */
   note?: string
 }
@@ -78,13 +80,29 @@ export function useWidth<T extends HTMLElement>(): [React.RefObject<T | null>, n
 }
 
 /**
+ * For a drawing scaled to its box: the font size, in the drawing's own
+ * units, that renders at the site's small size (17px) whatever the width.
+ */
+export function useLabelSize<T extends Element>(viewBoxWidth: number, px = 17): [React.RefObject<T | null>, number] {
+  const ref = useRef<T>(null)
+  const [w, setW] = useState(viewBoxWidth)
+  useEffect(() => {
+    if (!ref.current) return
+    const ro = new ResizeObserver(([entry]) => entry.contentRect.width > 0 && setW(entry.contentRect.width))
+    ro.observe(ref.current)
+    return () => ro.disconnect()
+  }, [])
+  return [ref, (px * viewBoxWidth) / w]
+}
+
+/**
  * Lines, steps and dots on one pair of axes. 2px lines, 8px dots with a
  * surface ring, hairline grid, each series named on the chart beside its
  * line (no separate key), a hover readout, and a table view so no value
  * depends on colour alone.
  */
 export function LineChart(props: Props) {
-  const { series, xLabel, yLabel, height = 260, cursor, onSeek, upTo } = props
+  const { series, xLabel, yLabel, height: asked = 260, cursor, onSeek, upTo } = props
   const xFormat = props.xFormat ?? ((x: number) => String(x))
   const yFormat = props.yFormat ?? ((y: number) => y.toFixed(2))
   const [box, width] = useWidth<HTMLDivElement>()
@@ -93,6 +111,23 @@ export function LineChart(props: Props) {
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, "")
   const m = { l: 64, r: 16, t: 14, b: 54 }
   const w = width - m.l - m.r
+  // Key lines wrap to the chart's width, so a phone shows the whole key at the small size.
+  const fit = Math.max(12, Math.floor((w - 48) / 7.6))
+  const wrap = (text: string) =>
+    text.split(" ").reduce<string[]>((lines, word) => {
+      const last = lines[lines.length - 1]
+      if (last !== undefined && (last + " " + word).length <= fit) lines[lines.length - 1] = last + " " + word
+      else lines.push(word)
+      return lines
+    }, [])
+  const keyRows: { s: Series; row: number; note?: string; more?: string }[] = []
+  for (const s of series) {
+    wrap(s.label).forEach((line, i) => keyRows.push(i ? { s, row: keyRows.length, more: line } : { s, row: keyRows.length }))
+    for (const note of s.note?.split("\n") ?? []) for (const line of wrap(note)) keyRows.push({ s, row: keyRows.length, note: line })
+  }
+  const keyText = (k: (typeof keyRows)[number]) => k.note ?? k.more ?? wrap(k.s.label)[0]
+  // A chart that can show its key is tall enough for all of it, at every width and moment.
+  const height = props.keyEarly && series.length >= 2 ? Math.max(asked, m.t + keyRows.length * 22 + 32 + m.b) : asked
   const h = height - m.t - m.b
 
   const all = series.flatMap((s) => s.points)
@@ -153,11 +188,11 @@ export function LineChart(props: Props) {
   }, [series, upTo, width, height, x0, x1, y0, y1])
   const ahead = upTo !== undefined && upTo < x1 ? Math.max(m.l, sx(Math.max(upTo, x0))) : null
   const asKey = !!props.keyEarly && series.length >= 2 && (upTo ?? Infinity) < x0 + 0.15 * (x1 - x0)
-  const keyRows: { s: Series; row: number; note?: string }[] = []
-  for (const s of series) {
-    keyRows.push({ s, row: keyRows.length })
-    for (const note of s.note?.split("\n") ?? []) keyRows.push({ s, row: keyRows.length, note })
-  }
+
+  const keyWidth = Math.min(w - 8, 40 + 7.4 * Math.max(0, ...keyRows.map((k) => keyText(k).length)))
+  // The note on the faint part sits top right, or under the key where the key reaches it.
+  const noteY = asKey && m.l + 4 + keyWidth > m.l + w - 310 ? m.t + 15 + keyRows.length * 22 + 26 : m.t + 16
+  const noteFits = noteY < m.t + h - 8
 
   const move = (e: React.PointerEvent<SVGSVGElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
@@ -167,7 +202,7 @@ export function LineChart(props: Props) {
 
   return (
     <figure className="font-sans">
-      <figcaption className="mb-1 flex items-baseline justify-between gap-2 text-sm">
+      <figcaption className="mb-1 flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1 text-sm">
         <span className="font-serif text-base text-foreground">{props.title}</span>
         <button
           className="shrink-0 rounded-sm border border-border bg-background px-2 py-0.5 text-xs hover:bg-muted"
@@ -272,56 +307,17 @@ export function LineChart(props: Props) {
                       strokeWidth={2}
                       strokeLinejoin="round"
                       strokeLinecap="round"
-                      strokeDasharray={s.dashed ? "5 4" : undefined}
+                      strokeDasharray={s.dash ?? (s.dashed ? "5 4" : undefined)}
                     />
                   ),
                 )}
               </g>
             ))}
-            {ahead !== null && m.l + w - ahead > 150 && (
-              <text x={m.l + w - 4} y={m.t + 16} textAnchor="end" fontSize="17" fill="var(--chart-ink)">
+            {ahead !== null && m.l + w - ahead > 150 && noteFits && (
+              <text x={m.l + w - 4} y={noteY} textAnchor="end" fontSize="17" fill="var(--chart-ink)">
                 faint: the rest of the run, not reached yet
               </text>
             )}
-            {asKey && (
-              // A plain ground under the key, so no line runs through its words.
-              <rect
-                x={m.l + 4}
-                y={m.t + 15}
-                width={Math.min(w - 8, 40 + 8.2 * Math.max(...keyRows.map((k) => (k.note ?? k.s.label).length)))}
-                height={keyRows.length * 22 + 6}
-                fill="var(--background)"
-                pointerEvents="none"
-              />
-            )}
-            {asKey &&
-              keyRows.map(({ s, row, note }) => (
-                <g key={`key${row}`} pointerEvents="none">
-                  {!note && (
-                    <line
-                      x1={m.l + 8}
-                      x2={m.l + 26}
-                      y1={m.t + 28 + row * 22}
-                      y2={m.t + 28 + row * 22}
-                      stroke={s.color}
-                      strokeWidth={2}
-                      strokeDasharray={s.dashed ? "5 3" : undefined}
-                    />
-                  )}
-                  <text
-                    x={m.l + 30}
-                    y={m.t + 28 + row * 22}
-                    dy="0.32em"
-                    fontSize="17"
-                    fill={note ? "var(--chart-ink)" : s.color}
-                    stroke="var(--background)"
-                    strokeWidth={3}
-                    paintOrder="stroke"
-                  >
-                    {note ?? s.label}
-                  </text>
-                </g>
-              ))}
             {(asKey ? [] : labels).map((l) => (
               <text
                 key={l.id}
@@ -353,6 +349,48 @@ export function LineChart(props: Props) {
                 })}
               </g>
             )}
+            {asKey && (
+              // A plain ground under the key, so no line runs through its words.
+              <rect
+                x={m.l + 4}
+                y={m.t + 15}
+                width={keyWidth}
+                height={keyRows.length * 22 + 6}
+                fill="var(--background)"
+                pointerEvents="none"
+              />
+            )}
+            {asKey &&
+              keyRows.map((k) => {
+                const { s, row, note, more } = k
+                return (
+                  <g key={`key${row}`} pointerEvents="none">
+                    {!note && !more && (
+                      <line
+                        x1={m.l + 8}
+                        x2={m.l + 26}
+                        y1={m.t + 28 + row * 22}
+                        y2={m.t + 28 + row * 22}
+                        stroke={s.color}
+                        strokeWidth={2}
+                        strokeDasharray={s.dash ?? (s.dashed ? "5 3" : undefined)}
+                      />
+                    )}
+                    <text
+                      x={m.l + 30}
+                      y={m.t + 28 + row * 22}
+                      dy="0.32em"
+                      fontSize="17"
+                      fill={note ? "var(--chart-ink)" : s.color}
+                      stroke="var(--background)"
+                      strokeWidth={3}
+                      paintOrder="stroke"
+                    >
+                      {keyText(k)}
+                    </text>
+                  </g>
+                )
+              })}
           </svg>
         )}
         {!table && hover !== null && (

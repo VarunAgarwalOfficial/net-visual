@@ -7,7 +7,7 @@ import { Toggle as TogglePrimitive } from "radix-ui"
 
 // The site's quiet control: hairline edge, ink text; the pressed option has an ink edge and the code ground.
 const toggleVariants = cva(
-  "group/toggle inline-flex items-center justify-center gap-1 rounded-sm border border-transparent text-sm whitespace-nowrap hover:bg-accent disabled:pointer-events-none disabled:opacity-50 aria-pressed:border-foreground aria-pressed:bg-muted data-[state=on]:border-foreground data-[state=on]:bg-muted [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/toggle inline-flex items-center justify-center gap-1 rounded-sm border border-transparent text-sm whitespace-nowrap hover:bg-accent disabled:pointer-events-none disabled:text-muted-foreground aria-pressed:border-foreground aria-pressed:bg-muted data-[state=on]:border-foreground data-[state=on]:bg-muted [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {

@@ -10,7 +10,7 @@ import { Exercise, Layer } from "../rdt/RdtArticle"
 /** A button that loads a scenario, for claims the reader can check at once. */
 function Try({ id, onLoad, children }: { id: string; onLoad(id: string): void; children: ReactNode }) {
   return (
-    <button type="button" className="font-sans text-sm text-[var(--link)] underline underline-offset-2" onClick={() => onLoad(id)}>
+    <button type="button" className="font-sans text-sm text-link" onClick={() => onLoad(id)}>
       {children}
     </button>
   )
@@ -152,8 +152,8 @@ function BufferSweep({ sim, p }: { sim: Netsim; p: TcpParams }) {
       </Button>
     )
   const series: Series[] = [
-    { id: "sim", label: "simulated, one NewReno flow", color: "var(--chart-1)", kind: "dots", points: rows.map((r) => [r.b, r.measured]) },
-    { id: "th", label: "sawtooth formula", color: "var(--chart-1)", kind: "line", points: rows.map((r) => [r.b, r.formula]) },
+    { id: "sim", label: "simulated, one NewReno flow", color: "var(--foreground)", kind: "dots", points: rows.map((r) => [r.b, r.measured]) },
+    { id: "th", label: "sawtooth formula", color: "var(--foreground)", kind: "line", points: rows.map((r) => [r.b, r.formula]) },
   ]
   return (
     <LineChart

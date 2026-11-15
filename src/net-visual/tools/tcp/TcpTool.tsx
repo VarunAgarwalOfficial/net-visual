@@ -88,7 +88,7 @@ function toLadder(run: TcpRun, rtt: number): LadderFlight[] {
     lost: f.lost,
     label: f.ack ? `ACK ${f.seg}` : `packet ${f.seg}${f.occurrence > 1 ? ", again" : ""}`,
     fate: FATES[f.fate] ?? (f.fate || "on the way"),
-    color: f.ack ? (f.fate === "duplicate ACK" ? "var(--chart-4)" : "var(--chart-2)") : "var(--chart-1)",
+    color: f.ack ? (f.fate === "duplicate ACK" ? "var(--nv-again)" : "var(--nv-ok)") : "var(--nv-busy)",
     alarm: f.fate === "duplicate, already had it",
   }))
 }

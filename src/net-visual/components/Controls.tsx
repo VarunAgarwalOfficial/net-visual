@@ -18,7 +18,7 @@ export function LabelledSlider({
   return (
     <SliderPrimitive.Root
       data-slot="slider"
-      className={cn("relative flex w-full touch-none items-center select-none data-disabled:opacity-50", className)}
+      className={cn("relative flex w-full touch-none items-center select-none data-disabled:text-muted-foreground", className)}
       {...props}
     >
       <SliderPrimitive.Track data-slot="slider-track" className="relative h-1 w-full grow overflow-hidden rounded-full bg-border">
