@@ -94,6 +94,20 @@
   routing and Count to infinity updated. Commits from here on carry the
   session's Opus attribution, as the coordinator directed.
 
+- Queueing model (crates/netsim/src/queue.rs): flows from Poisson, periodic
+  or on-off sources, fixed or exponential sizes, through a token or leaky
+  bucket (shaping or policing), router processing, a drop-tail output queue
+  served FIFO, by strict priority (non-preemptive) or by WFQ with GPS
+  virtual-time tags, then L/R onto the link and d/s along it; GPS runs
+  beside every discipline. Rust tests on one seed each, tolerance four
+  standard deviations measured over twenty seeds: M/M/1 W and L at rho 0.5
+  (200k packets) and 0.8 (1M), Little's law to 1e-9 on the same runs, M/D/1
+  against Pollaczek-Khinchine and at half the M/M/1 wait, Cobham's priority
+  waits, exact conservation across disciplines, the four delays, token
+  bucket output within r t + b over every interval (exact integers),
+  leaky-bucket pacing, WFQ within L_max/R of GPS finish and within L_max of
+  GPS service, the Parekh-Gallager delay bound for shaped flows.
+
 ## Next
 
 1. Tool 4, queueing and delay: M/M/1 and M/D/1 against the formulas, the
