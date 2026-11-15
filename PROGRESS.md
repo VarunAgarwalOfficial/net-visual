@@ -136,11 +136,27 @@
   equations wrap at 390; the sweep's axis fits the simulated dots.
 - Vault notes for tool four: Queueing delay and M-M-1, Token bucket, Fair
   queueing, and a queueing section in the subject index.
+- Tool 5 part A, link layer and wireless (medium access): Rust model
+  `crates/netsim/src/link.rs` (pure and slotted ALOHA; CSMA/CD with 802.3
+  carrier sense, jam and BEB; 802.11 DCF with frozen backoff, ACKs,
+  RTS/CTS and the NAV) and `link/run` in the wasm crate. Sixteen Rust
+  tests: slotted and pure ALOHA against the exact finite-station formulas
+  at G = 0.25, 0.5, 1, 2 (tolerances 0.016 and 0.011, four seed standard
+  deviations), detection within 2 tau and the minimum frame, BEB ranges
+  1, 3, 7, 1023 and none after 16, CSMA/CD efficiency against
+  1/(1 + 5a) and Metcalfe-Boggs (simulation higher because of capture),
+  hidden-terminal loss 0.81 without RTS/CTS and 0.02 with it over 20
+  seeds, NAV ending exactly at the ACK. `core/link.ts` with 12 presets,
+  a 9-step tour and 4 labs; `tools/link/` with space-time, slot and map
+  figures (SVG and TikZ), backoff and NAV views, live equations, sweeps,
+  and the five-layer article. Browser-checked light, dark and phone.
+- Vault notes for tool five part A: ALOHA and slotted ALOHA, CSMA-CD and
+  exponential backoff, CSMA-CA, hidden and exposed terminals, and a
+  medium-access section in the subject index.
 
 ## Next
 
-1. Tool 5, link layer and wireless: CSMA/CD with BEB, ALOHA and slotted
-   ALOHA, CSMA/CA with hidden and exposed terminals and RTS/CTS, switch
-   learning and spanning tree, CRC, Hamming codes.
+1. Tool 5 part B, on the same Link layer and wireless page: switch
+   learning and spanning tree, CRC and Hamming codes.
 2. Tool 6, naming and the web: iterative and recursive DNS with caching
    and TTLs; HTTP/1.1, HTTP/2 and HTTP/3 with head-of-line blocking.
