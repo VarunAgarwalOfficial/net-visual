@@ -1487,7 +1487,7 @@ mod tests {
     }
 
     /// Root (30 ms), com. (40 ms), example.com. (20 ms), net. (36 ms) and
-    /// cdn.net. (12 ms). shop.example.com. is a CNAME into cdn.net.
+    /// example.net. (12 ms). shop.example.com. is a CNAME into example.net.
     fn zones() -> Vec<Zone> {
         use RType::*;
         vec![
@@ -1519,7 +1519,7 @@ mod tests {
                     rec("example.com.", NS, "ns1.example.com.", 86_400),
                     rec("www.example.com.", A, "203.0.113.10", 300),
                     rec("mail.example.com.", A, "203.0.113.25", 3600),
-                    rec("shop.example.com.", CNAME, "shop.cdn.net.", 600),
+                    rec("shop.example.com.", CNAME, "shop.example.net.", 600),
                 ],
             ),
             zone(
@@ -1527,15 +1527,15 @@ mod tests {
                 "b.gtld-servers.net.",
                 36,
                 vec![
-                    rec("cdn.net.", NS, "ns.cdn.net.", 172_800),
-                    rec("ns.cdn.net.", A, "198.51.100.80", 172_800),
+                    rec("example.net.", NS, "ns1.example.net.", 172_800),
+                    rec("ns1.example.net.", A, "198.51.100.80", 172_800),
                 ],
             ),
             zone(
-                "cdn.net.",
-                "ns.cdn.net.",
+                "example.net.",
+                "ns1.example.net.",
                 12,
-                vec![rec("shop.cdn.net.", A, "203.0.113.77", 60)],
+                vec![rec("shop.example.net.", A, "203.0.113.77", 60)],
             ),
         ]
     }
@@ -1593,8 +1593,8 @@ mod tests {
         // Warm answer: the client's round trip only.
         assert_eq!(rs[2].outcome, "cache");
         assert_eq!(rs[2].done_us - rs[2].at_us, 10_000);
-        // The CNAME leads to cdn.net.: example.com. again, then net. and
-        // cdn.net., with com. and the root skipped for example.com.
+        // The CNAME leads to example.net.: example.com. again, then net. and
+        // example.net., with com. and the root skipped for example.com.
         assert_eq!(rs[3].servers, vec![2, 0, 3, 4]);
         assert_eq!(rs[3].answer, vec!["203.0.113.77"]);
         // Every message's arrival is its send plus a one-way delay that,
@@ -1728,7 +1728,7 @@ mod tests {
             "mail.example.com.",
             "shop.example.com.",
             "nope.example.com.",
-            "nothing.cdn.net.",
+            "nothing.example.net.",
             "example.com.",
         ];
         let qs: Vec<(f64, &str)> = names

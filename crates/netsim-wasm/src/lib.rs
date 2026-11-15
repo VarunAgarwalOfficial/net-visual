@@ -10,7 +10,7 @@ use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
-use netsim::{coding, lan, link, queue, rdt, routing, stp, tcp};
+use netsim::{coding, dns, lan, link, queue, rdt, routing, stp, tcp};
 
 /// Reserves `len` bytes and returns their address.
 #[no_mangle]
@@ -71,6 +71,7 @@ fn source(tool: &str) -> Option<&'static str> {
         "lan" => Some(include_str!("../../netsim/src/lan.rs")),
         "stp" => Some(include_str!("../../netsim/src/stp.rs")),
         "coding" => Some(include_str!("../../netsim/src/coding.rs")),
+        "dns" => Some(include_str!("../../netsim/src/dns.rs")),
         _ => None,
     }
 }
@@ -208,6 +209,30 @@ pub fn handle(bytes: &[u8]) -> Value {
                 let p: coding::HammingParams = parse(request.params)?;
                 in_range((2..=5).contains(&p.r) && p.flips.len() <= 8)?;
                 json!(coding::hamming_run(&p)?)
+            }
+            ("dns", "run") => {
+                let p: dns::DnsParams = parse(request.params)?;
+                check_dns(&p, if p.trace { 2_000.0 } else { 300_000.0 })?;
+                json!(dns::dns_run(&p)?)
+            }
+            ("dns", "hit_sweep") => {
+                #[derive(Deserialize)]
+                struct Sweep {
+                    base: dns::DnsParams,
+                    rates: Vec<f64>,
+                    per_point: u64,
+                }
+                let s: Sweep = parse(request.params)?;
+                check_dns(&s.base, 300_000.0)?;
+                in_range(
+                    (1..=24).contains(&s.rates.len())
+                        && s.rates
+                            .iter()
+                            .all(|r| r.is_finite() && *r > 0.0 && *r <= 1000.0)
+                        && (1..=50_000).contains(&s.per_point)
+                        && s.rates.len() as u64 * s.per_point <= 600_000,
+                )?;
+                json!(dns::hit_sweep(&s.base, &s.rates, s.per_point)?)
             }
             (tool, op) => return Err(format!("unknown request {tool}/{op}")),
         })
@@ -422,6 +447,48 @@ fn check_stp(p: &stp::StpParams) -> Result<(), String> {
             && (1..=100).contains(&p.delay_ms)
             && (1..=600_000).contains(&p.until_ms)
             && p.failure.as_ref().is_none_or(|f| f.at_ms <= p.until_ms),
+    )
+}
+
+/// DNS: a dozen zones of at most 40 records, eight clients, round trips up
+/// to 2 s, TTLs up to a week (RFC 2181 Section 8 allows more), and at most
+/// `queries` queries in all, scripted and Poisson, within 30 days.
+fn check_dns(p: &dns::DnsParams, queries: f64) -> Result<(), String> {
+    const WEEK: u32 = 604_800;
+    const MONTH_US: u64 = 30 * 86_400 * 1_000_000;
+    let poisson = p
+        .poisson
+        .as_ref()
+        .map_or(0.0, |s| s.rate_per_s * s.until_us as f64 / 1e6);
+    in_range(
+        (1..=12).contains(&p.zones.len())
+            && p.zones.iter().map(|z| z.records.len()).sum::<usize>() <= 200
+            && p.zones.iter().all(|z| {
+                z.records.len() <= 40
+                    && (1..=2_000_000).contains(&z.rtt_us)
+                    && z.soa_ttl_s <= WEEK
+                    && z.soa_minimum_s <= WEEK
+                    && z.records.iter().all(|r| r.ttl_s <= WEEK)
+            })
+            && (1..=8).contains(&p.clients.len())
+            && p.clients
+                .iter()
+                .all(|c| short_name(&c.name) && (1..=2_000_000).contains(&c.rtt_us))
+            && p.queries.len() <= 200
+            && p.queries.iter().all(|q| q.at_us <= MONTH_US)
+            && p.poisson.as_ref().is_none_or(|s| {
+                s.rate_per_s.is_finite()
+                    && s.rate_per_s > 0.0
+                    && s.rate_per_s <= 1000.0
+                    && (1..=8).contains(&s.names.len())
+                    && s.until_us <= MONTH_US
+            })
+            && p.queries.len() as f64 + poisson <= queries
+            && p.changes.len() <= 8
+            && p.changes
+                .iter()
+                .all(|c| c.at_us <= MONTH_US && c.ttl_s <= WEEK)
+            && p.end_us <= MONTH_US,
     )
 }
 
