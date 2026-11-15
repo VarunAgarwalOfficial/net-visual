@@ -75,6 +75,11 @@ impl<E> Queue<E> {
         Some((at, event))
     }
 
+    /// The time of the next event, without taking it.
+    pub fn peek_time(&self) -> Option<u64> {
+        self.heap.peek().map(|Reverse((at, _))| *at)
+    }
+
     pub fn is_empty(&self) -> bool {
         self.heap.is_empty()
     }

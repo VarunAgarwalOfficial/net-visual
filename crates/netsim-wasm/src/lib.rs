@@ -10,7 +10,7 @@ use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
-use netsim::{rdt, tcp};
+use netsim::{rdt, routing, tcp};
 
 /// Reserves `len` bytes and returns their address.
 #[no_mangle]
@@ -65,6 +65,7 @@ fn source(tool: &str) -> Option<&'static str> {
     match tool {
         "rdt" => Some(include_str!("../../netsim/src/rdt.rs")),
         "tcp" => Some(include_str!("../../netsim/src/tcp.rs")),
+        "routing" => Some(include_str!("../../netsim/src/routing.rs")),
         _ => None,
     }
 }
@@ -99,6 +100,11 @@ pub fn handle(bytes: &[u8]) -> Value {
                 let p: tcp::Params = parse(request.params)?;
                 check_tcp(&p)?;
                 json!(tcp::run(&p))
+            }
+            ("routing", "run") => {
+                let p: routing::Params = parse(request.params)?;
+                check_routing(&p)?;
+                json!(routing::run(&p))
             }
             (tool, op) => return Err(format!("unknown request {tool}/{op}")),
         })
@@ -148,6 +154,35 @@ fn check_tcp(p: &tcp::Params) -> Result<(), String> {
         && p.min_rto_us <= 10_000_000
         && p.drops.len() <= 64
         && p.drops.iter().all(|d| d.flow < p.flows.len());
+    if ok {
+        Ok(())
+    } else {
+        Err("parameters out of range".into())
+    }
+}
+
+/// Bounds that keep a run small: ten routers, positive costs below the
+/// infinity, and an infinity low enough that counting to it ends.
+fn check_routing(p: &routing::Params) -> Result<(), String> {
+    let n = p.nodes.len();
+    let pair = |a: usize, b: usize| a < n && b < n && a != b;
+    let ok = (2..=10).contains(&n)
+        && p.nodes
+            .iter()
+            .all(|s| (1..=12).contains(&s.chars().count()))
+        && p.links.len() <= 45
+        && p.links
+            .iter()
+            .all(|l| pair(l.a, l.b) && (1..p.infinity).contains(&l.cost))
+        && p.changes.len() <= 12
+        && p.changes.iter().all(|c| {
+            pair(c.a, c.b)
+                && c.cost.is_none_or(|k| (1..p.infinity).contains(&k))
+                && c.at_us <= 10_000_000_000
+        })
+        && (2..=1000).contains(&p.infinity)
+        && (1..=10_000_000).contains(&p.delay_us)
+        && p.jitter_us <= 10 * p.delay_us;
     if ok {
         Ok(())
     } else {

@@ -6,5 +6,6 @@
 //! reproduces the same run on any machine.
 
 pub mod rdt;
+pub mod routing;
 pub mod sim;
 pub mod tcp;
