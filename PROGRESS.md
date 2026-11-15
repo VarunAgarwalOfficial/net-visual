@@ -107,6 +107,12 @@
   bucket output within r t + b over every interval (exact integers),
   leaky-bucket pacing, WFQ within L_max/R of GPS finish and within L_max of
   GPS service, the Parekh-Gallager delay bound for shaped flows.
+- Queueing wasm and core: queue/run and queue/sweep with bounds (at most
+  4 flows, 3000 traced packets each and 6000 in all, 100k per sweep point,
+  token buckets at least one packet deep); core/queue.ts with theory,
+  occupancy, cumulative curves, envelope excess and shares; 13 scenarios in
+  three modes, 9 tour stops, 5 labs. tests/queue.test.ts checks every note's
+  numbers, the tour moments and each lab's start and a solution.
 
 ## Next
 

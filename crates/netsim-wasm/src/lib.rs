@@ -10,7 +10,7 @@ use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
-use netsim::{rdt, routing, tcp};
+use netsim::{queue, rdt, routing, tcp};
 
 /// Reserves `len` bytes and returns their address.
 #[no_mangle]
@@ -66,6 +66,7 @@ fn source(tool: &str) -> Option<&'static str> {
         "rdt" => Some(include_str!("../../netsim/src/rdt.rs")),
         "tcp" => Some(include_str!("../../netsim/src/tcp.rs")),
         "routing" => Some(include_str!("../../netsim/src/routing.rs")),
+        "queue" => Some(include_str!("../../netsim/src/queue.rs")),
         _ => None,
     }
 }
@@ -105,6 +106,28 @@ pub fn handle(bytes: &[u8]) -> Value {
                 let p: routing::Params = parse(request.params)?;
                 check_routing(&p)?;
                 json!(routing::run(&p))
+            }
+            ("queue", "run") => {
+                let p: queue::Params = parse(request.params)?;
+                check_queue(&p, 3000, 6000)?;
+                json!(queue::run(&p))
+            }
+            ("queue", "sweep") => {
+                #[derive(Deserialize)]
+                struct Sweep {
+                    base: queue::Params,
+                    rhos: Vec<f64>,
+                    packets: usize,
+                }
+                let s: Sweep = parse(request.params)?;
+                check_queue(&s.base, usize::MAX, usize::MAX)?;
+                let ok = (1..=12).contains(&s.rhos.len())
+                    && s.rhos.iter().all(|r| (0.01..=0.95).contains(r))
+                    && (1..=100_000).contains(&s.packets);
+                if !ok {
+                    return Err("parameters out of range".into());
+                }
+                json!(queue::sweep(&s.base, &s.rhos, s.packets))
             }
             (tool, op) => return Err(format!("unknown request {tool}/{op}")),
         })
@@ -195,6 +218,48 @@ fn check_routing(p: &routing::Params) -> Result<(), String> {
     }
 }
 
+/// Bounds for the queueing model: a few thousand traced packets per run, a
+/// token bucket that can hold any packet its flow sends (or it would wait
+/// forever), and physical values within reason.
+fn check_queue(p: &queue::Params, per_flow: usize, total: usize) -> Result<(), String> {
+    use queue::{ShaperKind, Sizes};
+    let ok = (1..=4).contains(&p.flows.len())
+        && p.flows.iter().map(|f| f.packets).sum::<usize>() <= total
+        && p.flows.iter().all(|f| {
+            (1..=per_flow).contains(&f.packets)
+                && (40..=9000).contains(&f.size_bytes)
+                && f.rate_pps > 0.0
+                && f.rate_pps <= 1e6
+                && f.on_us <= 10_000_000
+                && f.off_us <= 10_000_000
+                && f.start_us <= 10_000_000
+                && (1..=100).contains(&f.weight)
+                && f.priority <= 7
+                && match f.shaper.kind {
+                    ShaperKind::None => true,
+                    ShaperKind::Token => {
+                        f.sizes == Sizes::Fixed
+                            && (1_000..=10_000_000_000).contains(&f.shaper.rate_bps)
+                            && (f.size_bytes as u64..=10_000_000).contains(&f.shaper.bucket_bytes)
+                    }
+                    ShaperKind::Leaky => {
+                        (1_000..=10_000_000_000).contains(&f.shaper.rate_bps)
+                            && f.shaper.bucket_bytes <= 10_000_000
+                    }
+                }
+        })
+        && (1_000..=10_000_000_000).contains(&p.rate_bps)
+        && p.proc_us <= 1_000_000
+        && p.distance_m <= 40_000_000
+        && (10_000_000..=300_000_000).contains(&p.speed_mps)
+        && p.buffer_pkts <= 10_000;
+    if ok {
+        Ok(())
+    } else {
+        Err("parameters out of range".into())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -208,5 +273,32 @@ mod tests {
             .contains("S1. [Fill the window.]"));
         assert!(handle(b"not json")["error"].is_string());
         assert!(handle(br#"{"tool":"rdt","op":"fly"}"#)["error"].is_string());
+    }
+
+    #[test]
+    fn checks_queue_requests() {
+        let flow = r#"{"name":"a","rate_pps":500,"size_bytes":1000,"packets":100}"#;
+        let req = |flow: &str, op: &str| {
+            let params = format!(
+                r#"{{"flows":[{flow}],"rate_bps":8000000,"proc_us":0,"distance_m":0,"speed_mps":200000000,"buffer_pkts":0,"seed":1}}"#
+            );
+            let body = if op == "run" {
+                params
+            } else {
+                format!(r#"{{"base":{params},"rhos":[0.5],"packets":1000}}"#)
+            };
+            handle(format!(r#"{{"tool":"queue","op":"{op}","params":{body}}}"#).as_bytes())
+        };
+        assert_eq!(req(flow, "run")["ok"]["stats"]["served"], 100);
+        assert_eq!(req(flow, "sweep")["ok"].as_array().unwrap().len(), 1);
+        // A token bucket smaller than the packet would hold it for ever.
+        let tight = r#"{"name":"a","rate_pps":500,"size_bytes":1000,"packets":100,"shaper":{"kind":"token","rate_bps":1000000,"bucket_bytes":500}}"#;
+        assert!(req(tight, "run")["error"].is_string());
+        let many = r#"{"name":"a","rate_pps":500,"size_bytes":1000,"packets":5000}"#;
+        assert!(req(many, "run")["error"].is_string());
+        assert!(handle(br#"{"tool":"queue","op":"source"}"#)["ok"]
+            .as_str()
+            .unwrap()
+            .contains("W1. [Tag for fair queueing.]"));
     }
 }
