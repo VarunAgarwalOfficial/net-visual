@@ -101,7 +101,7 @@ function ShapeEl({ s, arrow }: { s: Shape; arrow: string }) {
           fontSize={s.size}
           fill={CSS[s.fill]}
           fontWeight={s.bold ? 600 : undefined}
-          className="stroke-background lining"
+          className={cn("stroke-background lining", s.mono && "font-mono")}
           strokeWidth={3}
           paintOrder="stroke"
         >
@@ -214,7 +214,7 @@ function caText(p: CaParams, run: CaRun, e: CaEvent): string {
 
 // --- Totals ----------------------------------------------------------------
 
-const Row = ({ k, v, bad }: { k: string; v: string; bad?: boolean }) => (
+export const Row = ({ k, v, bad }: { k: string; v: string; bad?: boolean }) => (
   <div>
     <dt className="text-xs text-muted-foreground">{k}</dt>
     <dd className={cn("tabular-nums lining", bad && "text-destructive")}>{v}</dd>
@@ -272,7 +272,7 @@ export const Totals = memo(function Totals({ p, r }: { p: LinkParams; r: LinkRun
 
 // --- Equations -------------------------------------------------------------
 
-function Card({ title, children }: { title: string; children: ReactNode }) {
+export function Card({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="space-y-1.5 rounded-sm border border-border p-3">
       <p className="font-sans text-xs text-muted-foreground">{title}</p>
@@ -617,7 +617,7 @@ export function RefLines({ refs, s }: { refs: { y: number; label: string }[]; s:
 
 // --- The mode's own tab ----------------------------------------------------
 
-const TH = "pr-2 font-normal"
+export const TH = "pr-2 font-normal"
 
 export function AlohaFrames({ run, t }: { run: AlohaRun; t: number }) {
   const shown = run.frames.filter((f) => f.start_us <= t)
@@ -811,7 +811,7 @@ export function CaStations({ p, run, t }: { p: CaParams; run: CaRun; t: number }
 
 // --- Setup -----------------------------------------------------------------
 
-function Group({ legend, children }: { legend: string; children: ReactNode }) {
+export function Group({ legend, children }: { legend: string; children: ReactNode }) {
   return (
     <fieldset className="space-y-4 rounded-sm border border-border p-3">
       <legend className="px-1 font-sans text-xs text-muted-foreground">{legend}</legend>
@@ -910,6 +910,7 @@ export function LinkSetup({ p, set }: { p: LinkParams; set(p: LinkParams): void 
       </div>
     )
   }
+  if (p.mode !== "csmaca") return null
   const c = p.ca
   const put = (o: Partial<CaParams>) => set({ mode: "csmaca", ca: { ...c, ...o } })
   const move = (i: number, o: { x_m?: number; y_m?: number }) => put({ nodes: c.nodes.map((v, j) => (j === i ? { ...v, ...o } : v)) })

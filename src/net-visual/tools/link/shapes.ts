@@ -9,7 +9,17 @@ export type Ink = "ink" | "muted" | "alarm" | "surface" | "c0" | "c1" | "c2" | "
 export type Shape =
   | { kind: "rect"; x: number; y: number; w: number; h: number; fill?: Ink; stroke?: Ink; opacity?: number; dashed?: boolean }
   | { kind: "line"; x1: number; y1: number; x2: number; y2: number; stroke: Ink; width?: number; dashed?: boolean; arrow?: boolean }
-  | { kind: "text"; x: number; y: number; text: string; size: number; anchor: "start" | "middle" | "end"; fill: Ink; bold?: boolean }
+  | {
+      kind: "text"
+      x: number
+      y: number
+      text: string
+      size: number
+      anchor: "start" | "middle" | "end"
+      fill: Ink
+      bold?: boolean
+      mono?: boolean
+    }
   | { kind: "poly"; points: [number, number][]; fill?: Ink; stroke?: Ink; opacity?: number; dashed?: boolean }
   | { kind: "circle"; cx: number; cy: number; r: number; fill?: Ink; stroke?: Ink; opacity?: number; dashed?: boolean }
 
@@ -94,7 +104,7 @@ export function figSvg(fig: ShapeFigure): string {
       )
     else
       out.push(
-        `<text x="${n1(s.x)}" y="${n1(s.y)}" text-anchor="${s.anchor}" font-size="${s.size}" fill="${P[s.fill]}"${s.bold ? ' font-weight="bold"' : ""}>${esc(s.text)}</text>`,
+        `<text x="${n1(s.x)}" y="${n1(s.y)}" text-anchor="${s.anchor}" font-size="${s.size}" fill="${P[s.fill]}"${s.bold ? ' font-weight="bold"' : ""}${s.mono ? ` font-family="'CMU Typewriter Text', 'Latin Modern Mono', Menlo, Consolas, monospace"` : ""}>${esc(s.text)}</text>`,
       )
   }
   out.push(
@@ -140,7 +150,7 @@ export function figTikz(fig: ShapeFigure): string {
       const anchor = s.anchor === "start" ? "anchor=base west" : s.anchor === "end" ? "anchor=base east" : "anchor=base"
       const size = s.size <= 10 ? "\\scriptsize" : s.size <= 12 ? "\\footnotesize" : "\\small"
       L.push(
-        `  \\node[${anchor}, text=${col(s.fill)}, inner sep=0pt] at ${c(s.x, s.y)} {${size}${s.bold ? "\\bfseries" : ""} ${tex(s.text)}};`,
+        `  \\node[${anchor}, text=${col(s.fill)}, inner sep=0pt] at ${c(s.x, s.y)} {${size}${s.bold ? "\\bfseries" : ""}${s.mono ? "\\ttfamily" : ""} ${tex(s.text)}};`,
       )
     }
   }

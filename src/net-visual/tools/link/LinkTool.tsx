@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -16,6 +16,7 @@ import {
   LABS,
   MODES,
   PRESETS,
+  SOURCE,
   TOUR,
   eventTimes,
   fmtTime,
@@ -29,6 +30,41 @@ import {
 import { loadNetsim } from "../../core/load"
 import type { Netsim } from "../../core/netsim"
 import { linkFor, readHash } from "../../core/share"
+import {
+  CrcEquations,
+  CrcProps,
+  CrcSetup,
+  CrcTotals,
+  HammingEquations,
+  HammingSetup,
+  HammingSyndrome,
+  HammingTotals,
+  crcChart,
+  crcText,
+  crcWho,
+  hammingChart,
+  hammingText,
+  hammingWho,
+} from "./CodeViews"
+import { crcFigure, hammingFigure } from "./codeFigures"
+import { LanAnalysis, LanFrontier, LanInternals, LanIntro, LanMechanics } from "./LanArticle"
+import { stpFigure, switchFigure } from "./lanFigures"
+import {
+  StpEquations,
+  StpPorts,
+  StpSetup,
+  StpTotals,
+  SwitchEquations,
+  SwitchSetup,
+  SwitchTables,
+  SwitchTotals,
+  stpChart,
+  stpText,
+  stpWho,
+  switchChart,
+  switchText,
+  switchWho,
+} from "./LanViews"
 import { LinkAnalysis, LinkFrontier, LinkInternals, LinkIntro, LinkMechanics } from "./LinkArticle"
 import { alohaFigure, caFigure, cdFigure } from "./linkFigures"
 import {
@@ -52,7 +88,7 @@ interface Shared {
   t?: number
 }
 
-/** Link layer and wireless: ALOHA, CSMA/CD with binary exponential backoff, and 802.11 CSMA/CA. */
+/** Link layer and wireless: ALOHA, CSMA/CD, 802.11 CSMA/CA, switch learning, spanning tree, CRC and Hamming codes. */
 export function LinkTool() {
   const [sim, setSim] = useState<Netsim | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -70,12 +106,20 @@ const MODE_TAB: Record<Mode, { id: string; title: string }> = {
   aloha: { id: "frames", title: "Frames" },
   csmacd: { id: "backoff", title: "Backoff" },
   csmaca: { id: "stations", title: "Stations" },
+  switch: { id: "tables", title: "Tables" },
+  stp: { id: "ports", title: "Ports" },
+  crc: { id: "props", title: "Properties" },
+  hamming: { id: "syndrome", title: "Syndrome" },
 }
 /** Stable time formatters, so the memoised trace rows do not re-render. */
 const FORMAT: Record<Mode, (t: number) => string> = {
   aloha: (t) => fmtTime(t, "aloha"),
   csmacd: (t) => fmtTime(t, "csmacd"),
   csmaca: (t) => fmtTime(t, "csmaca"),
+  switch: (t) => fmtTime(t, "switch"),
+  stp: (t) => fmtTime(t, "stp"),
+  crc: (t) => fmtTime(t, "crc"),
+  hamming: (t) => fmtTime(t, "hamming"),
 }
 /** Events in each slice of the trace on screen; the slice moves in steps so most clock ticks re-render nothing. */
 const SLICE = 200
@@ -87,15 +131,25 @@ const HELP: Record<Mode, string> = {
     "Position along the cable across, time down. Each transmission spreads both ways along the cable at the speed of the signal, so it fills a widening band; a station hears another only once that band reaches its line. Red is the jam after a collision is heard.",
   csmaca:
     "The map shows who hears whom (dashed lines join nodes in range) and, while a frame is on the air, its sender's range. Below, one lane per node: frames on the air, red when lost at their receiver, and dashed bars where the node's NAV holds it silent.",
+  switch:
+    "Switches are rectangles, hubs dashed, hosts circles; the small numbers are port numbers. Each dot is one copy of a frame on its link, coloured by frame. The node that acted last is ringed, and a red bar marks a port the spanning tree blocks.",
+  stp: "Each bridge shows its ID and what it believes: root, or its root port and cost. Port markers give the role (R root, D designated, A alternate) in the colour of the state. Small squares are BPDUs in flight; heavy links forward.",
+  crc: "The long division as written by hand: the dividend, then each subtraction of the generator under the leftmost remaining 1 and what it leaves. The quotient grows on top. In the receiver's half, flipped bits are red.",
+  hamming:
+    "One box per position; parity positions are tinted, and the binary under each number says which checks cover it. The dots below mark each check's positions. The checks light up as they are computed and rechecked, and the syndrome points at the bit the decoder blames.",
 }
 
 function rateFor(p: LinkParams, duration: number): number {
   // Real seconds per frame at speed 1: half a second for ALOHA's frames, a second and a half for an Ethernet frame, a millisecond of air per second for Wi-Fi.
+  // A switch hop in 0.8 s; three seconds of spanning tree per second; one and a half division or parity steps per second.
+  if (p.mode === "switch") return p.sw.hop_us * 1.25
+  if (p.mode === "stp") return 3000
+  if (p.mode === "crc" || p.mode === "hamming") return 1.5
   const base = p.mode === "aloha" ? 2 * p.aloha.frame_us : p.mode === "csmacd" ? frameNs(p.cd) / 1.5 : 1000
   return Math.max(base, duration / 300)
 }
 
-function figureFor(p: LinkParams, r: LinkRun, t: number, w: number): { fig: ShapeFigure; label: string } {
+function figureFor(p: LinkParams, r: LinkRun, t: number, index: number, w: number): { fig: ShapeFigure; label: string } {
   if (p.mode === "aloha" && r.mode === "aloha") {
     const f = alohaFigure(p.aloha, r.run, t, w)
     return { fig: f, label: `${f.onAir} frames on the air, ${f.delivered} delivered and ${f.garbled} lost so far` }
@@ -108,7 +162,87 @@ function figureFor(p: LinkParams, r: LinkRun, t: number, w: number): { fig: Shap
     const f = caFigure(p.ca, r.run, t, w)
     return { fig: f, label: f.onAir.length ? `On the air: ${f.onAir.join(", ")}` : "The medium is idle" }
   }
+  if (p.mode === "switch" && r.mode === "switch") {
+    const f = switchFigure(p.sw, r.run, t, index, w)
+    return { fig: f, label: `The LAN: ${f.onWire} copies of frames on links` }
+  }
+  if (p.mode === "stp" && r.mode === "stp") {
+    const f = stpFigure(p.stp, r.run, t, index, w)
+    const agree = f.roots === 1 ? "all agree on the root" : `${f.roots} different roots believed`
+    return {
+      fig: f,
+      label: `The bridges: ${f.forwarding} ports forwarding, ${f.waiting} listening or learning, ${f.blocking} blocking; ${agree}`,
+    }
+  }
+  if (p.mode === "crc" && r.mode === "crc") return { fig: crcFigure(p.crc, r.run, index, w), label: "Long division over GF(2)" }
+  if (p.mode === "hamming" && r.mode === "hamming") {
+    const f = hammingFigure(p.ham, r.run, index, w)
+    return { fig: f, label: `Hamming codeword by position${f.flipped.length ? `, bits ${f.flipped.join(", ")} flipped` : ""}` }
+  }
   throw new Error("settings and run disagree on the mode")
+}
+
+/** The words for event i, whichever mode. */
+function textFor(p: LinkParams, r: LinkRun, i: number): string {
+  if (p.mode === "switch" && r.mode === "switch") return switchText(p.sw, r.run, i)
+  if (p.mode === "stp" && r.mode === "stp") return stpText(p.stp, r.run, i)
+  if (p.mode === "crc" && r.mode === "crc") return crcText(p.crc, r.run, i)
+  if (p.mode === "hamming" && r.mode === "hamming") return hammingText(p.ham, r.run, i)
+  return eventText(p, r, i)
+}
+
+function whoFor(p: LinkParams, r: LinkRun, i: number): string {
+  if (p.mode === "switch" && r.mode === "switch") return switchWho(p.sw, r.run, i)
+  if (p.mode === "stp" && r.mode === "stp") return stpWho(p.stp, r.run, i)
+  if (p.mode === "crc" && r.mode === "crc") return crcWho(p.crc, r.run, i)
+  if (p.mode === "hamming" && r.mode === "hamming") return hammingWho(p.ham, r.run, i)
+  return eventWho(p, r, i)
+}
+
+function chartFor(sim: Netsim, p: LinkParams, r: LinkRun) {
+  if (p.mode === "switch" && r.mode === "switch") return switchChart(sim, p.sw, r.run)
+  if (p.mode === "stp" && r.mode === "stp") return stpChart(p.stp, r.run)
+  if (p.mode === "crc" && r.mode === "crc") return crcChart(r.run)
+  if (p.mode === "hamming" && r.mode === "hamming") return hammingChart(p.ham, r.run)
+  return modeChart(sim, p, r)
+}
+
+function ModeTotals({ p, r }: { p: LinkParams; r: LinkRun }) {
+  let rows: ReactNode
+  if (p.mode === "switch" && r.mode === "switch") rows = <SwitchTotals p={p.sw} run={r.run} />
+  else if (p.mode === "stp" && r.mode === "stp") rows = <StpTotals p={p.stp} run={r.run} />
+  else if (p.mode === "crc" && r.mode === "crc") rows = <CrcTotals p={p.crc} run={r.run} />
+  else if (p.mode === "hamming" && r.mode === "hamming") rows = <HammingTotals p={p.ham} run={r.run} />
+  else return <Totals p={p} r={r} />
+  return <dl className="grid grid-cols-2 gap-x-4 gap-y-1 font-sans text-sm sm:grid-cols-3">{rows}</dl>
+}
+
+function ModeEquations({ p, r, t, index }: { p: LinkParams; r: LinkRun; t: number; index: number }) {
+  if (p.mode === "switch" && r.mode === "switch") return <SwitchEquations p={p.sw} run={r.run} index={index} />
+  if (p.mode === "stp" && r.mode === "stp") return <StpEquations p={p.stp} run={r.run} index={index} />
+  if (p.mode === "crc" && r.mode === "crc") return <CrcEquations p={p.crc} run={r.run} index={index} />
+  if (p.mode === "hamming" && r.mode === "hamming") return <HammingEquations p={p.ham} run={r.run} />
+  return <EquationCard p={p} r={r} t={t} />
+}
+
+/** Settings for the mode. The coding modes also take the last good run, to show the codeword whose bits can be flipped. */
+function ModeSetup({ p, r, set }: { p: LinkParams; r: LinkRun; set(p: LinkParams): void }) {
+  if (p.mode === "switch") return <SwitchSetup p={p.sw} set={(sw) => set({ mode: "switch", sw })} />
+  if (p.mode === "stp") return <StpSetup p={p.stp} set={(stp) => set({ mode: "stp", stp })} />
+  if (p.mode === "crc") return r.mode === "crc" ? <CrcSetup p={p.crc} run={r.run} set={(crc) => set({ mode: "crc", crc })} /> : null
+  if (p.mode === "hamming")
+    return r.mode === "hamming" ? <HammingSetup p={p.ham} run={r.run} set={(ham) => set({ mode: "hamming", ham })} /> : null
+  return <LinkSetup p={p} set={set} />
+}
+
+const FIGURE_LABEL: Record<Mode, string> = {
+  aloha: "The channel at this moment",
+  csmacd: "The space-time diagram at this moment",
+  csmaca: "The channel at this moment",
+  switch: "The LAN at this moment",
+  stp: "The bridges at this moment",
+  crc: "The division at this step",
+  hamming: "The codeword at this step",
 }
 
 function LinkLoaded({ sim }: { sim: Netsim }) {
@@ -120,9 +254,6 @@ function LinkLoaded({ sim }: { sim: Netsim }) {
   const [tour, setTour] = useState<number | null>(null)
   const root = useRef<HTMLElement>(null)
   const [figBox, width] = useWidth<HTMLDivElement>()
-
-  const source = useMemo(() => sim.call<string>("link", "source"), [sim])
-  const stepTitles = useMemo(() => new Map([...source.matchAll(STEP_RE)].map((m) => [m[1], m[2]])), [source])
 
   // A setting the model refuses leaves the last good run on screen with the reason.
   const [good, setGood] = useState<{ p: LinkParams; run: LinkRun }>(() => ({ p: params, run: runLink(sim, params) }))
@@ -141,17 +272,20 @@ function LinkLoaded({ sim }: { sim: Netsim }) {
   const { run, p } = good
   const mode = p.mode
   const fmt = FORMAT[mode]
+  const sourceTool = SOURCE[mode].tool
+  const source = useMemo(() => sim.call<string>(sourceTool, "source"), [sim, sourceTool])
+  const stepTitles = useMemo(() => new Map([...source.matchAll(STEP_RE)].map((m) => [m[1], m[2]])), [source])
 
   const times = useMemo(() => eventTimes(run), [run])
-  const duration = useMemo(() => linkDuration(p), [p])
+  const duration = useMemo(() => linkDuration(p, run), [p, run])
   const tl = useTimeline(times, duration, rateFor(p, duration), shared?.t ?? 0)
   const index = Math.max(0, tl.index)
   const event = run.run.events[index]
 
-  const { fig, label } = useMemo(() => figureFor(p, run, tl.t, Math.max(320, Math.round(width))), [p, run, tl.t, width])
-  const chart = useMemo(() => modeChart(sim, p, run), [sim, p, run])
+  const { fig, label } = useMemo(() => figureFor(p, run, tl.t, index, Math.max(320, Math.round(width))), [p, run, tl.t, index, width])
+  const chart = useMemo(() => chartFor(sim, p, run), [sim, p, run])
 
-  const trace = useMemo(() => run.run.events.map((e, i) => ({ t: e.t, step: e.step, text: eventText(p, run, i) })), [p, run])
+  const trace = useMemo(() => run.run.events.map((e, i) => ({ t: e.t, step: e.step, text: textFor(p, run, i) })), [p, run])
   const offset = Math.max(0, Math.floor(index / SLICE) * SLICE - SLICE)
   const traceSlice = useMemo(() => trace.slice(offset, offset + 3 * SLICE), [trace, offset])
 
@@ -246,7 +380,7 @@ function LinkLoaded({ sim }: { sim: Netsim }) {
           link={() => linkFor("link", { p, t: Math.round(tl.t) } satisfies Shared)}
           figures={[
             {
-              label: mode === "csmacd" ? "The space-time diagram at this moment" : "The channel at this moment",
+              label: FIGURE_LABEL[mode],
               stem: `link-${preset || "custom"}-figure`,
               svg: () => figSvg({ ...fig, caption }),
               tikz: () => figTikz({ ...fig, caption }),
@@ -318,15 +452,15 @@ function LinkLoaded({ sim }: { sim: Netsim }) {
           {event && (
             <div className="rounded-sm border border-border p-3" aria-live={tl.playing ? "off" : "polite"}>
               <p className="font-sans text-xs text-muted-foreground">
-                {fmt(event.t)}, {eventWho(p, run, index)}
+                {fmt(event.t)}, {whoFor(p, run, index)}
               </p>
               <p className="mt-0.5">
-                <b className="lining">{event.step}.</b> [{stepTitles.get(event.step) ?? ""}] {eventText(p, run, index)}
+                <b className="lining">{event.step}.</b> [{stepTitles.get(event.step) ?? ""}] {textFor(p, run, index)}
               </p>
             </div>
           )}
-          <Totals p={p} r={run} />
-          <EquationCard p={p} r={run} t={tl.t} />
+          <ModeTotals p={p} r={run} />
+          <ModeEquations p={p} r={run} t={tl.t} index={index} />
 
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList className="flex-wrap">
@@ -351,13 +485,25 @@ function LinkLoaded({ sim }: { sim: Netsim }) {
             <TabsContent value="stations">
               {tab === "stations" && p.mode === "csmaca" && run.mode === "csmaca" && <CaStations p={p.ca} run={run.run} t={tl.t} />}
             </TabsContent>
+            <TabsContent value="tables">
+              {tab === "tables" && p.mode === "switch" && run.mode === "switch" && <SwitchTables p={p.sw} run={run.run} index={index} />}
+            </TabsContent>
+            <TabsContent value="ports">
+              {tab === "ports" && p.mode === "stp" && run.mode === "stp" && <StpPorts p={p.stp} run={run.run} index={index} />}
+            </TabsContent>
+            <TabsContent value="props">
+              {tab === "props" && p.mode === "crc" && run.mode === "crc" && <CrcProps p={p.crc} run={run.run} />}
+            </TabsContent>
+            <TabsContent value="syndrome">
+              {tab === "syndrome" && p.mode === "hamming" && run.mode === "hamming" && <HammingSyndrome p={p.ham} run={run.run} />}
+            </TabsContent>
             <TabsContent value="setup">
-              <LinkSetup p={params} set={(next) => apply(next)} />
+              <ModeSetup p={params} r={run} set={(next) => apply(next)} />
             </TabsContent>
             <TabsContent value="source">
               <p className="mb-2 font-sans text-xs text-muted-foreground">
-                The Rust that produced this run (crates/netsim/src/link.rs), compiled into the page. The step behind the current event is
-                shaded.
+                The Rust that produced this run (crates/netsim/src/{SOURCE[mode].file}), compiled into the page. The step behind the current
+                event is shaded.
               </p>
               <LiterateSource source={source} active={tab === "source" && event ? event.step : null} className="max-h-[32rem]" />
             </TabsContent>
@@ -379,19 +525,40 @@ function LinkLoaded({ sim }: { sim: Netsim }) {
         </div>
       </div>
 
-      <Article sim={sim} onLoad={onLoad} />
+      <Article sim={sim} onLoad={onLoad} lanFirst={MODES.find((m) => m.id === mode)?.group !== "access"} />
     </section>
   )
 }
 
-const Article = memo(function Article({ sim, onLoad }: { sim: Netsim; onLoad(id: string): void }) {
-  return (
+/** Both articles, the one for the current mode's group first. */
+const Article = memo(function Article({ sim, onLoad, lanFirst }: { sim: Netsim; onLoad(id: string): void; lanFirst: boolean }) {
+  const access = (
     <>
       <LinkIntro onLoad={onLoad} />
       <LinkMechanics />
       <LinkAnalysis sim={sim} />
       <LinkFrontier />
       <LinkInternals />
+    </>
+  )
+  const lan = (
+    <>
+      <LanIntro onLoad={onLoad} />
+      <LanMechanics />
+      <LanAnalysis />
+      <LanFrontier />
+      <LanInternals />
+    </>
+  )
+  return lanFirst ? (
+    <>
+      {lan}
+      {access}
+    </>
+  ) : (
+    <>
+      {access}
+      {lan}
     </>
   )
 })
