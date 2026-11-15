@@ -611,7 +611,7 @@ export const TOUR: TourStep[] = [
   {
     preset: "split-horizon",
     at: 120 * S,
-    text: "Simple split horizon just leaves the route out instead of poisoning it. Silence carries no news, so y keeps the stale 50 that z offered long ago, and the loop y → z → y lasts until that entry times out at 180 s. RIP's timers are in seconds: this is three minutes of looping.",
+    text: "Simple split horizon just leaves the route out instead of poisoning it. Silence carries no news, so y keeps the stale 50 that z offered long ago, and the loop y → z → y lasts until that entry times out at 180 s. RIP's timers are in seconds: the loop lasts eighty of them.",
   },
   {
     preset: "ls-six",

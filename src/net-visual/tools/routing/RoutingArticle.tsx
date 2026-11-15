@@ -2,7 +2,7 @@ import { useMemo, type ReactNode } from "react"
 
 import { Tex } from "../../components/Tex"
 import type { Netsim } from "../../core/netsim"
-import { clock, forwardingTo, type RoutingParams, type RoutingRun } from "../../core/routing"
+import { clock, forwardingTo, periodic, type RoutingParams, type RoutingRun } from "../../core/routing"
 import { Exercise, Layer } from "../rdt/RdtArticle"
 
 /** A button that loads a scenario, for claims the reader can check at once. */
@@ -211,7 +211,17 @@ export function RoutingAnalysis({ p, run }: { sim: Netsim; p: RoutingParams; run
         exists to be found later. ∎
       </p>
       <p className="font-sans text-sm">
-        {p.jitter_us === 0 ? (
+        {p.algorithm === "ls" ? (
+          <>
+            Your network: H = {stats.H}. This run uses link state, which the theorem is not about; switch Setup to distance vector to
+            compare.
+          </>
+        ) : periodic(p) ? (
+          <>
+            Your network: H = {stats.H}. This run has RIP's timers on, so updates follow the clock rather than rounds; turn the update
+            period off in Setup to compare.
+          </>
+        ) : p.jitter_us === 0 ? (
           <>
             Your network: H = {stats.H}, so the bound is round {Math.max(0, stats.H - 1)}. The run's last table change before any scripted
             change is at {clock(stats.settled, p)}. The Rust tests check this bound on the six-router network.
@@ -251,9 +261,11 @@ export function RoutingAnalysis({ p, run }: { sim: Netsim; p: RoutingParams; run
       </p>
       <p className="font-sans text-sm">
         This run: some router's next hops form a loop at {stats.loopEvents} of {run.events.length} events, for{" "}
-        {p.jitter_us === 0
-          ? `${stats.loopTime / p.delay_us} round${stats.loopTime === p.delay_us ? "" : "s"}`
-          : `${(stats.loopTime / 1000).toFixed(1)} ms`}{" "}
+        {periodic(p)
+          ? `${Number((stats.loopTime / 1e6).toFixed(1))} s`
+          : p.jitter_us === 0
+            ? `${stats.loopTime / p.delay_us} round${stats.loopTime === p.delay_us ? "" : "s"}`
+            : `${(stats.loopTime / 1000).toFixed(1)} ms`}{" "}
         in total. A packet sent then would circle until its TTL ran out.
       </p>
 

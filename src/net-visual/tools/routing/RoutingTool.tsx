@@ -360,7 +360,7 @@ function RoutingLoaded({ sim }: { sim: Netsim }) {
             ) : ls ? (
               <>
                 Arrows are each router's next hop towards {p.nodes[d]}; boxes on the links are LSAs in flight, named by the router that
-                wrote them and their sequence number.
+                wrote them and their sequence number; "+2" means two more on the same link.
               </>
             ) : (
               <>
