@@ -78,10 +78,28 @@
 - Vault notes for routing: Distance-vector routing, Count to infinity,
   Link-state routing; map note updated.
 
+- Routing extension: link state as a flooded model (LSAs with sequence
+  numbers, flood to all but the sender, Dijkstra on each router's own map
+  with the RFC 2328 two-way check, database exchange when a link comes up);
+  RIP timers (period with RFC 2453 jitter, triggered updates on or off,
+  timeout); simple split horizon as a third choice beside none and poisoned
+  reverse. Rust tests: 2m - n + 1 LSAs per flood (90 on six routers), the
+  one-delay microloop, link state against Dijkstra on 40 random networks,
+  the count to 16 at two periods a step (last change 510.001 s), the split
+  horizon loop lasting until the 180 s timeout. Page: four scenarios, three
+  tour steps, a lab (make the microloop impossible), map card for link
+  state, LSA boxes grouped per link, seconds axis and slower play with
+  timers, Theorem 5 (flooding cost) and timer analysis in the article.
+  Browser-checked at 1440 and 390, light and dark. Vault notes Link-state
+  routing and Count to infinity updated. Commits from here on carry the
+  session's Opus attribution, as the coordinator directed.
+
 ## Next
 
-1. Link-state flooding as a model (LSAs with sequence numbers, transient
-   loops while databases differ), so both algorithms run on the wire.
-2. Periodic RIP timers (30 s updates, 180 s timeout) and split horizon
-   without poison as options.
-3. Further tools after routing: e.g. ARP and switching, or BGP policy.
+1. Tool 4, queueing and delay: M/M/1 and M/D/1 against the formulas, the
+   four delays, token and leaky bucket, FIFO, priority and WFQ.
+2. Tool 5, link layer and wireless: CSMA/CD with BEB, ALOHA and slotted
+   ALOHA, CSMA/CA with hidden and exposed terminals and RTS/CTS, switch
+   learning and spanning tree, CRC, Hamming codes.
+3. Tool 6, naming and the web: iterative and recursive DNS with caching
+   and TTLs; HTTP/1.1, HTTP/2 and HTTP/3 with head-of-line blocking.
