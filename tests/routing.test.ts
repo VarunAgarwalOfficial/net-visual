@@ -48,6 +48,12 @@ test("scenarios do what their notes say", () => {
   assert.equal(three.events[0].dist[0][2], 7)
   const round1 = three.events.filter((e) => e.t === MS)
   assert.equal(round1[round1.length - 1].dist[0][2], 3)
+  // and every table ends as the figure's last column.
+  assert.deepEqual(three.events[three.events.length - 1].dist, [
+    [0, 2, 3],
+    [2, 0, 1],
+    [3, 1, 0],
+  ])
 
   // Good news: right within one round of the change.
   const good = runRouting(sim, preset("good-news"))
