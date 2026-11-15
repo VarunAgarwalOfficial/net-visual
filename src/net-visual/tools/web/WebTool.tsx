@@ -12,7 +12,8 @@ import { ToolActions } from "../../components/ToolActions"
 import { TraceList } from "../../components/TraceList"
 import { Transport } from "../../components/Transport"
 import { keepFocus, timelineKeys, useTimeline } from "../../components/timeline"
-import { LABS, MODES, PRESETS, SOURCE, TOUR, eventAt, fmtUs, runDns, type DnsRun, type WebMode, type WebParams } from "../../core/dns"
+import { LABS, PRESETS, SOURCE, TOUR, eventAt, fmtUs, runDns, type DnsRun, type WebMode, type WebParams } from "../../core/dns"
+import { isHttpMode, type HttpMode } from "../../core/http"
 import { loadNetsim } from "../../core/load"
 import type { Netsim } from "../../core/netsim"
 import { linkFor, readHash } from "../../core/share"
@@ -20,6 +21,8 @@ import { RefLines, ShapeView, chartFigure } from "../link/LinkViews"
 import { figSvg, figTikz } from "../link/shapes"
 import { DnsAnalysis, DnsFrontier, DnsInternals, DnsIntro, DnsMechanics } from "./DnsArticle"
 import { ladderFigure } from "./dnsFigures"
+import { HttpPanel, type HttpShared } from "./HttpPanel"
+import { ModeSwitch, type AnyMode } from "./ModeSwitch"
 import { DnsCaches, DnsEquations, DnsSetup, DnsTotals, dnsChart, dnsWho } from "./DnsViews"
 
 interface Shared {
@@ -27,7 +30,7 @@ interface Shared {
   i?: number
 }
 
-/** Naming and the web: DNS resolution, shared caches and TTLs. */
+/** Naming and the web: DNS resolution, caches and TTLs; HTTP from 1.0 to 3. */
 export function WebTool() {
   const [sim, setSim] = useState<Netsim | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -36,7 +39,37 @@ export function WebTool() {
   }, [])
   if (error) return <p role="alert">The simulation could not load: {error}</p>
   if (!sim) return <p className="font-sans text-sm text-muted-foreground">Loading the simulation…</p>
-  return <WebLoaded sim={sim} />
+  return <WebPage sim={sim} />
+}
+
+/** Picks the DNS or HTTP panel; a mode in the other group swaps panels. */
+function WebPage({ sim }: { sim: Netsim }) {
+  const [start] = useState(() => {
+    const h = readHash<Shared | HttpShared>("web")
+    return h && "h" in h ? { http: h } : { dns: h ?? undefined }
+  })
+  const [pick, setPick] = useState<{ mode: AnyMode | null; n: number }>({ mode: null, n: 0 })
+  const http = pick.mode === null ? "http" in start : isHttpMode(pick.mode)
+  const onSwitch = useCallback((mode: AnyMode) => setPick((q) => ({ mode, n: q.n + 1 })), [])
+  if (http)
+    return (
+      <HttpPanel
+        key={pick.n}
+        sim={sim}
+        shared={pick.mode === null ? start.http : undefined}
+        startMode={pick.mode === null ? undefined : (pick.mode as HttpMode)}
+        onSwitch={onSwitch}
+      />
+    )
+  return (
+    <DnsPanel
+      key={pick.n}
+      sim={sim}
+      shared={pick.mode === null ? start.dns : undefined}
+      startMode={pick.mode === null ? undefined : (pick.mode as WebMode)}
+      onSwitch={onSwitch}
+    />
+  )
 }
 
 const STEP_RE = /([A-Z]\d+)\.\s\[([^\]]+)\]/g
@@ -55,9 +88,8 @@ const HELP: Record<WebMode, string> = {
 
 const FIGURE_LABEL = "The lookup at this moment"
 
-function WebLoaded({ sim }: { sim: Netsim }) {
-  const shared = useMemo(() => readHash<Shared>("web"), [])
-  const first = PRESETS[0]
+function DnsPanel({ sim, shared, startMode, onSwitch }: { sim: Netsim; shared?: Shared; startMode?: WebMode; onSwitch(m: AnyMode): void }) {
+  const first = PRESETS.find((pr) => pr.mode === (startMode ?? PRESETS[0].mode))!
   const [params, setParams] = useState<WebParams>(shared?.p ?? first.params)
   const [preset, setPreset] = useState<string>(shared ? "" : first.id)
   const [tab, setTab] = useState("trace")
@@ -145,25 +177,15 @@ function WebLoaded({ sim }: { sim: Netsim }) {
         if (timelineKeys(tl, e)) e.preventDefault()
       }}
     >
-      <ToggleGroup
-        type="single"
-        variant="outline"
-        aria-label="What to look at"
-        value={mode}
-        onValueChange={(v) => {
-          if (!v) return
-          load(PRESETS.find((pr) => pr.mode === v)!.id)
+      <ModeSwitch
+        mode={mode}
+        onPick={(v) => {
           setTour(null)
           focusRoot()
+          if (isHttpMode(v)) onSwitch(v)
+          else load(PRESETS.find((pr) => pr.mode === v)!.id)
         }}
-        className="flex-wrap"
-      >
-        {MODES.map((m) => (
-          <ToggleGroupItem key={m.id} value={m.id} className="px-3">
-            {m.title}
-          </ToggleGroupItem>
-        ))}
-      </ToggleGroup>
+      />
 
       <div className="flex flex-wrap items-end gap-3">
         <div className="min-w-56 flex-1">
