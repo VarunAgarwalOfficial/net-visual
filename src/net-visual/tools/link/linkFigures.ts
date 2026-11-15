@@ -236,7 +236,10 @@ export function cdFigure(p: CdParams, run: CdRun, t: number, w: number): CdFigur
     shapes.push({ kind: "line", x1: bx, y1: ya, x2: bx, y2: yb, stroke: "ink", width: 1 })
     shapes.push({ kind: "line", x1: bx - 3, y1: ya, x2: bx + 3, y2: ya, stroke: "ink", width: 1 })
     shapes.push({ kind: "line", x1: bx - 3, y1: yb, x2: bx + 3, y2: yb, stroke: "ink", width: 1 })
-    shapes.push(text(bx + dx / 2, yb - 4, `2τ = ${fmtTime(2 * tau, "csmacd")}`, { anchor, fill: "ink", size: 11.5 }))
+    // Keep the 2τ label clear of the "heard after" label that sits just above the detection mark.
+    const dy = lastDetect.detect_ns !== null && lastDetect.detect_ns <= tEnd ? Y(lastDetect.detect_ns) - 9 : Infinity
+    const ly = Math.abs(yb - 4 - dy) < 14 ? dy - 15 : yb - 4
+    shapes.push(text(bx + dx / 2, ly, `2τ = ${fmtTime(2 * tau, "csmacd")}`, { anchor, fill: "ink", size: 11.5 }))
   }
   for (const tx of run.txs) {
     if (tx.start_ns > tEnd || tx.end_ns < t0) continue
@@ -249,7 +252,8 @@ export function cdFigure(p: CdParams, run: CdRun, t: number, w: number): CdFigur
       shapes.push(
         text(
           x + dx,
-          y + 16,
+          // Above the mark: below it the jam spreads out from the station.
+          y - 9,
           `${narrow ? "heard after" : "hears it after"} ${fmtTime(tx.detect_ns - tx.start_ns, "csmacd")}${narrow ? "" : "; jams"}`,
           {
             anchor,

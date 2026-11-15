@@ -378,3 +378,9 @@
   max-width: var(--measure);
 }
 
+
+/* Display equations shrink to fit; any overflow left scrolls with a visible bar. */
+.nv-tex-display {
+  scrollbar-width: thin;
+  scrollbar-color: var(--muted-foreground) transparent;
+}
