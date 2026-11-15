@@ -500,8 +500,8 @@ Contrast (WCAG 2 relative luminance, computed from the token hexes by
 | meaning / code-bg (lowest) | 4.49 (amber) | 6.09 |
 
 Page colour on a solid meaning fill has the same ratio as the fill on
-the page. Amber on code-bg in light is 4.49, just under 4.5; it is used
-there only as a line or swatch (graphics, 3:1). Rule colour (1.35/1.41)
+the page. Amber on code-bg in light is 4.49, just under 4.5 for text
+(it passes the 3:1 graphics level); not fixed. Rule colour (1.35/1.41)
 is a separator only.
 
 ## Next
