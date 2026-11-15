@@ -182,7 +182,27 @@
   266/318 across seeds). Known phone limit: the CRC-8 "123456789"
   division (80-bit rows) fits 390 px but is too small to read there.
 
+- Tool 6 part A, "Naming and the web" (`#web`), DNS modes: Rust model
+  `dns.rs` (stub and recursive resolvers, root, top-level and
+  authoritative zones with per-hop RTTs; referrals with NS and glue;
+  iterative or a recursive chain; stub and resolver caches with exact
+  TTL expiry; RFC 2308 negative caching; CNAME chains across zones;
+  Poisson clients; TTL changes), dispatched as the wasm tool `dns`, with
+  `core/dns.ts`. Ten Rust tests: cold 100 ms = 10 + 30 + 40 + 20, warm
+  and same-zone lookups exact; expiry exactly at insert + TTL; negative
+  TTL min(3600, 300) = 300 s; iterative and recursive answers equal;
+  hit ratio within 4 sigma of lambda T / (1 + lambda L + lambda T) at
+  lambda T = 0.25, 1 and 5 (0.19982, 0.49968, 0.83303; the long run is
+  ignored by default). Rust 76 (2 ignored) and TS 55 tests green. The
+  page has three modes (resolution, shared cache, TTLs and change), 10
+  presets, 4 labs and a 14-stop tour; a message ladder (SVG and TikZ),
+  cache tables with TTLs counting down, live equations, a log-axis
+  hit-ratio sweep, and the five-layer article. Browser-checked at 1440
+  and 390, light and dark. `tools/web/` leaves room for the HTTP modes.
+- Vault notes for tool six part A: DNS resolution, DNS caching and TTLs,
+  and a naming section in the subject index.
+
 ## Next
 
-1. Tool 6, naming and the web: iterative and recursive DNS with caching
-   and TTLs; HTTP/1.1, HTTP/2 and HTTP/3 with head-of-line blocking.
+1. Tool 6 part B, on the same page: HTTP/1.1, HTTP/2 and HTTP/3 with
+   head-of-line blocking, as the wasm tool `http` beside `dns`.
