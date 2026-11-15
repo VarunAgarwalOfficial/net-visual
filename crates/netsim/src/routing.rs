@@ -156,6 +156,10 @@ pub struct Event {
     pub changed: Vec<[usize; 2]>,
     /// For a timeout: `[v, y]`, the neighbour and destination whose entry expired.
     pub expired: Option<[usize; 2]>,
+    /// How many messages had been sent when this event was recorded. Every
+    /// message is sent before the event that sends it is recorded, so message
+    /// m belongs to the first event whose `sent` exceeds m.
+    pub sent: usize,
 }
 
 /// One step of Dijkstra's algorithm from one source.
@@ -310,6 +314,7 @@ impl Sim<'_> {
             hop,
             changed,
             expired: None,
+            sent: self.messages.len(),
         });
     }
 
@@ -816,25 +821,27 @@ pub fn run(p: &Params) -> Run {
                 if up {
                     text += "; the two ends exchange the LSAs they hold";
                 }
+                // The LSAs exchanged over a link that comes up go first, so
+                // that they belong to this event; the new LSAs follow.
+                if up {
+                    for (x, v) in [(c.a, c.b), (c.b, c.a)] {
+                        let held: Vec<Lsa> = sim.routers[x]
+                            .db
+                            .iter()
+                            .flatten()
+                            .filter(|l| l.origin != x && l.origin != v)
+                            .cloned()
+                            .collect();
+                        for l in held {
+                            let m = sim.lsa_message(x, v, l);
+                            sim.send(x, v, t, m);
+                        }
+                    }
+                }
                 sim.record(t, -1, "L1", text, None, changed);
                 if ls {
                     sim.originate(c.a, t);
                     sim.originate(c.b, t);
-                    if up {
-                        for (x, v) in [(c.a, c.b), (c.b, c.a)] {
-                            let held: Vec<Lsa> = sim.routers[x]
-                                .db
-                                .iter()
-                                .flatten()
-                                .filter(|l| l.origin != x)
-                                .cloned()
-                                .collect();
-                            for l in held {
-                                let m = sim.lsa_message(x, v, l);
-                                sim.send(x, v, t, m);
-                            }
-                        }
-                    }
                 }
             }
             Ev::Arrive(id) => {
@@ -1328,6 +1335,35 @@ mod tests {
             .filter(|e| e.t < 10 * MS)
             .all(|e| !looped(e, 0, 1, 2)));
         assert_eq!(r.events.last().unwrap().dist[1][2], 4);
+    }
+
+    /// The page draws a message from the event that sent it, found by `sent`.
+    #[test]
+    fn every_message_belongs_to_an_event_at_its_send_time() {
+        let mut p = six();
+        p.jitter_us = 2 * MS;
+        p.changes = vec![
+            Change {
+                at_us: 10 * MS,
+                a: 3,
+                b: 4,
+                cost: None,
+            },
+            Change {
+                at_us: 40 * MS,
+                a: 3,
+                b: 4,
+                cost: Some(1),
+            },
+        ];
+        for algorithm in [Algorithm::Dv, Algorithm::Ls] {
+            p.algorithm = algorithm;
+            let r = run(&p);
+            for m in &r.messages {
+                let e = r.events.iter().find(|e| e.sent > m.id).unwrap();
+                assert_eq!(e.t, m.t_send, "message {} under {:?}", m.id, algorithm);
+            }
+        }
     }
 
     #[test]

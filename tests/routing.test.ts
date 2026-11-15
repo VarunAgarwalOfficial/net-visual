@@ -88,10 +88,68 @@ test("scenarios do what their notes say", () => {
   assert.ok(fail.events.some((e) => SIX.nodes.some((_, y) => forwardingTo(e.hop, y).cycles.length > 0)))
   const calm = runRouting(sim, SIX)
   assert.deepEqual(fail.events[fail.events.length - 1].dist, calm.events[calm.events.length - 1].dist)
+
+  // Link state on six routers: 6 × (2 × 10 − 6 + 1) = 90 LSAs, and the same
+  // routes as distance vector.
+  const ls = runRouting(sim, preset("ls-six"))
+  assert.equal(ls.totals.messages, 90)
+  assert.deepEqual(ls.events[ls.events.length - 1].dist, calm.events[calm.events.length - 1].dist)
+
+  // The microloop: a → b → a for d at the failure, gone one delay later.
+  const micro = runRouting(sim, preset("ls-microloop"))
+  const at = (run: typeof micro, t: number) => run.events.filter((e) => e.t <= t).pop()!
+  assert.deepEqual(forwardingTo(at(micro, 10 * MS).hop, 2).cycles, [[0, 1]])
+  assert.equal(forwardingTo(at(micro, 11 * MS).hop, 2).cycles.length, 0)
+  assert.ok(micro.events.filter((e) => e.t < 10 * MS).every((e) => forwardingTo(e.hop, 2).cycles.length === 0))
+
+  // RIP's timer without triggered updates: b counts 3, 5, ..., 15, 16, a
+  // step every two periods, and is done at 510 s, inside the 560 s shown.
+  const S = 1_000_000
+  const rip = runRouting(sim, preset("rip-slow"))
+  assert.deepEqual([...new Set(rip.events.map((e) => e.dist[1][0]))], [1, 3, 5, 7, 9, 11, 13, 15, 16])
+  assert.equal(rip.totals.last_change_us, 510 * S + MS)
+  assert.equal(runDuration(rip, preset("rip-slow")), 560 * S)
+
+  // Simple split horizon: y and z loop for x from the rise at 100 s until
+  // y's stale entry from z times out at 180 s.
+  const split = runRouting(sim, preset("split-horizon"))
+  assert.ok(forwardingTo(at(split, 101 * S).hop, 0).cycles.length > 0)
+  assert.ok(forwardingTo(at(split, 179 * S).hop, 0).cycles.length > 0)
+  assert.equal(forwardingTo(at(split, 182 * S).hop, 0).cycles.length, 0)
+  assert.ok(split.events.some((e) => e.step === "T2" && e.t === 180 * S + MS))
+})
+
+test("every message is drawn from the event that sent it", () => {
+  for (const pr of PRESETS) {
+    for (const algorithm of ["dv", "ls"] as const) {
+      const p = { ...pr.params, algorithm }
+      const run = runRouting(sim, p)
+      for (const m of run.messages) assert.equal(run.events.find((e) => e.sent > m.id)?.t, m.t_send, `${pr.id} ${algorithm} ${m.id}`)
+    }
+  }
+})
+
+test("each router's replayed map ends as the network is", () => {
+  const p: RoutingParams = { ...preset("six-failure"), algorithm: "ls" }
+  const run = runRouting(sim, p)
+  assert.ok(run.totals.converged)
+  const s = stateAfter(run, p, run.events.length - 1)
+  for (let x = 0; x < 6; x++)
+    for (let o = 0; o < 6; o++) {
+      const truth = s.cost[o].flatMap((c, v) => (c >= 0 && v !== o ? [[v, c]] : []))
+      assert.deepEqual(s.db[x][o]?.links, truth, `${p.nodes[x]} holds ${p.nodes[o]}'s LSA`)
+    }
+  // While x–y is down, x's and y's new LSAs leave the link out.
+  const down = stateAfter(
+    run,
+    p,
+    run.events.findLastIndex((e) => e.t < 40 * MS),
+  )
+  for (let x = 0; x < 6; x++) assert.ok(!down.db[x][3]!.links.some(([v]) => v === 4), `${p.nodes[x]}'s copy of x's LSA`)
 })
 
 test("the Bellman-Ford terms the page shows reproduce every router's table", () => {
-  for (const id of ["six", "bad-news", "poison", "loop-of-three", "six-failure", "async"]) {
+  for (const id of ["six", "bad-news", "poison", "loop-of-three", "six-failure", "async", "split-horizon", "rip-slow"]) {
     const p = preset(id)
     const run = runRouting(sim, p)
     const n = p.nodes.length
@@ -171,4 +229,13 @@ test("labs fail at the start and pass when solved", () => {
   const loop = { ...SIX, jitter_us: 2 * MS, seed: 3, changes: [{ at_us: 10 * MS, a: 3, b: 4, cost: null }] }
   const made = check("make-loop", loop)
   assert.ok(made.ok, made.message)
+
+  const micro = lab("no-microloop").start
+  for (const fix of [
+    { ...micro, links: micro.links.map((l, i) => (i === 0 ? { ...l, cost: 3 } : l)) },
+    { ...micro, links: micro.links.map((l, i) => (i === 2 ? { ...l, cost: 1 } : l)) },
+  ])
+    assert.ok(check("no-microloop", fix).ok, check("no-microloop", fix).message)
+  const both = { ...micro, links: micro.links.map((l, i) => (i === 0 ? { ...l, cost: 3 } : i === 2 ? { ...l, cost: 1 } : l)) }
+  assert.equal(check("no-microloop", both).ok, false)
 })

@@ -126,8 +126,12 @@ export function BellmanCard({ p, s, event, x, y }: { p: RoutingParams; s: State;
       <Tex display>{`\\begin{aligned} ${general.replace(" = ", " &= ")} \\\\ ${filled.replace(/ = /, " &= ")} \\end{aligned}`}</Tex>
       <ul className="space-y-0.5 font-sans text-sm">
         {terms.map((t) => {
-          const m = s.heard[x][t.v]
+          const h = s.heard[x][t.v]
+          const m = h?.via[y] ?? null
           const poisoned = m?.poisoned.includes(y)
+          // An entry set to infinity after the last message carrying it: the timer expired it.
+          const expired = h !== null && m !== null && h.vector[y] >= p.infinity && m.vector[y] < p.infinity
+          const left = h !== null && m === null ? " (left out of every update so far, by split horizon)" : null
           return (
             <li key={t.v} className={cn("tabular-nums lining", t.v === hop && best < p.infinity && "font-semibold")}>
               via {name(p, t.v)}: link {t.c} + {name(p, t.v)}'s cost {showDist(t.dv, p.infinity)}
@@ -135,8 +139,10 @@ export function BellmanCard({ p, s, event, x, y }: { p: RoutingParams; s: State;
                 {t.v === y
                   ? " (it is the destination)"
                   : m
-                    ? ` (heard at ${clock(m.t_arrive, p)}${poisoned ? `; poisoned, because ${name(p, t.v)} routes to ${name(p, y)} through ${name(p, x)}` : ""})`
-                    : " (nothing heard yet)"}
+                    ? expired
+                      ? ` (heard as ${showDist(m.vector[y], p.infinity)} at ${clock(m.t_arrive, p)}, then timed out)`
+                      : ` (heard at ${clock(m.t_arrive, p)}${poisoned ? `; poisoned, because ${name(p, t.v)} routes to ${name(p, y)} through ${name(p, x)}` : ""}${h?.last !== m && h?.last?.omitted.includes(y) ? `; not repeated since, because split horizon leaves it out` : ""})`
+                    : (left ?? " (nothing heard yet)")}
               </span>
               {t.v === hop && best < p.infinity && <span className="font-normal text-muted-foreground">: chosen</span>}
             </li>
@@ -148,6 +154,61 @@ export function BellmanCard({ p, s, event, x, y }: { p: RoutingParams; s: State;
           The table still says {showDist(event.dist[x][y], p.infinity)}: {name(p, x)} recomputes when the next message arrives.
         </p>
       )}
+    </div>
+  )
+}
+
+/**
+ * Link state: router x's map, the newest LSA it holds from each router, set
+ * against the network as it really is now. A stale or missing LSA is where
+ * x's Dijkstra can go wrong.
+ */
+export function MapCard({ p, s, event, x, y }: { p: RoutingParams; s: State; event: REvent; x: number; y: number }) {
+  const truth = (o: number) => s.cost[o].flatMap((c, v) => (c >= 0 && v !== o ? [`${name(p, v)} ${c}`] : [])).join(", ")
+  const rows = p.nodes.map((_, o) => {
+    const l = s.db[x][o]
+    const held = l ? l.links.map(([v, c]) => `${name(p, v)} ${c}`).join(", ") : null
+    return { o, l, held, stale: held !== null && held !== truth(o) }
+  })
+  const behind = rows.filter((r) => r.held === null || r.stale).length
+  const d = event.dist[x][y]
+  const hop = event.hop[x][y]
+  return (
+    <div className="space-y-2 rounded-sm border border-border p-3 font-sans text-sm">
+      <p className="text-xs text-muted-foreground">Router {name(p, x)}'s map: the newest LSA it holds from each router</p>
+      <table className="tabular-nums lining" aria-label={`Router ${name(p, x)}'s link-state database`}>
+        <thead>
+          <tr className="text-left text-xs text-muted-foreground">
+            <th className="py-0.5 pr-3 font-normal">from</th>
+            <th className="py-0.5 pr-3 font-normal">seq</th>
+            <th className="py-0.5 font-normal">links it lists</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(({ o, l, held, stale }) => (
+            <tr key={o} className={cn(stale && "text-destructive")}>
+              <td className="py-0.5 pr-3">{name(p, o)}</td>
+              <td className="py-0.5 pr-3">{l ? `#${l.seq}` : "–"}</td>
+              <td className="py-0.5">
+                {held === null ? <span className="text-muted-foreground">not received yet</span> : held || "none"}
+                {stale && <span className="text-xs"> (now really: {truth(o) || "none"})</span>}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p>
+        {x === y
+          ? `Pick another destination to see ${name(p, x)}'s route.`
+          : d >= p.infinity
+            ? `Dijkstra on this map finds no route to ${name(p, y)}.`
+            : `Dijkstra on this map: ${name(p, y)} at cost ${d}, first hop ${name(p, hop)}.`}{" "}
+        <span className="text-muted-foreground">
+          {behind === 0
+            ? "The map matches the network, so the route is right."
+            : `${behind} ${behind === 1 ? "entry is" : "entries are"} missing or out of date. A link to another router counts only if that router's LSA lists it too (the two-way check).`}
+        </span>
+      </p>
     </div>
   )
 }
@@ -327,16 +388,109 @@ export function RoutingSetup({ p, set }: { p: RoutingParams; set(p: RoutingParam
   const floor = maxCost(p) + 1
   const pairs = new Set(p.links.map((l) => `${Math.min(l.a, l.b)}-${Math.max(l.a, l.b)}`))
   const canAdd = na !== nb && !pairs.has(`${Math.min(na, nb)}-${Math.max(na, nb)}`) && p.links.length < 45
+  const reverse = p.poison ? "poison" : p.split_horizon ? "split" : "none"
+  const dv = p.algorithm === "dv"
   return (
     <div className="space-y-5">
-      <ParamSwitch
-        label="Poisoned reverse"
-        name="Poisoned reverse"
-        checked={p.poison}
-        onChange={(v) => set({ ...p, poison: v })}
-        on="a router tells its next hop that the route is infinite"
-        off="every neighbour hears the same vector"
-      />
+      <fieldset className="space-y-1.5 font-sans text-sm">
+        <legend className="mb-1 text-xs text-muted-foreground">Algorithm</legend>
+        {(
+          [
+            ["dv", "Distance vector (Bellman-Ford, as RIP): routers trade cost tables with neighbours"],
+            ["ls", "Link state (flooding and Dijkstra, as OSPF): every router learns every link"],
+          ] as const
+        ).map(([v, text]) => (
+          <label key={v} className="flex items-start gap-2">
+            <input
+              type="radio"
+              name="routing-algorithm"
+              className="mt-1"
+              checked={p.algorithm === v}
+              onChange={() => set({ ...p, algorithm: v })}
+            />
+            <span>{text}</span>
+          </label>
+        ))}
+      </fieldset>
+      {dv && (
+        <fieldset className="space-y-1.5 font-sans text-sm">
+          <legend className="mb-1 text-xs text-muted-foreground">Routes through the neighbour being told</legend>
+          {(
+            [
+              ["none", "Sent as they are: every neighbour hears the same vector"],
+              ["split", "Split horizon: left out, so the neighbour hears nothing about them"],
+              ["poison", "Poisoned reverse: sent as infinity"],
+            ] as const
+          ).map(([v, text]) => (
+            <label key={v} className="flex items-start gap-2">
+              <input
+                type="radio"
+                name="routing-reverse"
+                className="mt-1"
+                checked={reverse === v}
+                onChange={() => set({ ...p, poison: v === "poison", split_horizon: v === "split" })}
+              />
+              <span>{text}</span>
+            </label>
+          ))}
+        </fieldset>
+      )}
+      {dv && (
+        <fieldset className="space-y-4 rounded-sm border border-border p-3 font-sans text-sm">
+          <legend className="px-1 text-xs text-muted-foreground">RIP's timers</legend>
+          <ParamSlider
+            label="Update period (whole vector to every neighbour)"
+            value={p.period_us / 1e6}
+            min={0}
+            max={60}
+            step={1}
+            format={(v) => (v === 0 ? "off: updates only when something changes" : `${v} s`)}
+            onChange={(v) => {
+              const period = v * 1e6
+              set({
+                ...p,
+                period_us: period,
+                triggered: period === 0 ? true : p.triggered,
+                timeout_us: period === 0 ? 0 : p.timeout_us > period ? p.timeout_us : 6 * period,
+                end_us: 0,
+              })
+            }}
+          />
+          {p.period_us > 0 && (
+            <>
+              <ParamSwitch
+                label="Triggered updates"
+                name="Triggered updates"
+                checked={p.triggered}
+                onChange={(v) => set({ ...p, triggered: v })}
+                on="a router also speaks as soon as its vector changes"
+                off="a router speaks only when its timer fires"
+              />
+              <ParamSlider
+                label="Timeout (an entry not repeated this long becomes unreachable)"
+                value={p.timeout_us / 1e6}
+                min={0}
+                max={Math.max(360, p.timeout_us / 1e6)}
+                step={10}
+                format={(v) => (v === 0 ? "never" : `${v} s`)}
+                onChange={(v) => {
+                  const t = v * 1e6
+                  set({ ...p, timeout_us: t === 0 || t > p.period_us ? t : p.period_us + 1e6 })
+                }}
+              />
+              <ParamSlider
+                label="Run until"
+                value={p.end_us / 1e6}
+                min={0}
+                max={Math.max(1200, p.end_us / 1e6)}
+                step={10}
+                format={(v) => (v === 0 ? "the last change, plus the timeout, plus four periods" : `${v} s`)}
+                onChange={(v) => set({ ...p, end_us: v * 1e6 })}
+              />
+            </>
+          )}
+        </fieldset>
+      )}
       <ParamSlider
         label="Infinity (a cost this large means unreachable)"
         value={p.infinity}

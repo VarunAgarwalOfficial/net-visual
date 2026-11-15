@@ -23,11 +23,30 @@ export interface RoutingParams {
   pos: [number, number][]
   links: RLink[]
   changes: RChange[]
+  /** Distance vector (Bellman-Ford, as RIP) or link state (flooding and Dijkstra, as OSPF). */
+  algorithm: "dv" | "ls"
   poison: boolean
+  /** Simple split horizon: leave routes through a neighbour out of what it is sent. Poisoned reverse wins if both are on. */
+  split_horizon: boolean
   infinity: number
   delay_us: number
   jitter_us: number
   seed: number
+  /** Distance vector: send the whole vector this often; 0 for never. */
+  period_us: number
+  /** Distance vector: send when the vector changes. */
+  triggered: boolean
+  /** With a period: an entry not repeated for this long becomes unreachable; 0 for never. */
+  timeout_us: number
+  /** With a period: when the run stops; 0 for the last change plus the timeout plus four periods. */
+  end_us: number
+}
+
+/** A link-state advertisement: a router's working links, as [neighbour, cost]. */
+export interface Lsa {
+  origin: number
+  seq: number
+  links: [number, number][]
 }
 
 export interface RMessage {
@@ -36,8 +55,14 @@ export interface RMessage {
   to: number
   t_send: number
   t_arrive: number
+  /** Empty for an LSA. */
   vector: number[]
   poisoned: number[]
+  /** Left out by split horizon. */
+  omitted: number[]
+  /** Sent by the update timer. */
+  periodic: boolean
+  lsa: Lsa | null
   lost: boolean
 }
 
@@ -50,6 +75,10 @@ export interface REvent {
   dist: number[][]
   hop: number[][]
   changed: [number, number][]
+  /** For a timeout (step T2): [neighbour, destination] of the entry that expired. */
+  expired: [number, number] | null
+  /** Messages sent so far: message m belongs to the first event whose count exceeds m. */
+  sent: number
 }
 
 export interface DijkstraStep {
@@ -69,14 +98,17 @@ export interface RoutingRun {
   events: REvent[]
   messages: RMessage[]
   epochs: Epoch[]
-  totals: { messages: number; lost: number; last_change_us: number; converged: boolean; truncated: boolean }
+  totals: { messages: number; lost: number; last_change_us: number; converged: boolean; truncated: boolean; end_us: number }
 }
 
 export const runRouting = (sim: Netsim, p: RoutingParams) => sim.call<RoutingRun>("routing", "run", p)
 
 /** The time the page shows: a little past the last event. */
 export const runDuration = (run: RoutingRun, p: RoutingParams) =>
-  Math.max(run.events[run.events.length - 1].t, ...p.changes.map((c) => c.at_us)) + p.delay_us
+  periodic(p) ? run.totals.end_us : Math.max(run.events[run.events.length - 1].t, ...p.changes.map((c) => c.at_us)) + p.delay_us
+
+/** RIP's update timer is on (distance vector only). */
+export const periodic = (p: RoutingParams) => p.algorithm === "dv" && p.period_us > 0
 
 export const epochAt = (run: RoutingRun, t: number): Epoch => {
   let e = run.epochs[0]
@@ -87,11 +119,22 @@ export const epochAt = (run: RoutingRun, t: number): Epoch => {
 /** The changes in the order the model applies them: one L1 event each. */
 const ordered = (p: RoutingParams) => p.changes.map((c, k) => ({ c, k })).sort((a, b) => a.c.at_us - b.c.at_us || a.k - b.k)
 
+/** What x holds from neighbour v: each entry, when it was last heard, and in which message. */
+export interface Heard {
+  vector: number[]
+  at: number[]
+  via: (RMessage | null)[]
+  /** The latest message from v, which may have left some entries out. */
+  last: RMessage | null
+}
+
 export interface State {
   /** Link costs, -1 where there is no link. */
   cost: number[][]
-  /** heard[x][v]: the last message x kept from v, or null. */
-  heard: (RMessage | null)[][]
+  /** heard[x][v]: what x holds from v, or null. */
+  heard: (Heard | null)[][]
+  /** db[x][o]: link state, the newest LSA x holds from o, or null. */
+  db: (Lsa | null)[][]
 }
 
 /**
@@ -106,7 +149,8 @@ export function stateAfter(run: RoutingRun, p: RoutingParams, i: number): State 
     cost[l.a][l.b] = l.cost
     cost[l.b][l.a] = l.cost
   }
-  const heard: (RMessage | null)[][] = Array.from({ length: n }, () => Array<RMessage | null>(n).fill(null))
+  const heard: (Heard | null)[][] = Array.from({ length: n }, () => Array<Heard | null>(n).fill(null))
+  const db: (Lsa | null)[][] = Array.from({ length: n }, () => Array<Lsa | null>(n).fill(null))
   const changes = ordered(p)
   let next = 0
   for (let j = 0; j <= i && j < run.events.length; j++) {
@@ -122,11 +166,34 @@ export function stateAfter(run: RoutingRun, p: RoutingParams, i: number): State 
       }
     } else if ((e.step === "D1" || e.step === "D2") && e.message !== null) {
       const m = run.messages[e.message]
-      heard[m.to][m.from] = m
+      const h = (heard[m.to][m.from] ??= {
+        vector: Array<number>(n).fill(p.infinity),
+        at: Array<number>(n).fill(0),
+        via: Array<RMessage | null>(n).fill(null),
+        last: null,
+      })
+      h.last = m
+      m.vector.forEach((d, y) => {
+        if (m.omitted.includes(y)) return
+        h.vector[y] = d
+        h.at[y] = m.t_arrive
+        h.via[y] = m
+      })
+    } else if (e.step === "T2" && e.expired) {
+      const h = heard[e.node][e.expired[0]]
+      if (h) h.vector[e.expired[1]] = p.infinity
+    } else if (e.step === "F1" && e.node >= 0) {
+      db[e.node][e.node] = { origin: e.node, seq: (db[e.node][e.node]?.seq ?? 0) + 1, links: linksOf(cost, e.node) }
+    } else if (e.step === "F2" && e.message !== null) {
+      const l = run.messages[e.message].lsa!
+      db[run.messages[e.message].to][l.origin] = l
     }
   }
-  return { cost, heard }
+  return { cost, heard, db }
 }
+
+const linksOf = (cost: number[][], x: number): [number, number][] =>
+  cost[x].flatMap((c, v) => (c >= 0 && v !== x ? [[v, c] as [number, number]] : []))
 
 export interface Term {
   v: number
@@ -208,12 +275,16 @@ export function normalise(p: RoutingParams): RoutingParams {
     Array.isArray(p.pos) &&
     p.pos.length === p.nodes.length &&
     p.pos.every((q) => Array.isArray(q) && q[0] >= 0 && q[0] <= 100 && q[1] >= 0 && q[1] <= 60)
-  return { ...p, pos: ok ? p.pos : circle(p.nodes.length), changes: p.changes ?? [] }
+  return { ...DEFAULTS, ...p, pos: ok ? p.pos : circle(p.nodes.length), changes: p.changes ?? [] }
 }
 
-/** Rounds when messages all take one delay; otherwise milliseconds. */
+/** Rounds when messages all take one delay; seconds with RIP's timer on; otherwise milliseconds. */
 export const clock = (t: number, p: RoutingParams) =>
-  p.jitter_us === 0 ? `round ${Number((t / p.delay_us).toFixed(2))}` : `${Number((t / 1000).toFixed(2))} ms`
+  periodic(p)
+    ? `${Number((t / 1e6).toFixed(3))} s`
+    : p.jitter_us === 0
+      ? `round ${Number((t / p.delay_us).toFixed(2))}`
+      : `${Number((t / 1000).toFixed(2))} ms`
 
 /** Cost changes from event i onwards, for counting updates after a change. */
 export function updatesAfter(run: RoutingRun, t: number, cells?: [number, number][]): number {
@@ -227,7 +298,18 @@ export function updatesAfter(run: RoutingRun, t: number, cells?: [number, number
 
 const MS = 1000
 
+/** The options added after the first share links; older links get these. */
+const DEFAULTS = {
+  algorithm: "dv" as const,
+  split_horizon: false,
+  period_us: 0,
+  triggered: true,
+  timeout_us: 0,
+  end_us: 0,
+}
+
 const base = {
+  ...DEFAULTS,
   changes: [],
   poison: false,
   infinity: 100,
@@ -325,6 +407,26 @@ const CHAIN: RoutingParams = {
   changes: [{ at_us: 4 * MS, a: 0, b: 1, cost: null }],
 }
 
+/** a reaches d through b (1 + 1) rather than directly (3); then b–d fails. */
+const MICRO: RoutingParams = {
+  ...base,
+  algorithm: "ls",
+  nodes: ["a", "b", "d"],
+  pos: [
+    [14, 50],
+    [50, 8],
+    [86, 50],
+  ],
+  links: [
+    { a: 0, b: 1, cost: 1 },
+    { a: 1, b: 2, cost: 1 },
+    { a: 0, b: 2, cost: 3 },
+  ],
+  changes: [{ at_us: 10 * MS, a: 1, b: 2, cost: null }],
+}
+
+const S = 1_000_000
+
 export interface Preset {
   id: string
   title: string
@@ -416,6 +518,51 @@ export const PRESETS: Preset[] = [
     },
     dest: 5,
   },
+  {
+    id: "ls-six",
+    title: "Link state on the six routers: flood, then Dijkstra",
+    source: "Kurose and Ross, Section 5.2.1; RFC 2328, Section 13",
+    note: "Each router floods one LSA listing its links. A router passes on an LSA it has not seen to every neighbour except the sender and drops copies it already holds, so each LSA crosses every link once each way bar the n − 1 links of its flooding tree: 2m − n + 1 = 15 messages on these ten links, 90 for all six. Once a router holds all six LSAs it runs Dijkstra and its routes match the table.",
+    params: { ...SIX, algorithm: "ls" },
+    dest: 5,
+  },
+  {
+    id: "ls-microloop",
+    title: "Link state loops too, while the maps differ",
+    source: "RFC 5715, Section 1",
+    note: "a reaches d through b, at 1 + 1. At 10 ms the link b–d fails. b sees it at once and now routes to d through a; a has not yet had b's new LSA, so it still routes through b. For one delay packets for d go a → b → a, until the LSA arrives and a's own Dijkstra puts it right.",
+    params: MICRO,
+    dest: 2,
+  },
+  {
+    id: "rip-slow",
+    title: "RIP's timer: counting to 16 takes minutes",
+    source: "RFC 2453, Sections 3.4.2 and 3.8",
+    note: "No triggered updates: each router sends its vector only when its 30-second timer fires. At 100 s a's link fails. b and c count up as before, but each step now waits for the other's next update, so b's route climbs by 2 every minute and reaches 16 at about 510 s, nearly seven minutes of packets sent round a loop.",
+    params: {
+      ...CHAIN,
+      period_us: 30 * S,
+      triggered: false,
+      timeout_us: 180 * S,
+      changes: [{ at_us: 100 * S, a: 0, b: 1, cost: null }],
+      end_us: 560 * S,
+    },
+    dest: 0,
+  },
+  {
+    id: "split-horizon",
+    title: "Simple split horizon: the wrong route waits for the timeout",
+    source: "RFC 2453, Section 3.4.3; Kurose and Ross, Fig. 5.7",
+    note: "z routes to x through y, so it leaves x out of what it sends y; y still holds the 50 z offered at the start. At 100 s x–y rises to 60 and y takes z's stale 50 + 1, while z, told nothing new about x, keeps routing through y. The loop lasts until y's entry from z expires, 180 s after z last mentioned x. Compare the poison preset: an explicit infinity removes it at once.",
+    params: {
+      ...TRIANGLE,
+      split_horizon: true,
+      period_us: 30 * S,
+      timeout_us: 180 * S,
+      changes: [{ at_us: 100 * S, a: 0, b: 1, cost: 60 }],
+    },
+    dest: 0,
+  },
 ]
 
 export interface TourStep {
@@ -460,6 +607,21 @@ export const TOUR: TourStep[] = [
     preset: "loop-of-three",
     at: 10 * MS,
     text: "But poisoned reverse only sees loops of two. Here c and d route to a through b; each offers the other a route, and they count to 16 three at a time.",
+  },
+  {
+    preset: "split-horizon",
+    at: 120 * S,
+    text: "Simple split horizon just leaves the route out instead of poisoning it. Silence carries no news, so y keeps the stale 50 that z offered long ago, and the loop y → z → y lasts until that entry times out at 180 s. RIP's timers are in seconds: this is three minutes of looping.",
+  },
+  {
+    preset: "ls-six",
+    at: 2 * MS,
+    text: "Link state works the other way round: every router floods a description of its own links to everyone, and each runs Dijkstra on the full map. Flooding costs 2m − n + 1 messages per LSA, 90 in all here, but nothing is ever computed from a neighbour's opinion.",
+  },
+  {
+    preset: "ls-microloop",
+    at: 10 * MS,
+    text: "Even so, link state can loop. b has seen its link to d fail and now routes through a; a has not yet heard, and still routes through b. The loop lasts exactly as long as the LSA takes to reach a: one delay, not a count to infinity.",
   },
 ]
 
@@ -560,6 +722,39 @@ export const LABS: LabTask[] = [
         }
       }
       return { ok: false, message: "No router's next hops ever form a loop in this run." }
+    },
+  },
+  {
+    id: "no-microloop",
+    difficulty: 2,
+    title: "Make the microloop impossible",
+    task: "In the link-state microloop, packets for d go a → b → a for one delay after b–d fails. Change the starting cost of exactly one link so that no router's next hops ever form a loop, with the failure left as it is and d still reachable from everyone afterwards.",
+    hint: "The loop needs a to route through b before the failure and b to route through a after it. Which of those two can you prevent with one cost?",
+    start: MICRO,
+    check(p, run) {
+      if (
+        p.nodes.length !== MICRO.nodes.length ||
+        p.links.length !== MICRO.links.length ||
+        !same(p.changes, MICRO.changes) ||
+        p.algorithm !== "ls"
+      )
+        return { ok: false, message: "Keep the three routers, the three links, link state and the failure of b–d." }
+      const diff = p.links.filter((l, i) => l.a !== MICRO.links[i].a || l.b !== MICRO.links[i].b || l.cost !== MICRO.links[i].cost)
+      if (diff.length !== 1) return { ok: false, message: `You have changed ${diff.length} links; change exactly one cost.` }
+      if (!run.totals.converged) return { ok: false, message: "Some table ends wrong." }
+      for (const e of run.events)
+        for (let y = 0; y < p.nodes.length; y++) {
+          const f = forwardingTo(e.hop, y)
+          if (f.cycles.length > 0) {
+            const c = f.cycles[0].map((v) => p.nodes[v]).join(" → ")
+            return { ok: false, message: `At ${clock(e.t, p)} packets for ${p.nodes[y]} still go ${c} → ${p.nodes[f.cycles[0][0]]}.` }
+          }
+        }
+      return {
+        ok: true,
+        message:
+          "No loop at any moment. Before the failure a's best route to d no longer uses b, so when b turns to a there is nobody pointing back. Loop-free alternates (RFC 5286) choose backups by exactly this kind of inequality.",
+      }
     },
   },
 ]

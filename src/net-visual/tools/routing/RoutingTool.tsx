@@ -23,6 +23,7 @@ import {
   epochAt,
   forwardingTo,
   normalise,
+  periodic,
   runDuration,
   runRouting,
   showDist,
@@ -35,7 +36,7 @@ import { toEnd } from "../tcp/CwndChart"
 import { Graph, type DijkstraOverlay, type WireMessage } from "./Graph"
 import { graphAt, graphSvg, graphTikz } from "./graphFigure"
 import { RoutingAnalysis, RoutingFrontier, RoutingInternals, RoutingIntro } from "./RoutingArticle"
-import { BellmanCard, DijkstraTable, LinkEditor, RoutingSetup, VectorMatrix } from "./RoutingViews"
+import { BellmanCard, DijkstraTable, LinkEditor, MapCard, RoutingSetup, VectorMatrix } from "./RoutingViews"
 
 interface Shared {
   p: RoutingParams
@@ -118,7 +119,10 @@ function RoutingLoaded({ sim }: { sim: Netsim }) {
 
   const times = useMemo(() => run.events.map((e) => e.t), [run])
   const duration = useMemo(() => runDuration(run, p), [run, p])
-  const tl = useTimeline(times, duration, p.delay_us / 1.2, shared?.t ?? 0)
+  // A round of messages in about a second; with RIP's timer, a period in a second and a half.
+  const timed = periodic(p)
+  const tl = useTimeline(times, duration, timed ? p.period_us / 1.5 : p.delay_us / 1.2, shared?.t ?? 0)
+  const ls = p.algorithm === "ls"
   const index = Math.max(0, tl.index)
   const event = run.events[index]
   const epoch = epochAt(run, event.t)
@@ -126,13 +130,14 @@ function RoutingLoaded({ sim }: { sim: Netsim }) {
   const d = Math.min(dest, p.nodes.length - 1)
   const x = Math.min(router, p.nodes.length - 1)
 
+  // The event that sent each message: the first whose count of messages sent passes its id.
   const sendIndex = useMemo(() => {
     const m = new Map<number, number>()
-    const firstD3 = new Map<string, number>()
-    run.events.forEach((e, i) => {
-      if (e.step === "D3" && !firstD3.has(`${e.node}@${e.t}`)) firstD3.set(`${e.node}@${e.t}`, i)
-    })
-    for (const msg of run.messages) m.set(msg.id, firstD3.get(`${msg.from}@${msg.t_send}`) ?? 0)
+    let i = 0
+    for (const msg of run.messages) {
+      while (i < run.events.length - 1 && run.events[i].sent <= msg.id) i++
+      m.set(msg.id, i)
+    }
     return m
   }, [run])
   const arriveIndex = useMemo(() => {
@@ -144,19 +149,23 @@ function RoutingLoaded({ sim }: { sim: Netsim }) {
   }, [run])
 
   const wire: WireMessage[] = []
+  const onLink = new Map<string, WireMessage>()
   for (const m of run.messages) {
     if (m.t_send > tl.t || (sendIndex.get(m.id) ?? 0) > index) continue
     const arrived = arriveIndex.get(m.id)
     if (arrived !== undefined ? arrived <= index : tl.t >= m.t_arrive) continue
-    wire.push({
-      id: m.id,
-      from: m.from,
-      to: m.to,
-      frac: Math.min(1, Math.max(0, (tl.t - m.t_send) / Math.max(1, m.t_arrive - m.t_send))),
-      label: showDist(m.vector[d], p.infinity),
-      poisoned: m.poisoned.includes(d),
-      lost: m.lost,
-    })
+    const frac = Math.min(1, Math.max(0, (tl.t - m.t_send) / Math.max(1, m.t_arrive - m.t_send)))
+    const label = m.lsa ? `${p.nodes[m.lsa.origin]} #${m.lsa.seq}` : m.omitted.includes(d) ? "–" : showDist(m.vector[d], p.infinity)
+    // Flooding puts several LSAs on a link at once: draw them as one box with a count.
+    const prev = m.lsa ? onLink.get(`${m.from}-${m.to}`) : undefined
+    if (prev && Math.abs(prev.frac - frac) < 0.08 && prev.lost === m.lost) {
+      const more = prev.label.match(/ \+(\d+)$/)
+      prev.label = more ? prev.label.replace(/\d+$/, String(Number(more[1]) + 1)) : `${prev.label} +1`
+      continue
+    }
+    const w = { id: m.id, from: m.from, to: m.to, frac, label, poisoned: m.poisoned.includes(d) || m.omitted.includes(d), lost: m.lost }
+    wire.push(w)
+    onLink.set(`${m.from}-${m.to}`, w)
   }
 
   const fig = useMemo(() => graphAt(run, p, index, d), [run, p, index, d])
@@ -213,8 +222,9 @@ function RoutingLoaded({ sim }: { sim: Netsim }) {
   const presetInfo = PRESETS.find((q) => q.id === preset)
   const caption = `${presetInfo?.title ?? "Your network"}: routes to ${p.nodes[d]} at ${clock(event.t, p)}`
   // Rounds when every message takes one delay, as the clock elsewhere says; otherwise milliseconds.
-  const xAxis =
-    p.jitter_us === 0
+  const xAxis = timed
+    ? { label: "time (s)", format: (v: number) => String(Number((v / 1e6).toFixed(0))) }
+    : p.jitter_us === 0
       ? { label: "round", format: (v: number) => String(Number((v / p.delay_us).toFixed(1))) }
       : { label: "time (ms)", format: (v: number) => String(Number((v / 1000).toFixed(1))) }
   const chartFigure = (): ChartFigure => ({
@@ -347,10 +357,15 @@ function RoutingLoaded({ sim }: { sim: Netsim }) {
                 Forwarding loop: packets for {p.nodes[d]} would go{" "}
                 {loops.cycles.map((c) => [...c, c[0]].map((v) => p.nodes[v]).join(" → ")).join(", and ")}.
               </span>
+            ) : ls ? (
+              <>
+                Arrows are each router's next hop towards {p.nodes[d]}; boxes on the links are LSAs in flight, named by the router that
+                wrote them and their sequence number.
+              </>
             ) : (
               <>
                 Arrows are each router's next hop towards {p.nodes[d]}; boxes on the links are vectors in flight, showing the sender's cost
-                to {p.nodes[d]} (dashed when poisoned).
+                to {p.nodes[d]} (dashed when poisoned, a dash when split horizon leaves it out).
               </>
             )}
           </p>
@@ -367,7 +382,7 @@ function RoutingLoaded({ sim }: { sim: Netsim }) {
           )}
           <Transport tl={tl} events={run.events.length} />
           <p className="font-sans text-xs text-muted-foreground">
-            Click a router to see its equation, a link to change it. Space plays, arrow keys step, Home and End jump.
+            Click a router to see its {ls ? "map" : "equation"}, a link to change it. Space plays, arrow keys step, Home and End jump.
           </p>
           <LineChart
             title={`Each router's cost to ${p.nodes[d]}`}
@@ -412,7 +427,7 @@ function RoutingLoaded({ sim }: { sim: Netsim }) {
             </p>
           </div>
           <Totals run={run} p={p} />
-          <BellmanCard p={p} s={state} event={event} x={x} y={d} />
+          {ls ? <MapCard p={p} s={state} event={event} x={x} y={d} /> : <BellmanCard p={p} s={state} event={event} x={x} y={d} />}
 
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList className="flex-wrap">
@@ -489,7 +504,7 @@ const Totals = memo(function Totals({ run, p }: { run: RoutingRun; p: RoutingPar
   const items: [string, string, boolean][] = [
     ["last table change", clock(T.last_change_us, p), false],
     ["tables correct at the end", T.truncated ? "run cut short" : T.converged ? "yes" : "no", !T.converged],
-    ["vectors sent", `${T.messages}${T.lost ? ` (${T.lost} lost)` : ""}`, false],
+    [p.algorithm === "ls" ? "LSAs sent" : "vectors sent", `${T.messages}${T.lost ? ` (${T.lost} lost)` : ""}`, false],
     ["table entries changed", String(updates), false],
   ]
   return (

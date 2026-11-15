@@ -197,9 +197,9 @@ export function Graph({
           return (
             <g key={`m${m.id}`} transform={`translate(${x} ${y})`} pointerEvents="none" className={cn(m.lost && "opacity-50")}>
               <rect
-                x={-15 * k}
+                x={-Math.max(15, 3.4 * m.label.length + 5) * k}
                 y={-9 * k}
-                width={30 * k}
+                width={2 * Math.max(15, 3.4 * m.label.length + 5) * k}
                 height={18 * k}
                 rx={4}
                 className={cn("fill-background", m.poisoned ? "stroke-chart-4" : "stroke-chart-2")}

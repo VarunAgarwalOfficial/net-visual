@@ -88,8 +88,22 @@ export function RoutingIntro({ onLoad }: { onLoad(id: string): void }) {
         </li>
         <li>
           <b>“Link state cannot loop.”</b> While a change floods, routers that have heard it and routers that have not compute from
-          different maps, and their next hops can form a loop for a moment. This tool computes link state instantly, so it shows the answer
-          link state converges to, not that transient.
+          different maps, and their next hops can form a loop until the news arrives. The loop is short, one flooding delay rather than a
+          count, but packets do circle (RFC 5715).{" "}
+          <Try id="ls-microloop" onLoad={onLoad}>
+            A microloop.
+          </Try>
+        </li>
+        <li>
+          <b>“Split horizon and poisoned reverse are the same thing.”</b> Split horizon leaves a route out of what the next hop is told;
+          poisoned reverse sends it as infinity. Silence carries no news, so under plain split horizon a neighbour keeps the stale route it
+          heard earlier until a timer expires it, and a loop can last minutes (RFC 2453, Section 3.4.3).{" "}
+          <Try id="split-horizon" onLoad={onLoad}>
+            Split horizon.
+          </Try>{" "}
+          <Try id="poison" onLoad={onLoad}>
+            Poisoned reverse.
+          </Try>
         </li>
       </ul>
 
@@ -104,6 +118,13 @@ export function RoutingIntro({ onLoad }: { onLoad(id: string): void }) {
           </Try>
         </li>
         <li>
+          <b>Counting in real time.</b> With RIP's 30-second timer and no triggered updates, each step of the count waits for a neighbour's
+          next update. The count to 16 that takes milliseconds in the cut-off scenario takes nearly seven minutes.{" "}
+          <Try id="rip-slow" onLoad={onLoad}>
+            Load it.
+          </Try>
+        </li>
+        <li>
           <b>Three routers deceiving one another.</b> With poisoned reverse on, b, c and d still count to 16, three at a time, because each
           stale offer goes to a router the offer does not run through.{" "}
           <Try id="loop-of-three" onLoad={onLoad}>
@@ -113,6 +134,13 @@ export function RoutingIntro({ onLoad }: { onLoad(id: string): void }) {
       </ul>
     </Layer>
   )
+}
+
+/** n(2m - n + 1): the LSAs a cold start floods on the network before any change. */
+function flood(p: RoutingParams, run: RoutingRun): number {
+  const n = p.nodes.length
+  const m = run.epochs[0].cost.flat().filter((c) => c >= 0).length / 2
+  return n * (2 * m - n + 1)
 }
 
 /** Fewest links among the cheapest paths between any two routers, before any change. */
@@ -249,6 +277,49 @@ export function RoutingAnalysis({ p, run }: { sim: Netsim; p: RoutingParams; run
         the size of the network.
       </p>
 
+      <h3 className="pt-2 text-lg">Theorem 5 (the cost of flooding)</h3>
+      <p>
+        On a connected network of n routers and m links, flooding one LSA sends exactly <Tex>{"2m - n + 1"}</Tex> messages, whatever the
+        delays. A cold start, in which every router floods one, sends <Tex>{"n(2m - n + 1)"}</Tex>.
+      </p>
+      <p>
+        <em>Proof.</em> Every router forwards the LSA once, on the first copy it receives, and drops the rest (steps F2 and F3). The origin
+        sends it on all of its <Tex>{"\\deg(o)"}</Tex> links; every other router v sends it on every link but the one it came in on,{" "}
+        <Tex>{"\\deg(v) - 1"}</Tex>. Summing, <Tex>{"\\sum_v \\deg(v) - (n - 1) = 2m - n + 1"}</Tex>. ∎
+      </p>
+      <p className="font-sans text-sm">
+        {p.algorithm === "ls" ? (
+          <>
+            This run: n = {p.nodes.length}, m = {run.epochs[0].cost.flat().filter((c) => c >= 0).length / 2}, so a cold start costs{" "}
+            {flood(p, run)} LSAs if the network is connected. Before any change the run sent{" "}
+            {run.messages.filter((m) => m.t_send < (run.epochs[1]?.t ?? Infinity)).length}.
+          </>
+        ) : (
+          <>Switch Setup to link state to count the LSAs of this network; the six-router preset sends 6 × 15 = 90.</>
+        )}
+      </p>
+      <p>
+        The price buys independence. A link-state router computes from descriptions written by the routers themselves, never from another
+        router's conclusions, so stale news cannot be amplified: once the last LSA about a change has arrived everywhere, every route is
+        right. Until then two routers can hold different maps, and a router that has heard can point at one that has not. In the microloop
+        scenario b, which sees its own link fail, turns to a while a still routes through b; the loop lasts exactly one flooding delay. A
+        loop needs disagreement, so its length is bounded by how long the news takes to spread, not by the costs as in Theorem 3.
+      </p>
+
+      <h3 className="pt-2 text-lg">Timers: what RIP adds</h3>
+      <p>
+        With an update period P and no triggered updates, a change travels one hop per update instead of one per message delay, so the
+        rounds of Theorems 2 and 3 become periods. In the cut-off scenario with P = 30 s, b's route climbs by 2 every two periods and
+        reaches 16 about seven minutes after the failure; the Rust tests check every step. Triggered updates bring back the speed of rounds,
+        and RIP rate-limits them to one every 1 to 5 seconds so that a change does not set off a storm (RFC 2453, Section 3.10.1).
+      </p>
+      <p>
+        Timeouts are how a router forgets a neighbour that says nothing. Under simple split horizon this matters: a route left out of an
+        update is not withdrawn, so a stale entry survives until the timeout, 180 s in RIP, and a loop that poisoned reverse would break at
+        once can last that long. RFC 2453 states the trade directly: poisoned reverse breaks such loops at once, at the price of larger
+        updates.
+      </p>
+
       <h3 className="pt-2 text-lg">Exercises</h3>
       <ol className="list-decimal space-y-3 pl-5">
         <Exercise rating="10" answer={<p>D_x(y) = 2 and D_x(z) = min(7, 2 + 1) = 3, through y.</p>}>
@@ -300,6 +371,30 @@ export function RoutingAnalysis({ p, run }: { sim: Netsim; p: RoutingParams; run
         >
           What is the smallest infinity that keeps the loop-of-three network correct before the failure, and how fast does it then settle?
           (The lab checks your answer.)
+        </Exercise>
+        <Exercise
+          rating="20"
+          answer={
+            <p>
+              2m − n + 1 = 2(n − 1) − n + 1 = n − 1: on a tree no LSA is ever dropped, because each router hears it exactly once. On the
+              complete graph, m = n(n − 1)/2, so it is (n − 1)², and a cold start costs n(n − 1)².
+            </p>
+          }
+        >
+          How many messages does flooding one LSA cost on a tree of n routers? On the complete graph?
+        </Exercise>
+        <Exercise
+          rating="M25"
+          answer={
+            <p>
+              Before the failure a routes to d through b, so 1 + 1 &lt; 3. Afterwards b's only route is through a. A loop needs both, so it
+              forms exactly when c(a,b) + c(b,d) &lt; c(a,d); with c(a,b) + c(b,d) &gt; c(a,d) a already goes direct and nothing points
+              back. This is the loop-free alternate inequality of RFC 5286 with a as the alternate for b. (A tie leaves it to the
+              tie-break.)
+            </p>
+          }
+        >
+          In the microloop scenario, for which starting costs does the loop form? (The lab checks one answer.)
         </Exercise>
       </ol>
     </Layer>
@@ -353,9 +448,10 @@ export function RoutingInternals() {
   return (
     <Layer id="routing-internals" layer="Internals" title="How the simulation works">
       <p>
-        The model is about 600 lines of Rust (crates/netsim/src/routing.rs), compiled to WebAssembly and called with JSON in and out, like
-        the other tools. Its lettered steps are the names in the trace: D0 initialise, D1 receive, D2 recompute, D3 advertise; L1 change a
-        link, L2 lose a message; and K1 to K3 for Dijkstra.
+        The model is about 1,000 lines of Rust (crates/netsim/src/routing.rs, plus its tests), compiled to WebAssembly and called with JSON
+        in and out, like the other tools. Its lettered steps are the names in the trace: D0 initialise, D1 receive, D2 recompute, D3
+        advertise, T1 update timer, T2 time out; F1 originate an LSA, F2 flood it, F3 discard a copy, F4 run Dijkstra on a router's own map;
+        L1 change a link, L2 lose a message; and K1 to K3 for Dijkstra on the true network.
       </p>
       <ol className="list-decimal space-y-1.5 pl-5">
         <li>
@@ -364,32 +460,48 @@ export function RoutingInternals() {
           and messages on one link never overtake one another.
         </li>
         <li>
-          <b>Triggered updates only.</b> A router sends a neighbour its vector only when what it would tell that neighbour differs from what
-          it told it last. A cold start counts as a change.
+          <b>Triggered updates, and optionally RIP's timers.</b> A router sends a neighbour its vector when what it would tell that
+          neighbour differs from what it told it last; a cold start counts as a change. With an update period it also sends its whole vector
+          every period (with jitter, each interval is the period plus or minus a sixth, as RFC 2453 asks), triggered updates can be turned
+          off, and an entry not repeated within the timeout becomes unreachable.
         </li>
         <li>
           <b>Ties do not flap.</b> When two neighbours offer the same cost, a router keeps its current next hop if it is among them;
           otherwise the lowest-numbered one wins. Dijkstra, given a tie in step K2, adds the lowest-numbered router.
         </li>
         <li>
-          <b>Link state for comparison.</b> Between any two link changes the model runs Dijkstra from every router on the true costs, and
-          the page marks each distance-vector entry that disagrees.
+          <b>Link state, flooded.</b> Each LSA carries its origin, a sequence number and the origin's links. A router keeps the newest LSA
+          from each origin, passes a new one to every neighbour but the sender, and runs Dijkstra on its own map, using a link between two
+          other routers only if both of their LSAs list it (RFC 2328, Section 16.1). When a link comes up its two ends send each other the
+          LSAs they hold, as OSPF's database exchange does.
+        </li>
+        <li>
+          <b>The truth for comparison.</b> Between any two link changes the model also runs Dijkstra from every router on the true costs,
+          and the page marks each table entry that disagrees.
         </li>
         <li>
           <b>Checked against the sources.</b> The tests reproduce Dijkstra's table for the six-router network of Kurose and Ross, the
           three-router exchange, the 47 updates of bad news and the three of poisoned reverse, the count to 16 of RFC 2453, the loop of
           three that poisoned reverse misses, the hop bound of Theorem 2, and agreement with Dijkstra on 40 random networks with failures
-          and repairs. The scenario notes, the tour and the labs are tested against the runs they describe.
+          and repairs, for both algorithms. For link state they check the 2m − n + 1 messages of Theorem 5 and the one-delay microloop; for
+          the timers, the count to 16 at two periods a step and the split-horizon loop that lasts until the timeout. The scenario notes, the
+          tour and the labs are tested against the runs they describe.
         </li>
       </ol>
       <h3 className="pt-2 text-lg">Simplifications</h3>
       <ul className="list-disc space-y-1 pl-5">
         <li>
-          No periodic updates and no route timeouts: a router learns of a failure on its own link at once, and of anything else only from
-          vectors.
+          A router learns of a failure on its own link at once. Timers are off unless set in Setup; when on, triggered updates are not
+          rate-limited, and there is no garbage-collection or hold-down timer.
         </li>
-        <li>Split horizon appears only as poisoned reverse; there is no plain split horizon and no hold-down timer.</li>
-        <li>Link state is computed instantly and identically everywhere, with no flooding; its transient loops are not modelled.</li>
+        <li>
+          Each distance-vector router keeps the last vector heard from every neighbour, the textbook model; RIP keeps only its best route.
+          This is why, under plain split horizon, a stale offer survives until the timeout.
+        </li>
+        <li>
+          Link state has no ageing, refresh or acknowledgement of LSAs; flooding is reliable because only a failing link loses messages.
+          Dijkstra runs the moment an LSA arrives, with no SPF delay, and a router uses its own links before the database exchange ends.
+        </li>
         <li>Costs are symmetric and fixed between scripted changes; there is no load-dependent cost.</li>
         <li>A message in flight on a link that fails is lost; messages are otherwise never lost or corrupted.</li>
       </ul>
@@ -403,13 +515,18 @@ export function RoutingInternals() {
           J. M. McQuillan, I. Richer and E. C. Rosen. The new routing algorithm for the ARPANET. IEEE Trans. Communications 28(5), 1980.
         </li>
         <li>A. Khanna and J. Zinky. The revised ARPANET routing metric. SIGCOMM 1989.</li>
+        <li>
+          P. Francois and O. Bonaventure. Avoiding transient loops during the convergence of link-state routing protocols. IEEE/ACM ToN
+          15(6), 2007.
+        </li>
         <li>J. J. Garcia-Luna-Aceves. Loop-free routing using diffusing computations. IEEE/ACM ToN 1(1), 1993.</li>
         <li>C. E. Perkins and P. Bhagwat. Highly dynamic destination-sequenced distance-vector routing (DSDV). SIGCOMM 1994.</li>
         <li>C. Labovitz, A. Ahuja, A. Bose and F. Jahanian. Delayed Internet routing convergence. SIGCOMM 2000.</li>
         <li>S. Jain et al. B4: experience with a globally-deployed software defined WAN. SIGCOMM 2013.</li>
         <li>J. F. Kurose and K. W. Ross. Computer Networking: A Top-Down Approach, 8th ed., Sections 5.2 to 5.3. Pearson, 2021.</li>
         <li>
-          RFC 2453 (RIP 2), 2328 (OSPF 2), 1195 (IS-IS for IP), 7868 (EIGRP), 8966 (Babel), 4271 (BGP 4), 5286 (loop-free alternates).
+          RFC 2453 (RIP 2), 2328 (OSPF 2), 1195 (IS-IS for IP), 7868 (EIGRP), 8966 (Babel), 4271 (BGP 4), 5286 (loop-free alternates), 5715
+          (loop-free convergence).
         </li>
       </ul>
     </Layer>
