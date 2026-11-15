@@ -32,7 +32,7 @@ import { LiterateSource } from "../../components/LiterateSource"
 import { ToolActions } from "../../components/ToolActions"
 import { TraceList } from "../../components/TraceList"
 import { Transport } from "../../components/Transport"
-import { formatTime, timelineKeys, useTimeline } from "../../components/timeline"
+import { formatTime, keepFocus, timelineKeys, useTimeline } from "../../components/timeline"
 import { RdtAnalysis, RdtFrontier, RdtIntro, RdtInternals } from "./RdtArticle"
 import { WindowView } from "./WindowView"
 
@@ -104,6 +104,7 @@ function RdtLoaded({ sim }: { sim: Netsim }) {
     setParams(p)
     setPreset(id)
     setSelected(null)
+    keepFocus(root)
   }
 
   // The tour loads a preset and puts the clock at the moment it describes.
@@ -171,7 +172,8 @@ function RdtLoaded({ sim }: { sim: Netsim }) {
   return (
     <section
       ref={root}
-      className="nv-tool space-y-5 [&.nv-present]:[zoom:1.2] [&.nv-present]:overflow-auto [&.nv-present]:bg-background [&.nv-present]:p-6"
+      tabIndex={-1}
+      className="nv-tool space-y-5 outline-none [&.nv-present]:[zoom:1.2] [&.nv-present]:overflow-auto [&.nv-present]:bg-background [&.nv-present]:p-6"
       onKeyDown={(e) => {
         if (timelineKeys(tl, e)) {
           e.preventDefault()

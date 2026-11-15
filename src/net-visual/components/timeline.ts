@@ -140,6 +140,20 @@ export function timelineKeys(tl: Timeline, e: KeyboardEvent): boolean {
   }
 }
 
+/**
+ * When an action removes the control that had focus (an editor closing, or
+ * re-keyed because the scenario became "your own"), focus falls to the page
+ * and the tool's keys stop working: End scrolls the page instead. This hands
+ * focus back to the tool once the new frame is drawn. The root needs
+ * tabIndex -1.
+ */
+export function keepFocus(root: { readonly current: HTMLElement | null }) {
+  requestAnimationFrame(() => {
+    const r = root.current
+    if (r && !r.contains(document.activeElement)) r.focus({ preventScroll: true })
+  })
+}
+
 export function formatTime(us: number): string {
   if (us < 1000) return `${us.toFixed(0)} µs`
   if (us < 1_000_000) return `${(us / 1000).toFixed(us < 10_000 ? 2 : 1)} ms`

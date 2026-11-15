@@ -12,7 +12,7 @@ import { LiterateSource } from "../../components/LiterateSource"
 import { ToolActions } from "../../components/ToolActions"
 import { TraceList } from "../../components/TraceList"
 import { Transport } from "../../components/Transport"
-import { timelineKeys, useTimeline } from "../../components/timeline"
+import { keepFocus, timelineKeys, useTimeline } from "../../components/timeline"
 import { loadNetsim } from "../../core/load"
 import type { Netsim } from "../../core/netsim"
 import {
@@ -183,6 +183,11 @@ function RoutingLoaded({ sim }: { sim: Netsim }) {
     setParams(next)
     setPreset(id)
     setDijStep(null)
+    keepFocus(root)
+  }
+  const closeLink = () => {
+    setLink(null)
+    keepFocus(root)
   }
   const load = (id: string, at = 0) => {
     const pr = PRESETS.find((q) => q.id === id)
@@ -227,10 +232,11 @@ function RoutingLoaded({ sim }: { sim: Netsim }) {
   return (
     <section
       ref={root}
-      className="nv-tool space-y-5 [&.nv-present]:[zoom:1.2] [&.nv-present]:overflow-auto [&.nv-present]:bg-background [&.nv-present]:p-6"
+      tabIndex={-1}
+      className="nv-tool space-y-5 outline-none [&.nv-present]:[zoom:1.2] [&.nv-present]:overflow-auto [&.nv-present]:bg-background [&.nv-present]:p-6"
       onKeyDown={(e) => {
         if (timelineKeys(tl, e)) e.preventDefault()
-        else if (e.key === "Escape") setLink(null)
+        else if (e.key === "Escape") closeLink()
       }}
     >
       <div className="flex flex-wrap items-end gap-3">
@@ -356,7 +362,7 @@ function RoutingLoaded({ sim }: { sim: Netsim }) {
               now={tl.t}
               costNow={state.cost[link[0]][link[1]] >= 0 ? state.cost[link[0]][link[1]] : null}
               set={(next) => apply(next)}
-              close={() => setLink(null)}
+              close={closeLink}
             />
           )}
           <Transport tl={tl} events={run.events.length} />

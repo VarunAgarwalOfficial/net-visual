@@ -71,6 +71,10 @@
 - Browser pass on routing at 1440 and 390, light and dark: graph text
   scales up on narrow screens, router labels move off their links, vectors
   drawn mid-link, chart infinity labelled.
+- Keyboard: after an action removes the focused control (the link editor
+  re-keyed or closed, a packet editor closed), focus returns to the tool,
+  so Home and End move the clock instead of scrolling the page. All three
+  tools. Routing screenshots retaken after the label fix.
 - Vault notes for routing: Distance-vector routing, Count to infinity,
   Link-state routing; map note updated.
 

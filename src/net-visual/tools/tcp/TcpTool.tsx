@@ -11,7 +11,7 @@ import { LiterateSource } from "../../components/LiterateSource"
 import { ToolActions } from "../../components/ToolActions"
 import { TraceList } from "../../components/TraceList"
 import { Transport } from "../../components/Transport"
-import { formatTime, lastAtOrBefore, timelineKeys, useTimeline, type Timeline } from "../../components/timeline"
+import { formatTime, keepFocus, lastAtOrBefore, timelineKeys, useTimeline, type Timeline } from "../../components/timeline"
 import { loadNetsim } from "../../core/load"
 import type { Netsim } from "../../core/netsim"
 import { linkFor, readHash } from "../../core/share"
@@ -183,6 +183,7 @@ function TcpLoaded({ sim }: { sim: Netsim }) {
   const apply = (p: TcpParams, id = "", t = tl.t) => {
     setModel({ p, w: windowFor(p, t) })
     setPreset(id)
+    keepFocus(root)
   }
 
   const step = (d: number) => {
@@ -287,7 +288,8 @@ function TcpLoaded({ sim }: { sim: Netsim }) {
   return (
     <section
       ref={root}
-      className="nv-tool space-y-5 [&.nv-present]:[zoom:1.2] [&.nv-present]:overflow-auto [&.nv-present]:bg-background [&.nv-present]:p-6"
+      tabIndex={-1}
+      className="nv-tool space-y-5 outline-none [&.nv-present]:[zoom:1.2] [&.nv-present]:overflow-auto [&.nv-present]:bg-background [&.nv-present]:p-6"
       onKeyDown={(e) => {
         if (timelineKeys(tlx, e)) {
           e.preventDefault()
