@@ -50,7 +50,7 @@ const LABEL_GAP = 12
  * bursts (a congestion window of 80 packets) would otherwise print labels on
  * top of each other; every packet is still drawn and still has its name.
  */
-function roomy(list: LadderFlight[], y: (t: number) => number) {
+function roomy(list: LadderFlight[], marks: LadderMark[], y: (t: number) => number) {
   const send = new Set<number>()
   const arrive = new Set<number>()
   const last = [-Infinity, -Infinity, -Infinity, -Infinity]
@@ -59,8 +59,10 @@ function roomy(list: LadderFlight[], y: (t: number) => number) {
       send.add(f.id)
       last[f.from] = y(f.t_start)
     }
+  // A mark's label sits where the arrival labels on its lane go, so it takes their room.
+  const marked = (f: LadderFlight) => marks.some((m) => m.lane === 1 - f.from && Math.abs(y(m.t) - y(f.t_arrive)) < LABEL_GAP)
   for (const f of [...list].sort((a, b) => a.t_arrive - b.t_arrive))
-    if (!f.lost && y(f.t_arrive) - last[2 + f.from] >= LABEL_GAP) {
+    if (!f.lost && !marked(f) && y(f.t_arrive) - last[2 + f.from] >= LABEL_GAP) {
       arrive.add(f.id)
       last[2 + f.from] = y(f.t_arrive)
     }
@@ -97,7 +99,11 @@ export function Ladder(props: Props) {
   const lo = origin + (scroll - 200) * usPerPx
   const hi = origin + (scroll + height + 200) * usPerPx
   const visible = flights.filter((f) => f.t_start <= t && f.t_arrive >= lo && f.t_start <= hi)
-  const labelled = roomy(visible, y)
+  const labelled = roomy(
+    visible,
+    marks.filter((m) => m.t <= t),
+    y,
+  )
   const yt = y(t)
   const tickStep = niceStep(usPerPx * 80)
 

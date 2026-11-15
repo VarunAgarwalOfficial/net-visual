@@ -5,7 +5,19 @@ import { readFile } from "node:fs/promises"
 import { test } from "node:test"
 
 import { createNetsim } from "../src/net-visual/core/netsim.ts"
-import { LABS, PRESETS, TOUR, runOverview, runWindow, valueAt, windowFor, type TcpParams } from "../src/net-visual/core/tcp.ts"
+import {
+  LABS,
+  PRESETS,
+  TOUR,
+  internetChecksum,
+  runOverview,
+  runWindow,
+  tcpHeader,
+  valueAt,
+  windowFor,
+  words,
+  type TcpParams,
+} from "../src/net-visual/core/tcp.ts"
 
 const sim = await createNetsim(await readFile(new URL("../src/net-visual/core/netsim.wasm", import.meta.url)))
 const preset = (id: string) => PRESETS.find((p) => p.id === id)!
@@ -109,4 +121,18 @@ test("the tour stops where its text says", () => {
   assert.ok(timeout.t <= ff.t)
   // The two flows are close to fair by the end.
   assert.ok(at(6).run.totals.jain > 0.99)
+})
+
+test("the TCP header's checksum verifies as RFC 9293 and RFC 1071 say", () => {
+  const p = preset("kr").params
+  const run = runWindow(sim, p, windowFor(p, 0))
+  for (const f of [run.flights.find((x) => !x.ack)!, run.flights.find((x) => x.ack)!]) {
+    const h = tcpHeader(f, p)
+    assert.equal(h.bytes.length, h.len)
+    // The receiver's check: the sum over pseudo-header and segment, checksum included, is all ones.
+    assert.equal(internetChecksum(words([...h.pseudo, ...h.bytes])), 0)
+    assert.equal(h.bytes[12] >> 4, 5)
+  }
+  // RFC 1071's own example: words 0001 f203 f4f5 f6f7 sum to ddf2, so the checksum is 220d.
+  assert.equal(internetChecksum([0x0001, 0xf203, 0xf4f5, 0xf6f7]), 0x220d)
 })

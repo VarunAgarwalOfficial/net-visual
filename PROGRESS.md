@@ -10,7 +10,6 @@
   trace, sweep, share links. Browser-checked light, dark and phone.
 - Teacher actions shared by all tools: copy link, SVG and TikZ export (TikZ
   compiles with pdflatex), presentation mode.
-
 - TCP model `crates/netsim/src/tcp.rs` with `tcp/run` in the wasm crate:
   dumbbell of up to four flows, Tahoe, Reno, NewReno (RFC 5681, 6582),
   RTO (RFC 6298, Karn), CUBIC (RFC 9438). Seven tests: RFC 6298 numbers,
@@ -22,9 +21,21 @@
   smaller ssthresh (one reduction per loss episode); no SACK, no limited
   transmit, no HyStart.
 
+- TCP tool, all five layers: window chart for every flow (ssthresh, a
+  second algorithm dashed, BDP and BDP + B + 1 lines, fast-retransmit,
+  timeout and drop marks) that seeks on click; ladder of flow 1 fed a
+  window of the trace at a time; click-to-drop with D; RFC 9293 header with
+  a verified RFC 1071 checksum; congestion state machine lit by the step
+  each event took; dumbbell with the buffer at t; queue and SRTT/RTO
+  charts; Chiu-Jain phase plane with Jain's index at t; CUBIC curve for the
+  current epoch; live equations (RTT, cwnd/RTT against R, RTO, sawtooth,
+  Mathis, CUBIC K); setup for every parameter; ten scenarios, tour, five
+  labs, literate source; article with misconceptions and hard cases linked
+  to scenarios, three theorems with proofs and live numbers, a buffer
+  sweep, six rated exercises, frontier, internals, simplifications and
+  references.
+
 ## Next
 
-1. TCP tool UI: cwnd chart, ladder for flow 0, congestion FSM, queue,
-   two-flow phase plane with Jain's index, equations, presets, labs, source.
-3. Routing tool if time allows.
-4. Critic's pass at 1440 and 390, light and dark; fresh screenshots.
+1. Routing tool if time allows.
+2. Critic's pass at 1440 and 390, light and dark; fresh screenshots.

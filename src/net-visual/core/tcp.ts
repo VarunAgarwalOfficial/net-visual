@@ -365,12 +365,12 @@ export const TOUR: TourStep[] = [
   {
     preset: "sawtooth",
     at: 0.6,
-    text: "In steady state the window is a sawtooth between (P + B)/2 and P + B, where P is the BDP. The queue (second chart) is empty while the window is below P and the link idles then; the utilisation is the area argument in the Analysis section.",
+    text: "In steady state the window is a sawtooth between (P + B)/2 and P + B, where P is the BDP. The bottleneck queue (the chart below the ladder) is empty while the window is below P and the link idles then; the utilisation is the area argument in the Analysis section.",
   },
   {
     preset: "bufferbloat",
     at: 0.7,
-    text: "The same sawtooth with a buffer ten times too big. The link is never idle, but the round-trip time (the RTT chart) is over a second. Loss-based congestion control fills whatever buffer it is given.",
+    text: "The same sawtooth with a buffer ten times too big. The link is never idle, but the round-trip time (the round-trip chart below the ladder) is over a second. Loss-based congestion control fills whatever buffer it is given.",
   },
   {
     preset: "two-flows",
@@ -523,4 +523,64 @@ export function smooth(values: number[], w: number): number[] {
     const b = Math.min(values.length, i + half + 1)
     return (prefix[b] - prefix[a]) / (b - a)
   })
+}
+
+/** RFC 1071: the ones' complement of the ones' complement sum of 16-bit words. */
+export function internetChecksum(words: Iterable<number>): number {
+  let sum = 0
+  for (const w of words) {
+    sum += w & 0xffff
+    sum = (sum & 0xffff) + (sum >>> 16)
+  }
+  return ~sum & 0xffff
+}
+
+// Documentation addresses (RFC 5737) and ports for the two hosts.
+const SENDER = [192, 0, 2, 1]
+const RECEIVER = [198, 51, 100, 7]
+const SENDER_PORT = 50000
+const RECEIVER_PORT = 80
+export const WINDOW = 65535
+
+export function* words(bytes: number[]) {
+  for (let i = 0; i < bytes.length; i += 2) yield (bytes[i] << 8) | (bytes[i + 1] ?? 0)
+}
+
+/**
+ * The TCP header of one segment as RFC 9293 (Section 3.1) lays it out, with
+ * relative sequence numbers (the initial sequence number is 0, as Wireshark
+ * shows them) and the checksum computed over the pseudo-header, the header
+ * and a stand-in payload.
+ */
+export function tcpHeader(f: Flight, p: TcpParams) {
+  const payload = f.ack ? 0 : Math.max(0, p.mss_bytes - 40)
+  const per = Math.max(1, p.mss_bytes - 40)
+  const seq = f.ack ? 1 : 1 + f.seg * per
+  const ack = f.ack ? 1 + f.seg * per : 1
+  const [src, dst] = f.ack ? [RECEIVER, SENDER] : [SENDER, RECEIVER]
+  const [sport, dport] = f.ack ? [RECEIVER_PORT, SENDER_PORT] : [SENDER_PORT, RECEIVER_PORT]
+  const len = 20 + payload
+  const flags = 0x10 | (f.ack ? 0 : 0x08) // ACK, and PSH on data
+  const header = [
+    sport >> 8,
+    sport & 255,
+    dport >> 8,
+    dport & 255,
+    ...[24, 16, 8, 0].map((s) => (seq >>> s) & 255),
+    ...[24, 16, 8, 0].map((s) => (ack >>> s) & 255),
+    5 << 4,
+    flags,
+    WINDOW >> 8,
+    WINDOW & 255,
+    0,
+    0, // checksum, zero while it is computed
+    0,
+    0,
+  ]
+  const pseudo = [...src, ...dst, 0, 6, len >> 8, len & 255]
+  const data = Array.from({ length: payload }, (_, i) => (f.seg * 7 + i) & 255)
+  const checksum = internetChecksum(words([...pseudo, ...header, ...data]))
+  header[16] = checksum >> 8
+  header[17] = checksum & 255
+  return { seq, ack, flags, len, payload, checksum, src, dst, sport, dport, pseudo, bytes: [...header, ...data] }
 }

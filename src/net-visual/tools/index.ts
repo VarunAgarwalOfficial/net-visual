@@ -18,4 +18,11 @@ export const TOOLS: ToolInfo[] = [
     layers: ["intuition", "mechanics", "analysis", "frontier", "internals"],
     Component: lazy(() => import("./rdt/RdtTool").then((m) => ({ default: m.RdtTool }))),
   },
+  {
+    id: "tcp",
+    title: "TCP congestion control",
+    summary: "Tahoe, Reno, NewReno and CUBIC sharing a bottleneck: the window, every packet, the timer, and the formulas they obey.",
+    layers: ["intuition", "mechanics", "analysis", "frontier", "internals"],
+    Component: lazy(() => import("./tcp/TcpTool").then((m) => ({ default: m.TcpTool }))),
+  },
 ]
