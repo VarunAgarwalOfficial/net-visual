@@ -92,15 +92,11 @@ function Prose({ lines }: { lines: string[] }) {
                 <b className="lining">{marker[1]}.</b> <span>{marker[2]}</span>{" "}
               </>
             )}
-            {body.split(/(`[^`]+`)/).map((part, j) =>
-              part.startsWith("`") ? (
-                <code key={j}>
-                  {part.slice(1, -1)}
-                </code>
-              ) : (
-                <span key={j}>{part.replace(/\n/g, " ")}</span>
-              ),
-            )}
+            {body
+              .split(/(`[^`]+`)/)
+              .map((part, j) =>
+                part.startsWith("`") ? <code key={j}>{part.slice(1, -1)}</code> : <span key={j}>{part.replace(/\n/g, " ")}</span>,
+              )}
           </p>
         )
       })}
@@ -135,11 +131,7 @@ export function LiterateSource({ source, active, className }: { source: string; 
     <div ref={box} className={cn("relative overflow-auto rounded-sm border border-border", className)}>
       {blocks.map((b) =>
         b.kind === "prose" ? (
-          <div
-            key={b.first}
-            data-line={b.first}
-            className={cn("px-3 py-1", inRange(b.first) && "bg-mark")}
-          >
+          <div key={b.first} data-line={b.first} className={cn("px-3 py-1", inRange(b.first) && "bg-mark")}>
             <Prose lines={b.lines} />
           </div>
         ) : (

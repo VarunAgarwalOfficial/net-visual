@@ -52,7 +52,9 @@ export function App() {
       <main className="pt-(--site-space-4)">
         {tool ? (
           <>
-            <h1 className="mb-(--site-space-2) text-[length:var(--site-step-title-narrow)] leading-tight tracking-(--site-tracking-title) sm:text-3xl">{tool.title}</h1>
+            <h1 className="mb-(--site-space-2) text-[length:var(--site-step-title-narrow)] leading-tight tracking-(--site-tracking-title) sm:text-3xl">
+              {tool.title}
+            </h1>
             <p className="mb-(--site-space-4) max-w-(--site-measure) [font-variant-numeric:lining-nums]">{tool.lead}</p>
             <Suspense fallback={<p className="font-sans text-sm text-muted-foreground">Loading…</p>}>
               <tool.Component />

@@ -33,78 +33,78 @@ export function Dumbbell({ run, p, t }: { run: TcpRun; p: TcpParams; t: number }
     <figure className="font-sans">
       <figcaption className="mb-1 text-sm text-muted-foreground">The path at {seconds(t)} s</figcaption>
       <div className="overflow-x-auto">
-      <svg
-        viewBox="0 0 520 175"
-        width={520 * K}
-        height={175 * K}
-        className="block"
-        role="img"
-        aria-label={`Bottleneck queue: ${q} of ${B} packets waiting`}
-      >
-        {p.flows.map((f, i) => {
-          const cwnd = valueAt(run.series[i].cwnd, t)
-          const started = t >= f.start_us
-          return (
-            <g key={i} strokeDasharray={started ? undefined : "3 3"}>
-              <line x1={52} y1={rowY(i)} x2={bufX} y2={100} stroke={FLOW_COLORS[i]} strokeDasharray={FLOW_DASH[i]} strokeWidth={2} />
-              <circle cx={36} cy={rowY(i)} r={14} fill="var(--background)" stroke={FLOW_COLORS[i]} strokeWidth={2.5} />
-              <text x={36} y={rowY(i)} dy="0.35em" textAnchor="middle" fontSize="13" fill="var(--foreground)">
-                {i + 1}
-              </text>
-              <text x={56} y={rowY(i) - (n > 2 ? 9 : 14)} fontSize="13" fill="var(--muted-foreground)">
-                {started
-                  ? `cwnd ${cwnd >= 100 ? cwnd.toFixed(0) : cwnd.toFixed(1)}, ${f.rtt_us / 1000} ms`
-                  : `starts at ${seconds(f.start_us)} s`}
-              </text>
-            </g>
-          )
-        })}
-        {/* the buffer */}
-        <rect x={bufX} y={86} width={bufW} height={28} fill="none" stroke="var(--foreground)" />
-        {B === 0 ? (
-          <text x={bufX + bufW / 2} y={100} dy="0.35em" textAnchor="middle" fontSize="13" fill="var(--muted-foreground)">
-            no buffer
-          </text>
-        ) : slots ? (
-          Array.from({ length: B }, (_, k) => {
-            const w = bufW / B
-            const filled = k >= B - q
+        <svg
+          viewBox="0 0 520 175"
+          width={520 * K}
+          height={175 * K}
+          className="block"
+          role="img"
+          aria-label={`Bottleneck queue: ${q} of ${B} packets waiting`}
+        >
+          {p.flows.map((f, i) => {
+            const cwnd = valueAt(run.series[i].cwnd, t)
+            const started = t >= f.start_us
             return (
-              <rect
-                key={k}
-                x={bufX + k * w + 1}
-                y={89}
-                width={Math.max(1, w - 2)}
-                height={22}
-                fill={filled ? "var(--nv-busy)" : "transparent"}
-                stroke="var(--border)"
-              />
+              <g key={i} strokeDasharray={started ? undefined : "3 3"}>
+                <line x1={52} y1={rowY(i)} x2={bufX} y2={100} stroke={FLOW_COLORS[i]} strokeDasharray={FLOW_DASH[i]} strokeWidth={2} />
+                <circle cx={36} cy={rowY(i)} r={14} fill="var(--background)" stroke={FLOW_COLORS[i]} strokeWidth={2.5} />
+                <text x={36} y={rowY(i)} dy="0.35em" textAnchor="middle" fontSize="13" fill="var(--foreground)">
+                  {i + 1}
+                </text>
+                <text x={56} y={rowY(i) - (n > 2 ? 9 : 14)} fontSize="13" fill="var(--muted-foreground)">
+                  {started
+                    ? `cwnd ${cwnd >= 100 ? cwnd.toFixed(0) : cwnd.toFixed(1)}, ${f.rtt_us / 1000} ms`
+                    : `starts at ${seconds(f.start_us)} s`}
+                </text>
+              </g>
             )
-          })
-        ) : (
-          <rect x={bufX + bufW * (1 - q / B)} y={89} width={(bufW * q) / B} height={22} fill="var(--nv-busy)" />
-        )}
-        <text x={bufX + bufW / 2} y={78} textAnchor="middle" fontSize="13" fill="var(--foreground)">
-          buffer: {q} of {B} waiting
-        </text>
-        <text x={bufX + bufW / 2} y={132} textAnchor="middle" fontSize="13" fill="var(--muted-foreground)">
-          adds {texFree(q * tx)} of queueing delay
-        </text>
-        {/* router and link */}
-        <circle cx={rx} cy={100} r={16} fill="var(--background)" stroke="var(--foreground)" strokeWidth={1.5} />
-        <path d={`M${rx - 8},${100}h16M${rx},${92}v16`} stroke="var(--foreground)" strokeWidth={1.5} />
-        <line x1={rx + 16} y1={100} x2={470} y2={100} stroke="var(--foreground)" strokeWidth={q > 0 ? 4 : 2} />
-        <text x={(rx + 470) / 2 + 8} y={90} textAnchor="middle" fontSize="13" fill="var(--foreground)">
-          {mbps(p.rate_bps)}
-        </text>
-        <text x={(rx + 470) / 2 + 8} y={118} textAnchor="middle" fontSize="13" fill="var(--muted-foreground)">
-          {q > 0 ? "busy" : "may idle"}
-        </text>
-        <rect x={470} y={86} width={34} height={28} rx={4} fill="var(--background)" stroke="var(--foreground)" strokeWidth={1.5} />
-        <text x={487} y={100} dy="0.35em" textAnchor="middle" fontSize="13" fill="var(--foreground)">
-          rcv
-        </text>
-      </svg>
+          })}
+          {/* the buffer */}
+          <rect x={bufX} y={86} width={bufW} height={28} fill="none" stroke="var(--foreground)" />
+          {B === 0 ? (
+            <text x={bufX + bufW / 2} y={100} dy="0.35em" textAnchor="middle" fontSize="13" fill="var(--muted-foreground)">
+              no buffer
+            </text>
+          ) : slots ? (
+            Array.from({ length: B }, (_, k) => {
+              const w = bufW / B
+              const filled = k >= B - q
+              return (
+                <rect
+                  key={k}
+                  x={bufX + k * w + 1}
+                  y={89}
+                  width={Math.max(1, w - 2)}
+                  height={22}
+                  fill={filled ? "var(--nv-busy)" : "transparent"}
+                  stroke="var(--border)"
+                />
+              )
+            })
+          ) : (
+            <rect x={bufX + bufW * (1 - q / B)} y={89} width={(bufW * q) / B} height={22} fill="var(--nv-busy)" />
+          )}
+          <text x={bufX + bufW / 2} y={78} textAnchor="middle" fontSize="13" fill="var(--foreground)">
+            buffer: {q} of {B} waiting
+          </text>
+          <text x={bufX + bufW / 2} y={132} textAnchor="middle" fontSize="13" fill="var(--muted-foreground)">
+            adds {texFree(q * tx)} of queueing delay
+          </text>
+          {/* router and link */}
+          <circle cx={rx} cy={100} r={16} fill="var(--background)" stroke="var(--foreground)" strokeWidth={1.5} />
+          <path d={`M${rx - 8},${100}h16M${rx},${92}v16`} stroke="var(--foreground)" strokeWidth={1.5} />
+          <line x1={rx + 16} y1={100} x2={470} y2={100} stroke="var(--foreground)" strokeWidth={q > 0 ? 4 : 2} />
+          <text x={(rx + 470) / 2 + 8} y={90} textAnchor="middle" fontSize="13" fill="var(--foreground)">
+            {mbps(p.rate_bps)}
+          </text>
+          <text x={(rx + 470) / 2 + 8} y={118} textAnchor="middle" fontSize="13" fill="var(--muted-foreground)">
+            {q > 0 ? "busy" : "may idle"}
+          </text>
+          <rect x={470} y={86} width={34} height={28} rx={4} fill="var(--background)" stroke="var(--foreground)" strokeWidth={1.5} />
+          <text x={487} y={100} dy="0.35em" textAnchor="middle" fontSize="13" fill="var(--foreground)">
+            rcv
+          </text>
+        </svg>
       </div>
       <p className="mt-1 text-xs text-muted-foreground">
         ACKs return over an uncongested path; each flow's round trip is its own propagation delay plus the queue.
@@ -279,50 +279,50 @@ export const PhasePlane = memo(function PhasePlane({ run, p, t }: { run: TcpRun;
         Phase plane: flow 1 against flow 2 (Chiu and Jain, 1989){p.flows.length > 2 ? "; flows 3 and on count only in Jain's index" : ""}
       </figcaption>
       <div className="overflow-x-auto">
-      <svg
-        viewBox={`0 0 ${S + pad + 12} ${S + pad + 34}`}
-        width={(S + pad + 12) * K}
-        height={(S + pad + 34) * K}
-        className="block"
-        role="img"
-        aria-label={`At ${seconds(t)} s flow 1 gets ${mbps(now[0] ?? 0)} and flow 2 ${mbps(now[1] ?? 0)}; Jain's index ${jain.toFixed(3)}`}
-      >
-        <rect x={pad} y={pad} width={S} height={S} fill="none" stroke="var(--border)" />
-        {ticks.map((f) => (
-          <g key={f} fontSize="13" fill="var(--muted-foreground)">
-            <text x={X(f * R)} y={pad + S + 15} textAnchor="middle">
-              {f === 0 ? "0" : `${f}R`}
-            </text>
-            <text x={pad - 6} y={Y(f * R)} dy="0.35em" textAnchor="end">
-              {f === 0 ? "" : `${f}R`}
-            </text>
-          </g>
-        ))}
-        <line x1={X(0)} y1={Y(0)} x2={X(max)} y2={Y(max)} stroke="var(--chart-ink)" strokeDasharray="5 4" />
-        <text x={X(R * 0.98)} y={Y(R * 1.02)} textAnchor="end" fontSize="13" fill="var(--chart-ink)">
-          fair: x = y
-        </text>
-        <line x1={X(R)} y1={Y(0)} x2={X(0)} y2={Y(R)} stroke="var(--chart-ink)" />
-        <text
-          x={X(R * 0.52)}
-          y={Y(R * 0.52) + 18}
-          fontSize="13"
-          fill="var(--chart-ink)"
-          transform={`rotate(45 ${X(R * 0.52)} ${Y(R * 0.52) + 18})`}
+        <svg
+          viewBox={`0 0 ${S + pad + 12} ${S + pad + 34}`}
+          width={(S + pad + 12) * K}
+          height={(S + pad + 34) * K}
+          className="block"
+          role="img"
+          aria-label={`At ${seconds(t)} s flow 1 gets ${mbps(now[0] ?? 0)} and flow 2 ${mbps(now[1] ?? 0)}; Jain's index ${jain.toFixed(3)}`}
         >
-          efficient: x + y = R
-        </text>
-        <path d={path(0, xs.length - 1)} fill="none" stroke="var(--border)" strokeWidth={1} />
-        <path d={path(0, i)} fill="none" stroke="var(--muted-foreground)" strokeWidth={1.25} />
-        {i > recent && <path d={path(recent, i)} fill="none" stroke="var(--foreground)" strokeWidth={2.25} />}
-        {i >= 0 && <circle cx={X(xs[i])} cy={Y(ys[i])} r={5} fill="var(--foreground)" stroke="var(--background)" strokeWidth={1.5} />}
-        <text x={pad + S / 2} y={S + pad + 32} textAnchor="middle" fontSize="13" fill="var(--foreground)">
-          flow 1 goodput (x)
-        </text>
-        <text x={pad} y={pad - 8} fontSize="13" fill="var(--foreground)">
-          flow 2 goodput (y)
-        </text>
-      </svg>
+          <rect x={pad} y={pad} width={S} height={S} fill="none" stroke="var(--border)" />
+          {ticks.map((f) => (
+            <g key={f} fontSize="13" fill="var(--muted-foreground)">
+              <text x={X(f * R)} y={pad + S + 15} textAnchor="middle">
+                {f === 0 ? "0" : `${f}R`}
+              </text>
+              <text x={pad - 6} y={Y(f * R)} dy="0.35em" textAnchor="end">
+                {f === 0 ? "" : `${f}R`}
+              </text>
+            </g>
+          ))}
+          <line x1={X(0)} y1={Y(0)} x2={X(max)} y2={Y(max)} stroke="var(--chart-ink)" strokeDasharray="5 4" />
+          <text x={X(R * 0.98)} y={Y(R * 1.02)} textAnchor="end" fontSize="13" fill="var(--chart-ink)">
+            fair: x = y
+          </text>
+          <line x1={X(R)} y1={Y(0)} x2={X(0)} y2={Y(R)} stroke="var(--chart-ink)" />
+          <text
+            x={X(R * 0.52)}
+            y={Y(R * 0.52) + 18}
+            fontSize="13"
+            fill="var(--chart-ink)"
+            transform={`rotate(45 ${X(R * 0.52)} ${Y(R * 0.52) + 18})`}
+          >
+            efficient: x + y = R
+          </text>
+          <path d={path(0, xs.length - 1)} fill="none" stroke="var(--border)" strokeWidth={1} />
+          <path d={path(0, i)} fill="none" stroke="var(--muted-foreground)" strokeWidth={1.25} />
+          {i > recent && <path d={path(recent, i)} fill="none" stroke="var(--foreground)" strokeWidth={2.25} />}
+          {i >= 0 && <circle cx={X(xs[i])} cy={Y(ys[i])} r={5} fill="var(--foreground)" stroke="var(--background)" strokeWidth={1.5} />}
+          <text x={pad + S / 2} y={S + pad + 32} textAnchor="middle" fontSize="13" fill="var(--foreground)">
+            flow 1 goodput (x)
+          </text>
+          <text x={pad} y={pad - 8} fontSize="13" fill="var(--foreground)">
+            flow 2 goodput (y)
+          </text>
+        </svg>
       </div>
       <p className="mt-1 font-sans text-sm tabular-nums">
         Jain's index now <b>{jain.toFixed(3)}</b>{" "}

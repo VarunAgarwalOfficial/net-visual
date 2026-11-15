@@ -34,10 +34,7 @@ const TraceRow = memo(function TraceRow({
   return (
     <li>
       <button
-        className={cn(
-          "grid w-full grid-cols-[4.5rem_2rem_1fr] gap-2 px-1 py-0.5 text-left hover:bg-muted",
-          active && "bg-mark",
-        )}
+        className={cn("grid w-full grid-cols-[4.5rem_2rem_1fr] gap-2 px-1 py-0.5 text-left hover:bg-muted", active && "bg-mark")}
         onClick={() => onSeek(i)}
         ref={active ? scrollWithin : undefined}
       >

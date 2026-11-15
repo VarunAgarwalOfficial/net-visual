@@ -169,12 +169,7 @@ export const CwndChart = memo(function CwndChart({
               ) : null,
             )}
             {marks.drops.map((ts, i) => (
-              <path
-                key={i}
-                d={ts.map((x) => `M${sx(x).toFixed(1)},${bottom}v-${5 + 3 * i}`).join("")}
-                stroke="var(--nv-bad)"
-                fill="none"
-              />
+              <path key={i} d={ts.map((x) => `M${sx(x).toFixed(1)},${bottom}v-${5 + 3 * i}`).join("")} stroke="var(--nv-bad)" fill="none" />
             ))}
             {firstDrop < Infinity && (
               <text
@@ -218,13 +213,7 @@ export const CwndChart = memo(function CwndChart({
               </text>
             ))}
             {marks.fast.map(([x, y], i) => (
-              <path
-                key={`f${i}`}
-                d={`M${sx(x)},${sy(y) - 3}l-4,-7h8z`}
-                fill="var(--nv-again)"
-                stroke="var(--background)"
-                strokeWidth={1}
-              />
+              <path key={`f${i}`} d={`M${sx(x)},${sy(y) - 3}l-4,-7h8z`} fill="var(--nv-again)" stroke="var(--background)" strokeWidth={1} />
             ))}
             {marks.timeout.map(([x, y], i) => (
               <rect

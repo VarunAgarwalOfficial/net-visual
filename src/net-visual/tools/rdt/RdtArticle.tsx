@@ -148,8 +148,21 @@ export function RdtAnalysis({ sim, p, run }: { sim: Netsim; p: RdtParams; run: R
           dashed: true,
           points: rows.map((r) => [r[0], r[5]]),
         },
-        { id: "sw-sim", label: "Stop-and-wait, simulated", color: "var(--foreground)", kind: "dots", points: rows.map((r) => [r[0], r[1]]) },
-        { id: "sw-th", label: "Stop-and-wait, exact", color: "var(--foreground)", kind: "line", dashed: true, points: rows.map((r) => [r[0], r[4]]) },
+        {
+          id: "sw-sim",
+          label: "Stop-and-wait, simulated",
+          color: "var(--foreground)",
+          kind: "dots",
+          points: rows.map((r) => [r[0], r[1]]),
+        },
+        {
+          id: "sw-th",
+          label: "Stop-and-wait, exact",
+          color: "var(--foreground)",
+          kind: "line",
+          dashed: true,
+          points: rows.map((r) => [r[0], r[4]]),
+        },
       ]
     : []
 

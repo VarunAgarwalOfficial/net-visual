@@ -44,8 +44,7 @@ export function HeaderDiagram({ title, fields, note }: { title: string; fields: 
               key={c.key}
               role="cell"
               className={
-                "border-r border-b border-border px-1 py-0.5 text-center leading-tight lining " +
-                (c.field.changed ? "bg-mark" : "")
+                "border-r border-b border-border px-1 py-0.5 text-center leading-tight lining " + (c.field.changed ? "bg-mark" : "")
               }
               style={{ gridColumn: `${c.start + 1} / span ${c.span}`, gridRow: c.row + 1 }}
             >

@@ -152,7 +152,13 @@ function BufferSweep({ sim, p }: { sim: Netsim; p: TcpParams }) {
       </Button>
     )
   const series: Series[] = [
-    { id: "sim", label: "simulated, one NewReno flow", color: "var(--foreground)", kind: "dots", points: rows.map((r) => [r.b, r.measured]) },
+    {
+      id: "sim",
+      label: "simulated, one NewReno flow",
+      color: "var(--foreground)",
+      kind: "dots",
+      points: rows.map((r) => [r.b, r.measured]),
+    },
     { id: "th", label: "sawtooth formula", color: "var(--foreground)", kind: "line", points: rows.map((r) => [r.b, r.formula]) },
   ]
   return (
