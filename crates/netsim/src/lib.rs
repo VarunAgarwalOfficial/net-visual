@@ -5,9 +5,12 @@
 //! scrubs through the trace, so stepping back is exact and a shared link
 //! reproduces the same run on any machine.
 
+pub mod coding;
+pub mod lan;
 pub mod link;
 pub mod queue;
 pub mod rdt;
 pub mod routing;
 pub mod sim;
+pub mod stp;
 pub mod tcp;
