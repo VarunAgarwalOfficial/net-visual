@@ -573,7 +573,7 @@ export function StpPorts({ p, run, index }: { p: StpParams; run: StpRun; index: 
           .filter(Boolean)
           .join(", ")}
         .{" "}
-        <span className={ok ? "text-[var(--chart-2)]" : "text-muted-foreground"}>
+        <span className={ok ? "text-[var(--chart-3)]" : "text-muted-foreground"}>
           {ok ? "The bridges' roles now match it." : "The bridges have not reached it yet."}
         </span>
       </p>
