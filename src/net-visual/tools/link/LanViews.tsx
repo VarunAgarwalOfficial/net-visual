@@ -73,7 +73,7 @@ export function switchText(p: SwitchParams, run: SwitchRun, i: number): string {
     case "repeat":
       return `The hub copies the signal out of port${e.out.length > 1 ? "s" : ""} ${list(e.out)}. It learns nothing, so it cannot filter.`
     case "cap":
-      return `The run stops after ${p.max_sends} transmissions. With loops and no spanning tree, nothing ever discards a broadcast, and it keeps multiplying.`
+      return `The run stops at ${e.sent} transmissions: this flood would pass the limit of ${p.max_sends}. With loops and no spanning tree, nothing ever discards a broadcast, and it keeps multiplying.`
   }
 }
 
@@ -146,8 +146,13 @@ export function SwitchEquations({ p, run, index }: { p: SwitchParams; run: Switc
 export function switchChart(sim: Netsim, p: SwitchParams, run: SwitchRun): LinkChart {
   const other = { ...p, stp: !p.stp }
   const alt = cached(sim, `sw:${JSON.stringify(other)}`, () => runSwitch(sim, other))
-  const end = Math.max(1, ...run.events.map((e) => e.t), ...alt.events.map((e) => e.t))
-  const curve = (r: SwitchRun): [number, number][] => [[0, 0], ...r.events.map((e): [number, number] => [e.t, e.sent]), [end, r.sent]]
+  // The other run's ageing can sit long after its traffic, so its part of the axis ends when its last frame moves.
+  const last = (r: SwitchRun, ages: boolean) => Math.max(1, ...r.events.filter((e) => ages || e.what !== "age").map((e) => e.t))
+  const end = Math.max(last(run, true), last(alt, false) * 1.1)
+  const curve = (r: SwitchRun): [number, number][] => {
+    const pts = r.events.filter((e) => e.t <= end).map((e): [number, number] => [e.t, e.sent])
+    return [[0, 0], ...pts, [end, pts.length ? pts[pts.length - 1][1] : 0]]
+  }
   const label = (on: boolean) => (on ? "with the spanning tree" : "without it")
   const series: Series[] = [
     { id: "now", label: `this run, ${label(p.stp)}`, color: "var(--chart-1)", kind: "step", points: curve(run) },
@@ -447,13 +452,12 @@ export function StpEquations({ p, run, index }: { p: StpParams; run: StpRun; ind
   const rp = d.root_port[b]
   const name = (i: number) => p.bridges[i].name
   const via = rp ? ports[b][rp - 1] : null
-  const ids = p.bridges.map((x) => x.id)
   const f = p.failure
   return (
     <Card title="802.1D: elect a root, take the cheapest path to it, block the rest">
       <Tex
         display
-      >{`\\text{root} = \\arg\\min_B \\text{ID}(B) = \\text{${name(d.root)}}\\quad(\\text{ID} = \\text{priority} \\cdot 2^{16} + \\text{MAC}_{\\text{low}};\\ ${texIds(p, ids)})`}</Tex>
+      >{`\\text{root} = \\arg\\min_B \\text{ID}(B) = \\text{${name(d.root)}} = ${texId(p, d.root)},\\quad \\text{ID} = \\text{priority} \\cdot 2^{16} + \\text{MAC}_{\\text{low}}`}</Tex>
       {via && d.cost[b] !== null ? (
         <Tex
           display
@@ -476,11 +480,10 @@ export function StpEquations({ p, run, index }: { p: StpParams; run: StpRun; ind
   )
 }
 
-const texIds = (p: StpParams, ids: number[]) =>
-  ids
-    .map((id, i) => `\\text{${p.bridges[i].name}}: ${priority(id)}.\\text{${(id % 65536).toString(16).padStart(4, "0")}}`)
-    .slice(0, 6)
-    .join(",\\ ")
+const texId = (p: StpParams, i: number) => {
+  const id = p.bridges[i].id
+  return `${priority(id)}.\\text{${(id % 65536).toString(16).padStart(4, "0")}}`
+}
 
 /** Ports forwarding, blocking and waiting, over time. */
 export function stpChart(p: StpParams, run: StpRun): LinkChart {
@@ -500,9 +503,9 @@ export function stpChart(p: StpParams, run: StpRun): LinkChart {
   return {
     title: "Ports by state over time",
     series: [
-      { id: "fwd", label: "forwarding", color: "var(--chart-2)", kind: "step", points: close(c.forwarding) },
-      { id: "wait", label: "listening or learning", color: "var(--chart-3)", kind: "step", points: close(wait) },
-      { id: "blk", label: "blocking", color: "var(--chart-6)", kind: "step", dashed: true, points: close(c.blocking) },
+      { id: "fwd", label: "forwarding", color: "var(--chart-3)", kind: "step", points: close(c.forwarding) },
+      { id: "wait", label: "listening or learning", color: "var(--chart-4)", kind: "step", points: close(wait) },
+      { id: "blk", label: "blocking", color: "var(--destructive)", kind: "step", dashed: true, points: close(c.blocking) },
     ],
     xLabel: "time (s)",
     yLabel: "ports",
@@ -551,7 +554,8 @@ export function StpPorts({ p, run, index }: { p: StpParams; run: StpRun; index: 
                     className={cn(
                       "mr-2",
                       x.state === "blocking" && "text-destructive",
-                      x.state === "forwarding" && "text-[var(--chart-2)]",
+                      x.state === "forwarding" && "text-[var(--chart-3)]",
+                      (x.state === "listening" || x.state === "learning") && "text-[var(--chart-4)]",
                     )}
                   >
                     {x.port}:{ROLE_LETTER[x.role]} {x.state}

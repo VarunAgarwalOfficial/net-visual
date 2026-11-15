@@ -4,6 +4,22 @@
 import { isParity, type CrcEvent, type CrcParams, type CrcRun, type HammingParams, type HammingRun } from "../../core/coding.ts"
 import type { Ink, Shape, ShapeFigure } from "./shapes.ts"
 
+const SUP: Record<string, string> = {
+  "0": "⁰",
+  "1": "¹",
+  "2": "²",
+  "3": "³",
+  "4": "⁴",
+  "5": "⁵",
+  "6": "⁶",
+  "7": "⁷",
+  "8": "⁸",
+  "9": "⁹",
+  "-": "⁻",
+}
+/** A number as Unicode superscript, for exponents in plain-text labels. */
+export const sup = (n: number) => [...String(n)].map((c) => SUP[c] ?? c).join("")
+
 const text = (x: number, y: number, s: string, o: Partial<Extract<Shape, { kind: "text" }>> = {}): Shape => ({
   kind: "text",
   x,
@@ -73,7 +89,7 @@ export function crcFigure(p: CrcParams, run: CrcRun, index: number, w: number): 
 
   // The heading line, then the quotient above the dividend, aligned so each quotient bit sits over the last column it subtracted from.
   shapes.push(
-    text(4, y, phase === "send" ? `Sender: divide M(x)·x^${r} by G(x) = ${g}` : `Receiver: divide what arrived by G(x) = ${g}`, {
+    text(4, y, phase === "send" ? `Sender: divide M(x)·x${sup(r)} by G(x) = ${g}` : `Receiver: divide what arrived by G(x) = ${g}`, {
       size: 11,
       fill: "ink",
       bold: true,
@@ -93,7 +109,7 @@ export function crcFigure(p: CrcParams, run: CrcRun, index: number, w: number): 
   bits(q, r, () => "c1")
   y += lh
   const dividend = phase === "send" ? ev[0].bits : ev.find((x) => x.what === "receive")!.bits
-  label(phase === "send" ? "M · x^r" : "received")
+  label(phase === "send" ? `M · x${sup(r)}` : "received")
   bits(
     dividend,
     0,

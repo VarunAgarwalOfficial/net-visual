@@ -183,7 +183,7 @@ export function stpFigure(p: StpParams, run: StpRun, t: number, index: number, w
   const offs = linkOffsets(p.links)
   const shapes: Shape[] = []
   const hw = w < 480 ? 26 : 32
-  const hh = 15
+  const hh = 21
   const failed = p.failure && t >= p.failure.at_ms ? p.failure.link : -1
   const ends = (i: number): [Place, Place] => shifted(pos[p.links[i].a], pos[p.links[i].b], offs[i])
   const portView = (b: number, link: number) => views[b].ports.find((x) => x.link === link)!
@@ -254,16 +254,11 @@ export function stpFigure(p: StpParams, run: StpRun, t: number, index: number, w
     if (e && e.bridge === b)
       shapes.push({ kind: "rect", x: c.x - hw - 5, y: c.y - hh - 5, w: 2 * hw + 10, h: 2 * hh + 10, stroke: "c0", dashed: true })
     shapes.push({ kind: "rect", x: c.x - hw, y: c.y - hh, w: 2 * hw, h: 2 * hh, fill: "surface", stroke: isRoot ? "c0" : "ink" })
-    shapes.push(text(c.x, c.y - 1, br.name, { fill: "ink", bold: true, size: 11.5 }))
-    shapes.push(text(c.x, c.y + 10.5, bridgeId(br.id), { size: 8.5 }))
+    // Name, ID, and what the bridge believes: that it is the root, or its cost to the root it believes in.
+    shapes.push(text(c.x, c.y - 6, br.name, { fill: "ink", bold: true, size: 11.5 }))
+    shapes.push(text(c.x, c.y + 5, bridgeId(br.id), { size: 8.5 }))
     const rootName = p.bridges[byId.get(v.root) ?? b].name
-    const below = c.y + hh + 13
-    shapes.push(
-      text(c.x, c.y > (h - legend) / 2 ? c.y - hh - 6 : below, isRoot ? "root" : `→ ${rootName}, cost ${v.cost}`, {
-        size: 9.5,
-        fill: isRoot ? "c0" : "muted",
-      }),
-    )
+    shapes.push(text(c.x, c.y + 16, isRoot ? "root" : `${v.cost} to ${rootName}`, { size: 8.5, fill: isRoot ? "c0" : "ink" }))
   })
 
   // The legend.

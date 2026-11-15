@@ -22,6 +22,7 @@ import {
   type HammingRun,
 } from "../../core/coding"
 import { Card, Group, Row, TH, type LinkChart } from "./LinkViews"
+import { sup } from "./codeFigures"
 
 const list = (xs: (string | number)[]) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`)
 const genName = (bits: string) => GENERATORS.find((g) => g.bits === bits)?.name ?? polyText(bits)
@@ -34,7 +35,7 @@ export function crcText(p: CrcParams, run: CrcRun, i: number): string {
   const ones = [...run.error].flatMap((b, j) => (b === "1" ? [j] : []))
   switch (e.what) {
     case "pad":
-      return `The message has ${p.message.length} bits. The sender appends r = ${r} zeros, one for each bit of the remainder to come: this multiplies M(x) by x^${r}.`
+      return `The message has ${p.message.length} bits. The sender appends r = ${r} zeros, one for each bit of the remainder to come: this multiplies M(x) by x${sup(r)}.`
     case "xor": {
       const left = e.bits.slice(e.pos!, e.pos! + r + 1)
       return `The leftmost 1 still standing is in column ${e.pos! + 1}. Write 1 in the quotient there and subtract G = ${p.generator} under it. Subtraction in GF(2) is XOR, with no borrows, so those ${r + 1} bits become ${left}.`
@@ -118,8 +119,8 @@ export function crcChart(run: CrcRun): LinkChart {
     xDomain: [0.5, Math.max(...pts.map(([x]) => x)) + 0.5],
     yDomain: [0, top * 1.25],
     refs: [
-      { y: 2 ** -(r - 1), label: `2^−(r−1) = 1/${2 ** (r - 1)}, length r + 1` },
-      { y: 2 ** -r, label: `2^−r = 1/${2 ** r}, longer` },
+      { y: 2 ** -(r - 1), label: `2${sup(-(r - 1))} = 1/${2 ** (r - 1)}, length r + 1` },
+      { y: 2 ** -r, label: `2${sup(-r)} = 1/${2 ** r}, longer` },
     ],
     timed: false,
   }
@@ -161,8 +162,8 @@ export function CrcProps({ p, run }: { p: CrcParams; run: CrcRun }) {
         </tbody>
       </table>
       <p className="font-sans text-xs text-muted-foreground">
-        Bursts of length r = {r} or less are always caught. Of the bursts of length r + 1, those that are x^i·G(x) itself are missed: 1 in
-        2^(r−1). Of longer ones, about 1 in 2^r.{" "}
+        Bursts of length r = {r} or less are always caught. Of the bursts of length r + 1, those that are x<sup>i</sup>·G(x) itself are
+        missed: 1 in 2<sup>r−1</sup>. Of longer ones, about 1 in 2<sup>r</sup>.{" "}
         {run.props.plus_one
           ? "G has x + 1 as a factor, so every error with an odd number of flipped bits is caught."
           : "G lacks the factor x + 1, so some errors of odd weight can slip through."}
@@ -535,8 +536,8 @@ export function HammingSyndrome({ p, run }: { p: HammingParams; run: HammingRun 
         {p.secded
           ? "every single error corrected and every double reported"
           : "every single error corrected, but every double turned into a wrong correction"}
-        . A (2^r − 1, 2^r − 1 − r) Hamming code needs only r check bits for 2^r − 1 − r data bits, so the rate approaches 1 as r grows,
-        while it still handles one error per block.
+        . A (2<sup>r</sup> − 1, 2<sup>r</sup> − 1 − r) Hamming code needs only r check bits for 2<sup>r</sup> − 1 − r data bits, so the rate
+        approaches 1 as r grows, while it still handles one error per block.
       </p>
     </div>
   )

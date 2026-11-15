@@ -133,7 +133,7 @@ const HELP: Record<Mode, string> = {
     "The map shows who hears whom (dashed lines join nodes in range) and, while a frame is on the air, its sender's range. Below, one lane per node: frames on the air, red when lost at their receiver, and dashed bars where the node's NAV holds it silent.",
   switch:
     "Switches are rectangles, hubs dashed, hosts circles; the small numbers are port numbers. Each dot is one copy of a frame on its link, coloured by frame. The node that acted last is ringed, and a red bar marks a port the spanning tree blocks.",
-  stp: "Each bridge shows its ID and what it believes: root, or its root port and cost. Port markers give the role (R root, D designated, A alternate) in the colour of the state. Small squares are BPDUs in flight; heavy links forward.",
+  stp: "Each bridge shows its ID and what it believes: that it is the root, or its cost to the root it believes in. Port markers give the role (R root, D designated, A alternate) in the colour of the state. Small squares are BPDUs in flight; heavy links forward.",
   crc: "The long division as written by hand: the dividend, then each subtraction of the generator under the leftmost remaining 1 and what it leaves. The quotient grows on top. In the receiver's half, flipped bits are red.",
   hamming:
     "One box per position; parity positions are tinted, and the binary under each number says which checks cover it. The dots below mark each check's positions. The checks light up as they are computed and rechecked, and the syndrome points at the bit the decoder blames.",

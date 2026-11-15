@@ -417,11 +417,7 @@ pub fn switch_run(p: &SwitchParams) -> Result<SwitchRun, String> {
                     }
                 }
                 if sent + out.len() as u64 > p.max_sends {
-                    events.push(SwitchEvent {
-                        step: "S1",
-                        what: "cap",
-                        ..ev
-                    });
+                    events.push(SwitchEvent { what: "cap", ..ev });
                     capped = true;
                     break;
                 }

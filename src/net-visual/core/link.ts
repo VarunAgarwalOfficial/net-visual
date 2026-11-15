@@ -740,7 +740,7 @@ export const PRESETS: Preset[] = [
     mode: "switch",
     title: "A broadcast storm in a loop",
     source: "Perlman 1985; IEEE 802.1D-2004, Clause 7.3",
-    note: "Four switches, each joined to every other, with no spanning tree. A broadcasts one frame. Every switch floods it out of every port except the one it came in on, so each copy that arrives makes two more, and Ethernet frames have no hop count to stop them. The run stops itself at 600 link transmissions, after 80 µs of one frame. A sees its own frame come back again and again, and the switches' tables jump between ports as A's address arrives from every side.",
+    note: "Four switches, each joined to every other, with no spanning tree. A broadcasts one frame. Every switch floods it out of every port except the one it came in on, so each copy that arrives makes two more, and Ethernet frames have no hop count to stop them. The run stops itself just short of 600 link transmissions, after 80 µs of one frame; the count roughly doubles every hop. A sees its own frame come back again and again, and the switches' tables jump between ports as A's address arrives from every side.",
     params: swl(SW_STORM),
   },
   {

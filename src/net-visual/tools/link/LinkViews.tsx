@@ -101,8 +101,8 @@ function ShapeEl({ s, arrow }: { s: Shape; arrow: string }) {
           fontSize={s.size}
           fill={CSS[s.fill]}
           fontWeight={s.bold ? 600 : undefined}
-          className={cn("stroke-background lining", s.mono && "font-mono")}
-          strokeWidth={3}
+          className={cn("lining", s.fill !== "surface" && "stroke-background", s.mono && "font-mono")}
+          strokeWidth={s.fill === "surface" ? 0 : 3}
           paintOrder="stroke"
         >
           {s.text}
