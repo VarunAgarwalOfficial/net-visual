@@ -207,15 +207,20 @@ function RoutingLoaded({ sim }: { sim: Netsim }) {
 
   const presetInfo = PRESETS.find((q) => q.id === preset)
   const caption = `${presetInfo?.title ?? "Your network"}: routes to ${p.nodes[d]} at ${clock(event.t, p)}`
+  // Rounds when every message takes one delay, as the clock elsewhere says; otherwise milliseconds.
+  const xAxis =
+    p.jitter_us === 0
+      ? { label: "round", format: (v: number) => String(Number((v / p.delay_us).toFixed(1))) }
+      : { label: "time (ms)", format: (v: number) => String(Number((v / 1000).toFixed(1))) }
   const chartFigure = (): ChartFigure => ({
-    xLabel: "time (ms)",
+    xLabel: xAxis.label,
     yLabel: `cost to ${p.nodes[d]}`,
-    xFormat: (v) => String(Number((v / 1000).toFixed(1))),
+    xFormat: xAxis.format,
     yFormat: (v) => (v >= p.infinity ? "∞" : String(Math.round(v))),
     xDomain: [0, duration],
     yDomain: [0, chart.cap],
     series: chart.series.map((s) => ({ label: s.label, color: s.color, points: s.points, dashed: s.dashed, step: true })),
-    refs: p.infinity <= chart.cap ? [{ y: p.infinity, label: `infinity = ${p.infinity}` }] : [],
+    refs: [{ y: chart.cap, label: chart.cap >= p.infinity ? `unreachable (infinity = ${p.infinity})` : "unreachable" }],
     caption: `${presetInfo?.title ?? "Your network"}: each router's cost to ${p.nodes[d]}`,
   })
 
@@ -361,16 +366,34 @@ function RoutingLoaded({ sim }: { sim: Netsim }) {
           <LineChart
             title={`Each router's cost to ${p.nodes[d]}`}
             series={chart.series}
-            xLabel="time (ms)"
+            xLabel={xAxis.label}
             yLabel={`cost to ${p.nodes[d]}`}
-            xFormat={(v) => String(Number((v / 1000).toFixed(1)))}
+            xFormat={xAxis.format}
             yFormat={(v) => (v >= p.infinity ? "∞" : String(Math.round(v)))}
             xDomain={[0, duration]}
             yDomain={[0, chart.cap]}
             height={220}
             cursor={tl.t}
             onSeek={(t) => tl.seek(t)}
-          />
+          >
+            {(s) => (
+              // Unreachable is drawn on the top line of the chart, which stands for infinity.
+              <g pointerEvents="none">
+                <line
+                  x1={s.left}
+                  x2={s.right}
+                  y1={s.sy(chart.cap)}
+                  y2={s.sy(chart.cap)}
+                  stroke="var(--chart-ink)"
+                  strokeOpacity={0.4}
+                  strokeDasharray="2 3"
+                />
+                <text x={s.left - 6} y={s.sy(chart.cap)} dy="0.32em" textAnchor="end" fontSize="12" fill="var(--chart-ink)">
+                  ∞
+                </text>
+              </g>
+            )}
+          </LineChart>
         </div>
 
         <div className="min-w-0 space-y-4">

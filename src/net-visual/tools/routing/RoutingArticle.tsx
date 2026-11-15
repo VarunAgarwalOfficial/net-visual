@@ -175,11 +175,12 @@ export function RoutingAnalysis({ p, run }: { sim: Netsim; p: RoutingParams; run
         correct by round <Tex>{"H-1"}</Tex>, where H is the most links that any pair's cheapest path needs.
       </p>
       <p>
-        <em>Proof.</em> By induction on k. At round 0 a router knows its links, which are the paths of one link. At round <Tex>{"k+1"}</Tex>{" "}
-        x combines the vectors its neighbours sent after round k: by hypothesis <Tex>{"D_v(y)"}</Tex> is the cheapest path from v of at most{" "}
-        <Tex>{"k+1"}</Tex> links, and a path from x of at most <Tex>{"k+2"}</Tex> links is a first link to some v followed by such a path,
-        so the minimum is the cheapest of them. A cheapest path of H links is found at round <Tex>{"H-1"}</Tex>, and nothing cheaper exists
-        to be found later. ∎
+        <em>Proof.</em> By induction on <Tex>{"k"}</Tex>. At round 0 a router knows its links, which are the paths of one link. At round{" "}
+        <Tex>{"k+1"}</Tex> <Tex>{"x"}</Tex> combines the vectors its neighbours sent after round <Tex>{"k"}</Tex>: by hypothesis{" "}
+        <Tex>{"D_v(y)"}</Tex> is the cheapest path from <Tex>{"v"}</Tex> of at most <Tex>{"k+1"}</Tex> links, and a path from{" "}
+        <Tex>{"x"}</Tex> of at most <Tex>{"k+2"}</Tex> links is a first link to some <Tex>{"v"}</Tex> followed by such a path, so the
+        minimum is the cheapest of them. A cheapest path of <Tex>{"H"}</Tex> links is found at round <Tex>{"H-1"}</Tex>, and nothing cheaper
+        exists to be found later. ∎
       </p>
       <p className="font-sans text-sm">
         {p.jitter_us === 0 ? (
@@ -202,15 +203,15 @@ export function RoutingAnalysis({ p, run }: { sim: Netsim; p: RoutingParams; run
       <h3 className="pt-2 text-lg">Theorem 3 (the rate of the count)</h3>
       <p>
         Suppose that after a change routers <Tex>{"r_1, \\dots, r_L"}</Tex> form a cycle of next hops towards y (each <Tex>{"r_i"}</Tex>{" "}
-        forwards to <Tex>{"r_{i+1}"}</Tex>, and <Tex>{"r_L"}</Tex> to <Tex>{"r_1"}</Tex>) whose links cost C in total, and that none of them
-        has an offer cheaper than the ones from the cycle. Then in synchronous rounds every router on the cycle raises its estimate by
-        exactly C every L rounds, until one of them meets a genuine alternative or infinity.
+        forwards to <Tex>{"r_{i+1}"}</Tex>, and <Tex>{"r_L"}</Tex> to <Tex>{"r_1"}</Tex>) whose links cost <Tex>{"C"}</Tex> in total, and
+        that none of them has an offer cheaper than the ones from the cycle. Then in synchronous rounds every router on the cycle raises its
+        estimate by exactly <Tex>{"C"}</Tex> every <Tex>{"L"}</Tex> rounds, until one of them meets a genuine alternative or infinity.
       </p>
       <p>
         <em>Proof.</em> While <Tex>{"r_i"}</Tex>'s best offer comes from <Tex>{"r_{i+1}"}</Tex>, a change in <Tex>{"D_{r_{i+1}}(y)"}</Tex>{" "}
-        at round k reaches <Tex>{"r_i"}</Tex> at round <Tex>{"k+1"}</Tex>, which sets{" "}
+        at round <Tex>{"k"}</Tex> reaches <Tex>{"r_i"}</Tex> at round <Tex>{"k+1"}</Tex>, which sets{" "}
         <Tex>{"D_{r_i}(y) = c(r_i, r_{i+1}) + D_{r_{i+1}}(y)"}</Tex>. So the change travels round the cycle against the arrows, one hop per
-        round, gaining each link's cost as it goes; after L hops it is back where it started, C higher. ∎
+        round, gaining each link's cost as it goes; after <Tex>{"L"}</Tex> hops it is back where it started, <Tex>{"C"}</Tex> higher. ∎
       </p>
       <p>
         Counting from an estimate d to infinity therefore takes about <Tex>{"L(\\infty - d)/C"}</Tex> rounds. For unit costs that is{" "}
@@ -222,8 +223,10 @@ export function RoutingAnalysis({ p, run }: { sim: Netsim; p: RoutingParams; run
       </p>
       <p className="font-sans text-sm">
         This run: some router's next hops form a loop at {stats.loopEvents} of {run.events.length} events, for{" "}
-        {p.jitter_us === 0 ? `${(stats.loopTime / p.delay_us).toFixed(0)} rounds` : `${(stats.loopTime / 1000).toFixed(1)} ms`} in total. A
-        packet sent then would circle until its TTL ran out.
+        {p.jitter_us === 0
+          ? `${stats.loopTime / p.delay_us} round${stats.loopTime === p.delay_us ? "" : "s"}`
+          : `${(stats.loopTime / 1000).toFixed(1)} ms`}{" "}
+        in total. A packet sent then would circle until its TTL ran out.
       </p>
 
       <h3 className="pt-2 text-lg">Theorem 4 (Dijkstra)</h3>

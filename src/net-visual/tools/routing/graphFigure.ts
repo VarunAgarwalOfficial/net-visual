@@ -91,8 +91,25 @@ export function segment(a: [number, number], b: [number, number], r: number, off
   }
 }
 
-/** The baseline of the label under a router. */
-export const labelY = (y: number) => y + R + 14
+/**
+ * Whether a router's label goes above it rather than below: above when most
+ * of its links leave downwards, so that the label does not sit on a link.
+ */
+export function labelAbove(fig: Pick<GraphFigure, "links" | "pos">, i: number): boolean {
+  let sy = 0
+  for (const l of fig.links) {
+    const j = l.a === i ? l.b : l.b === i ? l.a : -1
+    if (j < 0) continue
+    const dx = fig.pos[j][0] - fig.pos[i][0]
+    const dy = fig.pos[j][1] - fig.pos[i][1]
+    sy += dy / (Math.hypot(dx, dy) || 1)
+  }
+  return sy > 0.3
+}
+
+/** The baseline of a router's label, for a router of radius r drawn at y, with text scaled by k. */
+export const labelY = (fig: Pick<GraphFigure, "links" | "pos">, i: number, y: number, r = R, k = 1) =>
+  labelAbove(fig, i) ? y - r - 6 * k : y + r + 14 * k
 
 const n1 = (v: number) => v.toFixed(1)
 
@@ -130,7 +147,7 @@ export function graphSvg(fig: GraphFigure): string {
     out.push(
       `<circle cx="${n1(x)}" cy="${n1(y)}" r="${R}" fill="#ffffff" stroke="${INK}" stroke-width="${i === fig.dest ? 3 : 1.5}"/>`,
       `<text x="${n1(x)}" y="${n1(y)}" dy="0.35em" text-anchor="middle" font-size="15" fill="${INK}">${esc(name)}</text>`,
-      `<text x="${n1(x)}" y="${n1(labelY(y))}" text-anchor="middle" font-size="11" fill="${MUTED}" stroke="#ffffff" stroke-width="4" paint-order="stroke">${esc(fig.labels[i] ?? "")}</text>`,
+      `<text x="${n1(x)}" y="${n1(labelY(fig, i, y))}" text-anchor="middle" font-size="11" fill="${MUTED}" stroke="#ffffff" stroke-width="4" paint-order="stroke">${esc(fig.labels[i] ?? "")}</text>`,
     )
   })
   out.push(`<text x="${W / 2}" y="${H + 36}" text-anchor="middle" font-size="12" fill="${INK}">${esc(fig.caption)}</text>`, `</svg>`)
@@ -162,9 +179,10 @@ export function graphTikz(fig: GraphFigure): string {
     )
   fig.nodes.forEach((_, i) => {
     const [x, y] = fig.pos[i]
-    const ly = (-y / 10 - 0.5).toFixed(2)
+    const above = labelAbove(fig, i)
+    const ly = (-y / 10 + (above ? 0.5 : -0.5)).toFixed(2)
     L.push(
-      `  \\node[anchor=north, fill=white, inner sep=1pt, black!65, font=\\sffamily\\scriptsize] at (${(x / 10).toFixed(2)},${ly}) {${tex(fig.labels[i] ?? "")}};`,
+      `  \\node[anchor=${above ? "south" : "north"}, fill=white, inner sep=1pt, black!65, font=\\sffamily\\scriptsize] at (${(x / 10).toFixed(2)},${ly}) {${tex(fig.labels[i] ?? "")}};`,
     )
   })
   L.push(`  \\node[anchor=north, font=\\sffamily\\small] at (5,-6.9) {${tex(fig.caption)}};`)
