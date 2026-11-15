@@ -457,6 +457,53 @@ recorded per tool below.
   flow has its own colour" to "its own mark ... filled or outlined, in
   ink or grey".
 
+- link: ALOHA/CSMA frames purple while sent, green when through, red
+  when overlapped; CSMA/CD station dots ink, carrier bands purple (kept
+  at 0.32 opacity so overlaps read), jam red (0.55); CSMA/CA range ring
+  purple dashed, NAV grey ground with an ink dashed outline; STP port
+  states forwarding green, learning/listening purple, blocking red,
+  disabled muted; frame copies and BPDUs purple; root bridge a bold
+  "root" label, not a fill. Code views: flipped bits red outline and
+  text (no tint), covered bits on the highlighter. Charts in ink and
+  muted with dashes and hollow/filled dots. Figures are laid out so 11
+  units render at 17px (`figureWidth`, ShapeView `px` floor). Moved: the
+  ALOHA key wraps and gains "a frame still being sent"; STP boxes grew
+  (still crowded at 390); overlapping CSMA/CD "heard after" labels lift
+  15 units. Colour words changed: ALOHA help ("purple while it is sent,
+  green ... red ..."), switch help ("Each purple dot is one copy").
+- web: DNS ladder query muted, referral purple, answer green, CNAME
+  amber, NXDOMAIN/NODATA red; HTTP data packets purple, alternate
+  objects thin and thick, arrivals ink, deliveries green. Charts ink and
+  muted with dashes; formula curves dotted. DNS laid out at 12 units =
+  17px, HTTP at 10. Moved: DNS internal width minimum 200, column names
+  stagger on two levels at 390, column notes and the key wrap; HTTP
+  stream names and sizes sit above each row on a phone, ladder gutters
+  narrower there, loss label wraps. Colour words changed: "purple, a
+  referral", "amber, an alias", "purple are referrals", "purple ones
+  data packets".
+
+Contrast (WCAG 2 relative luminance, computed from the token hexes by
+`/tmp/nv-work/style/contrast.py`; AA text 4.5, graphics 3):
+
+| Pair | Light | Dark |
+|---|---|---|
+| fg / bg | 15.08 | 13.83 |
+| muted / bg | 5.91 | 7.06 |
+| link / bg | 5.59 | 5.51 |
+| ok / bg | 5.40 | 7.54 |
+| again / bg | 4.92 | 7.80 |
+| busy / bg | 5.77 | 7.28 |
+| bad / bg | 6.10 | 6.81 |
+| fg / mark | 12.55 | 9.39 |
+| muted / mark | 4.92 | 4.80 |
+| fg / code-bg | 13.77 | 12.38 |
+| meaning / code-bg (lowest) | 4.49 (amber) | 6.09 |
+
+Page colour on a solid meaning fill has the same ratio as the fill on
+the page. Amber on code-bg in light is 4.49, just under 4.5; it is used
+there only as a line or swatch (graphics, 3:1). Rule colour (1.35/1.41)
+is a separator only.
+
 ## Next
 
 Only known gaps remain; all six tools are built.
