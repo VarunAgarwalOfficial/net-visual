@@ -240,11 +240,11 @@ export function LinkAnalysis({ sim }: { sim: Netsim }) {
       <p>
         Let frames last one frame time and let attempts from a very large population arrive as a Poisson process, G per frame time. A frame
         starting at t survives if no other frame starts in (t − 1, t + 1): anything starting in the frame time before it is still on the air
-        at t, anything starting during it overlaps its end. That window is two frame times, so
+        at t, anything starting during it overlaps its end. That window is two frame times, 2F, so
       </p>
       <Tex display>
         {
-          "S = G\\,P(\\text{no other start in 2 frame times}) = G e^{-2G}, \\qquad \\frac{dS}{dG} = (1 - 2G)e^{-2G} = 0 \\Rightarrow G = \\tfrac12,\\ S = \\tfrac{1}{2e} \\approx 0.184."
+          "\\begin{aligned} S &= G \\cdot P(\\text{no other start in } 2F) \\\\ &= G e^{-2G} \\\\ \\frac{dS}{dG} &= (1 - 2G)e^{-2G} = 0 \\\\ &\\Rightarrow G = \\tfrac12,\\ S = \\tfrac{1}{2e} \\approx 0.184 \\end{aligned}"
         }
       </Tex>
       <p>

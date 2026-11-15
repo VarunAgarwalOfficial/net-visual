@@ -776,9 +776,11 @@ export function CaStations({ p, run, t }: { p: CaParams; run: CaRun; t: number }
       <div className="max-h-72 overflow-auto">
         <table className="w-full font-sans text-sm tabular-nums lining">
           <caption className="pb-1 text-left text-xs text-muted-foreground">
-            {navs.length ? "The latest NAVs set by now: who heard which frame, and until when it stays quiet." : "No NAV set yet."}
+            {navs.length
+              ? "The latest NAVs set by now: who heard which frame, and until when it stays quiet."
+              : "No NAV set yet: a node sets one when it decodes a frame meant for someone else."}
           </caption>
-          <thead className="sticky top-0 bg-background text-xs text-muted-foreground">
+          <thead className={cn("sticky top-0 bg-background text-xs text-muted-foreground", !navs.length && "hidden")}>
             <tr className="text-right">
               <th className={cn(TH, "text-left")}>node</th>
               <th className={cn(TH, "text-left")}>heard</th>
