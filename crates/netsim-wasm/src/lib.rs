@@ -182,7 +182,12 @@ fn check_routing(p: &routing::Params) -> Result<(), String> {
         })
         && (2..=1000).contains(&p.infinity)
         && (1..=10_000_000).contains(&p.delay_us)
-        && p.jitter_us <= 10 * p.delay_us;
+        && p.jitter_us <= 10 * p.delay_us
+        // A period of at least a delay and at most ten minutes; a timeout,
+        // if any, longer than the period; an end within a day.
+        && (p.period_us == 0 || (p.delay_us..=600_000_000).contains(&p.period_us))
+        && (p.timeout_us == 0 || (p.period_us < p.timeout_us && p.timeout_us <= 3_600_000_000))
+        && p.end_us <= 86_400_000_000;
     if ok {
         Ok(())
     } else {
