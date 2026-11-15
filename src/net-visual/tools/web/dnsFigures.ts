@@ -11,9 +11,9 @@ export interface LadderFigure extends ShapeFigure {
 
 export const KIND_INK: Record<MsgKind, Ink> = {
   query: "muted",
-  referral: "c0",
-  answer: "c2",
-  cname: "c3",
+  referral: "busy",
+  answer: "ok",
+  cname: "again",
   nxdomain: "alarm",
   nodata: "alarm",
 }
@@ -25,6 +25,18 @@ const KIND_WORD: Record<MsgKind, string> = {
   cname: "CNAME",
   nxdomain: "NXDOMAIN",
   nodata: "NODATA",
+}
+
+/** How many characters of the key's size fit in a width, and a phrase broken at spaces into lines of that many. */
+const fit = (width: number) => Math.max(8, Math.floor(width / (12 * 0.5)))
+const wrap = (text: string, n: number): string[] => {
+  const lines: string[] = []
+  for (const word of text.split(" ")) {
+    const last = lines[lines.length - 1]
+    if (last !== undefined && last.length + 1 + word.length <= n) lines[lines.length - 1] = `${last} ${word}`
+    else lines.push(word)
+  }
+  return lines
 }
 
 /** The resolution to draw at event i: its own, or for an expiry or a change, the latest one begun by then. */
@@ -59,9 +71,11 @@ export function outcomeWords(o: string): string {
 }
 
 export function ladderFigure(p: DnsParams, run: DnsRun, index: number, width: number): LadderFigure {
-  const w = Math.max(320, Math.round(width))
+  const w = Math.max(200, Math.round(width))
   const narrow = w < 560
-  const fs = narrow ? 12 : 13
+  // The page lays the figure out so that 12 units render at 17px; nothing is drawn smaller.
+  const fs = 13
+  const lh = 15
   const L = narrow ? 44 : 56
   const R = 12
   const cols = [null, "resolver", ...p.zones.map((z) => zoneLabel(z.origin))]
@@ -94,40 +108,40 @@ export function ladderFigure(p: DnsParams, run: DnsRun, index: number, width: nu
       ...tlds.map((t) => `${t} knows names ending .${t}`),
       `${zones.filter((z) => z.includes(".")).join(" and ")} hold the addresses.`,
     ]
-    const fit = Math.floor((w - 8) / ((fs - 1) * 0.5))
-    let line = ""
-    phrases.forEach((ph, i) => {
-      const piece = i === 0 || i === phrases.length - 1 ? ph : `${ph};`
-      if (line && (line + " " + piece).length > fit) {
-        keyLines.push(line)
-        line = piece
-      } else line = line ? `${line} ${piece}` : piece
-    })
-    if (line) keyLines.push(line)
+    keyLines.push(...wrap(phrases.map((ph, i) => (i === 0 || i === phrases.length - 1 ? ph : `${ph};`)).join(" "), fit(w - 8)))
   }
-  keyLines.forEach((l, i) => shapes.push({ kind: "text", x: 4, y: 13 + i * 14, text: l, size: fs - 1, anchor: "start", fill: "muted" }))
-  const head = narrow ? 14 + keyLines.length * 14 + 6 : 14
-  const top = head + 28
+  keyLines.forEach((l, i) => shapes.push({ kind: "text", x: 4, y: 13 + i * lh, text: l, size: fs - 1, anchor: "start", fill: "muted" }))
+  const head = narrow ? 14 + keyLines.length * lh + 6 : 14
+  // On a phone the column names take turns on two levels, so each has two columns' width; elsewhere each
+  // column's note under its name is broken to the column's width.
+  const glossLines = cols.map((label, c) => wrap(gloss(c, label ?? ""), fit(span - 6)))
+  const top = head + (narrow ? 3 * lh : Math.max(...glossLines.map((g) => g.length)) * lh) + 14
   const H = 340
   // The line colours, under the columns, each phrase in its own colour.
   const colourKey: { text: string; fill: Ink }[] = [
     { text: "grey: a question", fill: "muted" },
-    { text: "blue: a referral (ask this other server)", fill: KIND_INK.referral },
+    { text: "purple: a referral (ask this other server)", fill: KIND_INK.referral },
     { text: "green: the answer", fill: KIND_INK.answer },
     ...(run.messages.some((m) => m.kind === "cname")
-      ? [{ text: "orange: an alias (CNAME), look up this other name", fill: KIND_INK.cname }]
+      ? [{ text: "amber: an alias (CNAME), look up this other name", fill: KIND_INK.cname }]
       : []),
     ...(run.messages.some((m) => m.kind === "nxdomain" || m.kind === "nodata")
       ? [{ text: "red: no such name or record", fill: KIND_INK.nxdomain }]
       : []),
     { text: "small square: a record kept in a cache", fill: KIND_INK.answer },
   ]
+  // A phrase wider than the picture is broken at spaces, each line in the phrase's colour.
+  const keyParts = colourKey.flatMap((k) => wrap(k.text, fit(w - 8)).map((text, i) => ({ ...k, text, own: i > 0 })))
   const keyAt: { x: number; row: number }[] = []
   {
     let x = 4
     let row = 0
-    for (const k of colourKey) {
+    for (const k of keyParts) {
       const len = k.text.length * (fs - 1) * 0.48
+      if (k.own && x > 4) {
+        x = 4
+        row++
+      }
       if (x > 4 && x + len > w - 4) {
         x = 4
         row++
@@ -137,12 +151,12 @@ export function ladderFigure(p: DnsParams, run: DnsRun, index: number, width: nu
     }
   }
   const keyRows = keyAt[keyAt.length - 1].row + 1
-  const h = top + H + 30 + keyRows * 15
-  colourKey.forEach((k, i) =>
+  const h = top + H + 30 + keyRows * lh
+  keyParts.forEach((k, i) =>
     shapes.push({
       kind: "text",
       x: keyAt[i].x,
-      y: top + H + 16 + keyAt[i].row * 15,
+      y: top + H + 16 + keyAt[i].row * lh,
       text: k.text,
       size: fs - 1,
       anchor: "start",
@@ -156,15 +170,15 @@ export function ladderFigure(p: DnsParams, run: DnsRun, index: number, width: nu
     // On a phone a long name breaks onto two lines (at " or " or its first dot) instead of running into its neighbours.
     const cut = name.indexOf(" or ") > 0 ? name.indexOf(" or ") + 1 : name.indexOf(".") > 0 ? name.indexOf(".") : -1
     const lines = narrow
-      ? name.length * fs * 0.52 > span - 4 && cut > 0
+      ? name.length * fs * 0.52 > 2 * span - 8 && cut > 0
         ? [name.slice(0, cut).trim(), name.slice(cut).trim()]
         : [name]
-      : [name, gloss(c, name)]
+      : [name, ...glossLines[c]]
     lines.forEach((t, j) =>
       shapes.push({
         kind: "text",
         x,
-        y: head + j * 14,
+        y: head + (narrow ? (c % 2) * 2 * lh : 0) + j * lh,
         text: t,
         size: narrow ? fs - 1 : j === 0 ? fs : fs - 2,
         anchor: "middle",
@@ -177,7 +191,7 @@ export function ladderFigure(p: DnsParams, run: DnsRun, index: number, width: nu
   if (!res) {
     // Before the first question: say so in the picture, and what Play will draw.
     const lines = ["Nothing sent yet.", "Play draws each question and answer", "as a line between these columns."]
-    shapes.push({ kind: "rect", x: w / 2 - 130, y: top + 70, w: 260, h: 58, fill: "surface", opacity: 0.92 })
+    shapes.push({ kind: "rect", x: w / 2 - 130, y: top + 70, w: 260, h: 58, fill: "surface" })
     lines.forEach((l, i) =>
       shapes.push({ kind: "text", x: w / 2, y: top + 90 + i * 17, text: l, size: fs + 1, anchor: "middle", fill: "ink" }),
     )
@@ -196,7 +210,7 @@ export function ladderFigure(p: DnsParams, run: DnsRun, index: number, width: nu
   const summary = `${who} asks for ${res.name}: answered ${outcomeWords(res.outcome)} in ${fmtUs(latency)}${res.stale ? ", with a stale address" : ""}`
 
   if (latency === 0) {
-    shapes.push({ kind: "circle", cx: xOf(0), cy: top + 30, r: 6, fill: "c2" })
+    shapes.push({ kind: "circle", cx: xOf(0), cy: top + 30, r: 6, fill: "ok" })
     shapes.push({
       kind: "text",
       x: xOf(0) + 12,
@@ -237,7 +251,7 @@ export function ladderFigure(p: DnsParams, run: DnsRun, index: number, width: nu
         y: y(e.from_us) - 4,
         w: 8,
         h: 8,
-        fill: e.kind === "NXDOMAIN" || e.kind === "NODATA" ? "alarm" : "c2",
+        fill: e.kind === "NXDOMAIN" || e.kind === "NODATA" ? "alarm" : "ok",
       })
     }
     run.messages.forEach((m, k) => {

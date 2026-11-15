@@ -447,7 +447,9 @@ function sweep(sim: Netsim, p: HttpParams, variants: Variant[], axis: "loss" | "
   )
 }
 
-const COLORS = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)", "var(--chart-6)"]
+// Protocols and objects are told apart by ink or grey and by dash, and each line is named beside it.
+const DASHES = [undefined, undefined, "7 3", "7 3", "2 3", "2 3"]
+const look = (k: number) => ({ color: k % 2 ? "var(--muted-foreground)" : "var(--foreground)", dash: DASHES[k % DASHES.length] })
 
 export function httpChart(sim: Netsim, w: HttpWeb, run: HttpRun): LinkChart {
   const p = w.http
@@ -464,7 +466,7 @@ export function httpChart(sim: Netsim, w: HttpWeb, run: HttpRun): LinkChart {
     const series: LinkChart["series"] = vs.map((v, k) => ({
       id: `v${k}`,
       label: protocolName(v),
-      color: COLORS[k],
+      ...look(k),
       kind: "line",
       points: SWEEP_RTT_MS.map((x, j) => [x, ys[k][j]] as [number, number]),
     }))
@@ -475,17 +477,17 @@ export function httpChart(sim: Netsim, w: HttpWeb, run: HttpRun): LinkChart {
         {
           id: "f0",
           label: "Σ (2 RTT + L/R)",
-          color: COLORS[0],
+          color: look(0).color,
+          dash: "1 3",
           kind: "line",
-          dashed: true,
           points: xs.map((x) => [x, nonPersistentFormula(at(x)) / MS]),
         },
         {
           id: "f1",
           label: "RTT + Σ (RTT + L/R)",
-          color: COLORS[1],
+          color: look(1).color,
+          dash: "1 3",
           kind: "line",
-          dashed: true,
           points: xs.map((x) => [x, persistentFormula(at(x)) / MS]),
         },
       )
@@ -517,7 +519,7 @@ export function httpChart(sim: Netsim, w: HttpWeb, run: HttpRun): LinkChart {
     const series: LinkChart["series"] = vs.map((v, k) => ({
       id: `v${k}`,
       label: protocolName(v),
-      color: COLORS[k],
+      ...look(k),
       kind: "line",
       points: SWEEP_LOSS.map((x, j) => [x * 100, ys[k][j]] as [number, number]),
     }))
@@ -540,7 +542,7 @@ export function httpChart(sim: Netsim, w: HttpWeb, run: HttpRun): LinkChart {
   const end = run.stats.plt_ns / MS
   const series: LinkChart["series"] = []
   run.objects.forEach((o, i) => {
-    const color = COLORS[i % COLORS.length]
+    const { color, dash } = look(i)
     const mine = run.packets.filter((q) => q.obj === i && !q.lost)
     const curve = (key: "arrive_ns" | "delivered_ns"): [number, number][] => {
       const ts = mine.map((q) => [q[key]!, q.len] as const).sort((a, b) => a[0] - b[0])
@@ -554,8 +556,15 @@ export function httpChart(sim: Netsim, w: HttpWeb, run: HttpRun): LinkChart {
       return pts
     }
     if (o.held_ns > 0)
-      series.push({ id: `a${i}`, label: `${o.name} arrived`, color, kind: "step", dashed: true, points: curve("arrive_ns") })
-    series.push({ id: `d${i}`, label: o.held_ns > 0 ? `${o.name} delivered` : o.name, color, kind: "step", points: curve("delivered_ns") })
+      series.push({ id: `a${i}`, label: `${o.name} arrived`, color, dash: "1 3", kind: "step", points: curve("arrive_ns") })
+    series.push({
+      id: `d${i}`,
+      label: o.held_ns > 0 ? `${o.name} delivered` : o.name,
+      color,
+      dash,
+      kind: "step",
+      points: curve("delivered_ns"),
+    })
   })
   return {
     title: "Share of each object delivered to the browser",

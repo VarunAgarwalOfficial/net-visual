@@ -530,11 +530,11 @@ export function dnsChart(sim: Netsim, w: WebParams, run: DnsRun): LinkChart {
     return {
       title: "Resolver hit ratio against λT",
       series: [
-        { id: "f", label: "λT / (1 + λT)", color: "var(--chart-1)", kind: "line", points: xs.map((x) => [Math.log10(x), x / (1 + x)]) },
+        { id: "f", label: "λT / (1 + λT)", color: "var(--foreground)", kind: "line", points: xs.map((x) => [Math.log10(x), x / (1 + x)]) },
         {
           id: "fl",
           label: `with the sweep's miss time L = ${texNum(L * 1000, 0)} ms`,
-          color: "var(--chart-1)",
+          color: "var(--foreground)",
           kind: "line",
           dashed: true,
           points: xs.map((x) => [Math.log10(x), hitRatio(x / T, T, L)]),
@@ -542,14 +542,15 @@ export function dnsChart(sim: Netsim, w: WebParams, run: DnsRun): LinkChart {
         {
           id: "sim",
           label: `simulated, ${PER_POINT} queries a point`,
-          color: "var(--chart-2)",
+          color: "var(--muted-foreground)",
           kind: "dots",
+          hollow: true,
           points: pts.map((x) => [Math.log10(x.rate_per_s * T), x.hit_ratio]),
         },
         {
           id: "run",
           label: "this run",
-          color: "var(--chart-3)",
+          color: "var(--foreground)",
           kind: "dots",
           points: [[Math.log10(Math.min(20, Math.max(0.05, lt))), run.stats.hit_ratio]],
         },
@@ -614,8 +615,8 @@ export function dnsChart(sim: Netsim, w: WebParams, run: DnsRun): LinkChart {
     return {
       title: `TTL left on ${name} at the resolver, and each answer`,
       series: [
-        { id: "saw", label: "resolver's copy", color: "var(--chart-1)", kind: "line", points: saw },
-        { id: "fresh", label: "answer, current address", color: "var(--chart-3)", kind: "dots", points: fresh },
+        { id: "saw", label: "resolver's copy", color: "var(--foreground)", kind: "line", points: saw },
+        { id: "fresh", label: "answer, current address", color: "var(--nv-ok)", kind: "dots", points: fresh },
         { id: "stale", label: "answer, stale address", color: "var(--destructive)", kind: "dots", points: stale },
       ],
       xLabel: "time",
@@ -634,9 +635,16 @@ export function dnsChart(sim: Netsim, w: WebParams, run: DnsRun): LinkChart {
   return {
     title: "Latency of each lookup",
     series: [
-      { id: "res", label: outcomeWords("resolved"), color: "var(--chart-1)", kind: "dots", points: by(["resolved"]) },
-      { id: "hit", label: outcomeWords("cache"), color: "var(--chart-2)", kind: "dots", points: by(["cache", "joined"]) },
-      { id: "stub", label: outcomeWords("stub"), color: "var(--chart-3)", kind: "dots", points: by(["stub"]) },
+      { id: "res", label: outcomeWords("resolved"), color: "var(--foreground)", kind: "dots", points: by(["resolved"]) },
+      {
+        id: "hit",
+        label: outcomeWords("cache"),
+        color: "var(--muted-foreground)",
+        kind: "dots",
+        hollow: true,
+        points: by(["cache", "joined"]),
+      },
+      { id: "stub", label: outcomeWords("stub"), color: "var(--foreground)", kind: "dots", hollow: true, points: by(["stub"]) },
     ],
     xLabel: "time asked",
     yLabel: "latency (ms)",

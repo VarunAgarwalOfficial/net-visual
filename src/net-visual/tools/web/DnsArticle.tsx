@@ -9,7 +9,7 @@ import { Exercise, Layer } from "../rdt/RdtArticle"
 
 function Try({ id, onLoad, children }: { id: string; onLoad(id: string): void; children: ReactNode }) {
   return (
-    <button type="button" className="font-sans text-sm text-[var(--link)] underline underline-offset-2" onClick={() => onLoad(id)}>
+    <button type="button" className="font-sans text-sm text-link underline underline-offset-2" onClick={() => onLoad(id)}>
       {children}
     </button>
   )
@@ -108,7 +108,7 @@ export function DnsMechanics() {
     <Layer id="dns-mechanics" layer="Mechanics" title="Queries, referrals and caches, step by step">
       <p>
         The ladder above draws one lookup at a time: one column per machine, time running down, each message a line from its sending to its
-        arrival. Grey lines are queries, blue are referrals, green are answers, and a red line is a denial. Small squares mark where a
+        arrival. Grey lines are queries, purple are referrals, green are answers, and a red line is a denial. Small squares mark where a
         record set was cached. The trace names each event by the step of the model that produced it; the program under Go deeper shows that
         step's code.
       </p>

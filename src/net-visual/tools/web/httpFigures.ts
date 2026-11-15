@@ -5,7 +5,7 @@
 // and data packet from its sending to its arrival. Plain shapes, so the page
 // and the SVG and TikZ exports draw the same figures.
 import { fmtNs, progressAt, type HttpParams, type HttpRun } from "../../core/http.ts"
-import { station, type Shape, type ShapeFigure } from "../link/shapes.ts"
+import { type Ink, type Shape, type ShapeFigure } from "../link/shapes.ts"
 
 export interface HttpFigure extends ShapeFigure {
   summary: string
@@ -36,35 +36,53 @@ function summaryAt(run: HttpRun, t: number): string {
   return parts.join("; ")
 }
 
+/** A phrase broken at spaces into lines of at most n characters. */
+const wrap = (text: string, n: number): string[] => {
+  const lines: string[] = []
+  for (const word of text.split(" ")) {
+    const last = lines[lines.length - 1]
+    if (last !== undefined && last.length + 1 + word.length <= n) lines[lines.length - 1] = `${last} ${word}`
+    else lines.push(word)
+  }
+  return lines
+}
+
 /** The streams view at time t (ns). */
 /** Before the first event: say so in the picture, and what Play will draw. */
 function emptyNote(s: Shape[], x: number, y: number, fs: number, lines: string[]) {
   const lh = fs + 5
-  s.push({ kind: "rect", x: x - 95, y: y - lh - 4, w: 190, h: lines.length * lh + 8, fill: "surface", opacity: 0.92 })
+  s.push({ kind: "rect", x: x - 95, y: y - lh - 4, w: 190, h: lines.length * lh + 8, fill: "surface" })
   lines.forEach((l, i) => s.push({ kind: "text", x, y: y + i * lh - 4, text: l, size: fs + 2, anchor: "middle", fill: "ink" }))
 }
 
 export function streamsFigure(p: HttpParams, run: HttpRun, t: number, width: number): HttpFigure {
-  const w = Math.max(320, width)
+  const w = Math.max(200, width)
   const narrow = w < 560
+  // The page lays the figure out so that 10 units render at 17px; nothing is drawn smaller.
+  const fs = 10
+  const lh = 13
   const n = run.objects.length
-  const labelW = narrow ? 74 : 112
-  const pctW = narrow ? 34 : 44
-  const left = labelW + 6
+  // On a phone each object's name sits over its row, so the ticks keep the full width.
+  const labelW = narrow ? 0 : 112
+  const pctW = narrow ? 30 : 44
+  const left = narrow ? 4 : labelW + 6
   const right = w - pctW - 4
-  const top = narrow ? 44 : 34
-  const rowH = narrow ? 26 : 28
+  const s0: Shape[] = []
+  // Legend, broken to the width.
+  const legend = wrap(
+    narrow
+      ? "upper ticks: arrived · lower: delivered · red: held behind a gap · ×: lost"
+      : "upper ticks: arrived at the client · lower ticks: delivered to the browser · red: held behind a gap · ×: lost",
+    Math.floor((w - left - 4) / (fs * 0.5)),
+  )
+  legend.forEach((line, i) => s0.push({ kind: "text", x: left, y: 12 + i * lh, text: line, size: fs, anchor: "start", fill: "muted" }))
+  const head = narrow ? lh + 1 : 0
+  const top = 12 + legend.length * lh + 8
+  const rowH = 28 + head
   const h = top + n * rowH + 34
   const tEnd = Math.max(1, run.stats.plt_ns) * 1.02
   const sx = (x: number) => left + (Math.min(x, tEnd) / tEnd) * (right - left)
-  const s: Shape[] = []
-  const fs = narrow ? 9 : 10
-
-  // Legend.
-  const legend = narrow
-    ? ["upper ticks: arrived · lower: delivered", "red: held behind a gap · ×: lost"]
-    : ["upper ticks: arrived at the client · lower ticks: delivered to the browser · red: held behind a gap · ×: lost"]
-  legend.forEach((line, i) => s.push({ kind: "text", x: left, y: 12 + i * 12, text: line, size: fs, anchor: "start", fill: "muted" }))
+  const s: Shape[] = s0
 
   // Time axis.
   const step = niceStep(tEnd / 1e6, narrow ? 4 : 8) * 1e6
@@ -86,15 +104,34 @@ export function streamsFigure(p: HttpParams, run: HttpRun, t: number, width: num
 
   const { delivered } = progressAt(run, t)
   run.objects.forEach((o, i) => {
-    const y = top + i * rowH
-    const mid = y + rowH / 2
-    const ink = station(i)
-    const name = narrow && o.name.length > 11 ? `${o.name.slice(0, 10)}…` : o.name
-    s.push({ kind: "text", x: labelW, y: mid - 1, text: name, size: fs + 1, anchor: "end", fill: "ink", mono: true })
-    s.push({ kind: "text", x: labelW, y: mid + 10, text: kB(o.bytes), size: fs - 1, anchor: "end", fill: "muted" })
+    const y = top + i * rowH + head
+    const mid = y + (rowH - head) / 2
+    if (narrow) {
+      s.push({ kind: "text", x: left, y: y - 2, text: o.name, size: fs, anchor: "start", fill: "ink", mono: true })
+      s.push({
+        kind: "text",
+        x: left + o.name.length * fs * 0.62 + 6,
+        y: y - 2,
+        text: kB(o.bytes),
+        size: fs,
+        anchor: "start",
+        fill: "muted",
+      })
+    } else {
+      s.push({ kind: "text", x: labelW, y: mid - 1, text: o.name, size: fs + 1, anchor: "end", fill: "ink", mono: true })
+      s.push({ kind: "text", x: labelW, y: mid + 10, text: kB(o.bytes), size: fs - 1, anchor: "end", fill: "muted" })
+    }
     s.push({ kind: "line", x1: left, y1: mid, x2: right, y2: mid, stroke: "muted", width: 0.3 })
     if (o.requested_ns <= t)
-      s.push({ kind: "line", x1: sx(o.requested_ns), y1: y + 3, x2: sx(o.requested_ns), y2: y + rowH - 3, stroke: "muted", width: 1 })
+      s.push({
+        kind: "line",
+        x1: sx(o.requested_ns),
+        y1: y + 3,
+        x2: sx(o.requested_ns),
+        y2: y + rowH - head - 3,
+        stroke: "muted",
+        width: 1,
+      })
     for (const q of run.packets) {
       if (q.obj !== i) continue
       if (q.lost) {
@@ -109,10 +146,10 @@ export function streamsFigure(p: HttpParams, run: HttpRun, t: number, width: num
       }
       const a = q.arrive_ns!
       if (a > t) continue
-      s.push({ kind: "line", x1: sx(a), y1: y + 3, x2: sx(a), y2: mid - 2, stroke: ink, width: 1 })
+      s.push({ kind: "line", x1: sx(a), y1: y + 3, x2: sx(a), y2: mid - 2, stroke: "ink", width: 1 })
       const d = q.delivered_ns!
       if (d > a) s.push({ kind: "line", x1: sx(a), y1: mid, x2: sx(Math.min(d, t)), y2: mid, stroke: "alarm", width: 2.2 })
-      if (d <= t) s.push({ kind: "line", x1: sx(d), y1: mid + 2, x2: sx(d), y2: y + rowH - 3, stroke: ink, width: 1.6 })
+      if (d <= t) s.push({ kind: "line", x1: sx(d), y1: mid + 2, x2: sx(d), y2: y + rowH - head - 3, stroke: "ok", width: 1.6 })
     }
     const pct = Math.round((100 * delivered[i]) / o.bytes)
     s.push({
@@ -120,7 +157,7 @@ export function streamsFigure(p: HttpParams, run: HttpRun, t: number, width: num
       x: w - 4,
       y: mid + 4,
       text: `${pct}%`,
-      size: fs + 1,
+      size: narrow ? fs : fs + 1,
       anchor: "end",
       fill: pct === 100 ? "ink" : "muted",
       bold: pct === 100,
@@ -136,12 +173,14 @@ export function streamsFigure(p: HttpParams, run: HttpRun, t: number, width: num
 
 /** The packet ladder up to time t (ns): client on the left, server on the right, time running down. */
 export function ladderFigure(p: HttpParams, run: HttpRun, t: number, width: number): HttpFigure {
-  const w = Math.max(320, width)
+  const w = Math.max(240, width)
   const narrow = w < 560
-  const fs = narrow ? 9 : 10
-  const axisW = narrow ? 40 : 52
-  const cx = axisW + (narrow ? 70 : 150)
-  const sxv = w - (narrow ? 70 : 150)
+  // 10 units render at 17px (see streamsFigure); the label sides narrow on a phone.
+  const fs = 10
+  const axisW = narrow ? 26 : 52
+  const side = narrow ? Math.max(56, Math.round(w * 0.3)) : 150
+  const cx = axisW + side
+  const sxv = w - side
   const top = 34
   const H = narrow ? 560 : 600
   const h = top + H + 24
@@ -188,10 +227,10 @@ export function ladderFigure(p: HttpParams, run: HttpRun, t: number, width: numb
     if (!line) continue
     s.push(line)
     const y = sy(m.send_ns)
-    if (y - lastLabel >= 11) {
+    if (y - lastLabel >= fs + 2) {
       const text = (many ? `[${m.conn + 1}] ` : "") + m.label
       // A long label wraps at spaces onto further lines rather than being cut short.
-      const max = narrow ? 14 : 30
+      const max = narrow ? Math.floor((side - 6) / (fs * 0.5)) : 30
       const lines: string[] = []
       for (const word of text.split(" ")) {
         const last = lines.length - 1
@@ -202,24 +241,26 @@ export function ladderFigure(p: HttpParams, run: HttpRun, t: number, width: numb
         s.push({
           kind: "text",
           x: m.up ? cx - 4 : sxv + 4,
-          y: y + 3 + k * (fs - 1),
+          y: y + 3 + k * (fs + 1),
           text: line,
           size: fs - 1,
           anchor: m.up ? "end" : "start",
           fill: m.request ? "ink" : "muted",
         }),
       )
-      lastLabel = y + (lines.length - 1) * (fs - 1)
+      lastLabel = y + (lines.length - 1) * (fs + 1)
     }
   }
 
   for (const q of run.packets) {
     if (q.start_ns > t) continue
-    const ink = station(q.obj)
+    // Data packets are purple, under way; alternate objects are drawn thin and thick.
+    const ink: Ink = "busy"
+    const wd = q.obj % 2 ? 2 : 1
     if (q.lost) {
       const due = dueAt(p, q.depart_ns)
       const mid = q.depart_ns + (due - q.depart_ns) / 2
-      const line = arrow(false, q.depart_ns, mid, { kind: "line", x1: 0, y1: 0, x2: 0, y2: 0, stroke: ink, width: 1 })
+      const line = arrow(false, q.depart_ns, mid, { kind: "line", x1: 0, y1: 0, x2: 0, y2: 0, stroke: ink, width: wd })
       if (line) s.push(line)
       if (mid <= t) {
         const x = (cx + sxv) / 2
@@ -228,16 +269,19 @@ export function ladderFigure(p: HttpParams, run: HttpRun, t: number, width: numb
         s.push({ kind: "line", x1: x - 4, y1: y + 4, x2: x + 4, y2: y - 4, stroke: "alarm", width: 1.8 })
       }
       if (q.detected_ns !== null && q.detected_ns <= t) {
-        s.push({ kind: "circle", cx: sxv, cy: sy(q.detected_ns), r: 3, fill: "alarm" })
-        s.push({
-          kind: "text",
-          x: sxv + 6,
-          y: sy(q.detected_ns) + 3,
-          text: `lost: ${q.detected_by}`,
-          size: fs - 1,
-          anchor: "start",
-          fill: "alarm",
-        })
+        const yd = sy(q.detected_ns)
+        s.push({ kind: "circle", cx: sxv, cy: yd, r: 3, fill: "alarm" })
+        wrap(`lost: ${q.detected_by}`, Math.floor((w - sxv - 8) / (fs * 0.5))).forEach((text, k) =>
+          s.push({
+            kind: "text",
+            x: sxv + 6,
+            y: yd + 3 + k * (fs + 1),
+            text,
+            size: fs - 1,
+            anchor: "start",
+            fill: "alarm",
+          }),
+        )
       }
       continue
     }
@@ -248,7 +292,7 @@ export function ladderFigure(p: HttpParams, run: HttpRun, t: number, width: numb
       x2: 0,
       y2: 0,
       stroke: ink,
-      width: 1,
+      width: wd,
       dashed: q.retx_of !== null,
     })
     if (line) s.push(line)

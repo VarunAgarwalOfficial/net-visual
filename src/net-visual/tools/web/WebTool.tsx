@@ -24,7 +24,7 @@ import { isHttpMode, type HttpMode } from "../../core/http"
 import { loadNetsim } from "../../core/load"
 import type { Netsim } from "../../core/netsim"
 import { linkFor, readHash } from "../../core/share"
-import { RefLines, ShapeView, chartFigure } from "../link/LinkViews"
+import { RefLines, ShapeView, chartFigure, figureWidth } from "../link/LinkViews"
 import { figSvg, figTikz } from "../link/shapes"
 import { DnsAnalysis, DnsFrontier, DnsInternals, DnsIntro, DnsMechanics } from "./DnsArticle"
 import { ladderFigure } from "./dnsFigures"
@@ -89,7 +89,7 @@ const RATE = 1.5
 
 const HELP: Record<WebMode, string> = {
   resolve:
-    "One lookup at a time: a column per machine, time running down, in milliseconds (ms) from the question. The first column is the device asking, named after whichever device asks at the moment. Each device asks through its stub, a small resolver that only passes the question on; the resolver does the looking up and keeps what it learns. The other columns are name servers, each in charge of one part of the name tree (root, com, example.com and so on); a lookup uses only the ones its name needs, so some columns stay empty. Line colours: grey, a question; blue, a referral (go and ask this other server); green, an answer; orange, an alias (a CNAME, canonical name, record); red, a reply that the name does not exist. A small square marks a set of records being cached. Names end in a dot, which stands for the root of the name tree.",
+    "One lookup at a time: a column per machine, time running down, in milliseconds (ms) from the question. The first column is the device asking, named after whichever device asks at the moment. Each device asks through its stub, a small resolver that only passes the question on; the resolver does the looking up and keeps what it learns. The other columns are name servers, each in charge of one part of the name tree (root, com, example.com and so on); a lookup uses only the ones its name needs, so some columns stay empty. Line colours: grey, a question; purple, a referral (go and ask this other server); green, an answer; amber, an alias (a CNAME, canonical name, record); red, a reply that the name does not exist. A small square marks a set of records being cached. Names end in a dot, which stands for the root of the name tree.",
   cache:
     "The ladder shows the lookup behind the current event; most are answered by the resolver from its cache, in one round trip (the question there and its answer back). The chart under Go deeper, further down the page, compares the share of lookups the cache answered with what the formula predicts, or, with several names, counts the questions each level of server received.",
   ttl: "The ladder shows the lookup behind the current event. Every cached answer carries a time to live (TTL): how long a cache may keep it. The chart under Go deeper, further down the page, draws the TTL left on the resolver's copy, falling to zero at each expiry; dots are answers, red where the address was already out of date.",
@@ -146,7 +146,7 @@ function DnsPanel({
 
   // Before the first event the ladder is empty, not the first lookup already finished.
   const figIndex = tl.index < 0 ? -1 : index
-  const fig = useMemo(() => ladderFigure(p.dns, run, figIndex, Math.max(320, Math.round(width))), [p, run, figIndex, width])
+  const fig = useMemo(() => ladderFigure(p.dns, run, figIndex, figureWidth(width, 12)), [p, run, figIndex, width])
   const chart = useMemo(() => dnsChart(sim, p, run), [sim, p, run])
 
   const trace = useMemo(() => run.events.map((e) => ({ t: e.t, step: e.step, text: e.text })), [run])
@@ -234,7 +234,7 @@ function DnsPanel({
 
       <figure className="space-y-2">
         <div ref={figBox}>
-          <ShapeView fig={fig} label={caption} />
+          <ShapeView fig={fig} label={caption} px={width} />
         </div>
         <figcaption className="max-w-(--site-measure) font-sans text-sm text-muted-foreground">{HELP[mode]}</figcaption>
       </figure>

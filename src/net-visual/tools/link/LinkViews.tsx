@@ -64,7 +64,16 @@ export function ShapeView({ fig, label, px }: { fig: ShapeFigure; label: string;
   return (
     <svg viewBox={`0 0 ${fig.w} ${fig.h}`} width="100%" role="img" aria-label={label} className="block font-sans select-none">
       <defs>
-        <marker id={`${id}-a`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <marker
+          id={`${id}-a`}
+          viewBox="0 0 10 10"
+          refX="9"
+          refY="5"
+          markerUnits="userSpaceOnUse"
+          markerWidth="8"
+          markerHeight="8"
+          orient="auto-start-reverse"
+        >
           <path d="M0,0 L10,5 L0,10 z" fill="var(--muted-foreground)" />
         </marker>
       </defs>
