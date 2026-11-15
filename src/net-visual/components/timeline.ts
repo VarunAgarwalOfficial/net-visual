@@ -113,7 +113,13 @@ export function useTimeline(times: readonly number[], duration: number, rate: nu
 /** Keyboard map shared by every tool: space, arrows, Home, End. */
 export function timelineKeys(tl: Timeline, e: KeyboardEvent): boolean {
   const target = e.target as HTMLElement
-  if (target.closest("input, textarea, select, [role=slider], [role=combobox], [role=tab]")) return false
+  if (target.closest("input, textarea, select, [role=slider], [role=tab]")) return false
+  // A closed scenario picker uses Space, Enter, the up and down arrows and
+  // typed letters, but not left, right, Home or End: without this the page
+  // would scroll on End just after choosing a scenario.
+  const picker = target.closest("[role=combobox]")
+  if (picker && (picker.getAttribute("aria-expanded") === "true" || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)))
+    return false
   // Space and Enter on a focused button press that button, as everywhere else.
   if ((e.key === " " || e.key === "Enter") && target.closest("button, a")) return false
   switch (e.key) {
