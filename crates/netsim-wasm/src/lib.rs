@@ -10,7 +10,7 @@ use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
-use netsim::{coding, dns, lan, link, queue, rdt, routing, stp, tcp};
+use netsim::{coding, dns, http, lan, link, queue, rdt, routing, stp, tcp};
 
 /// Reserves `len` bytes and returns their address.
 #[no_mangle]
@@ -72,6 +72,7 @@ fn source(tool: &str) -> Option<&'static str> {
         "stp" => Some(include_str!("../../netsim/src/stp.rs")),
         "coding" => Some(include_str!("../../netsim/src/coding.rs")),
         "dns" => Some(include_str!("../../netsim/src/dns.rs")),
+        "http" => Some(include_str!("../../netsim/src/http.rs")),
         _ => None,
     }
 }
@@ -233,6 +234,41 @@ pub fn handle(bytes: &[u8]) -> Value {
                         && s.rates.len() as u64 * s.per_point <= 600_000,
                 )?;
                 json!(dns::hit_sweep(&s.base, &s.rates, s.per_point)?)
+            }
+            ("http", "run") => {
+                let p: http::HttpParams = parse(request.params)?;
+                check_http(&p, if p.trace { 3_000_000 } else { 6_000_000 })?;
+                json!(http::http_run(&p)?)
+            }
+            ("http", "sweep") => {
+                #[derive(Deserialize)]
+                struct Sweep {
+                    base: http::HttpParams,
+                    variants: Vec<http::Variant>,
+                    axis: http::Axis,
+                    values: Vec<f64>,
+                    seeds: u64,
+                }
+                let s: Sweep = parse(request.params)?;
+                check_http(&s.base, 1_000_000)?;
+                in_range(
+                    (1..=6).contains(&s.variants.len())
+                        && s.variants.iter().all(|v| (1..=8).contains(&v.parallel))
+                        && (1..=24).contains(&s.values.len())
+                        && s.values.iter().all(|x| match s.axis {
+                            http::Axis::Loss => x.is_finite() && (0.0..=0.2).contains(x),
+                            http::Axis::Rtt => x.is_finite() && (1_000.0..=1_000_000.0).contains(x),
+                        })
+                        && (1..=12).contains(&s.seeds)
+                        && s.variants.len() as u64 * s.values.len() as u64 * s.seeds <= 1_200,
+                )?;
+                json!(http::http_sweep(
+                    &s.base,
+                    &s.variants,
+                    s.axis,
+                    &s.values,
+                    s.seeds
+                )?)
             }
             (tool, op) => return Err(format!("unknown request {tool}/{op}")),
         })
@@ -453,6 +489,25 @@ fn check_stp(p: &stp::StpParams) -> Result<(), String> {
 /// DNS: a dozen zones of at most 40 records, eight clients, round trips up
 /// to 2 s, TTLs up to a week (RFC 2181 Section 8 allows more), and at most
 /// `queries` queries in all, scripted and Poisson, within 30 days.
+fn check_http(p: &http::HttpParams, max_bytes: u64) -> Result<(), String> {
+    let total: u64 = p.objects.iter().map(|o| o.bytes).sum();
+    in_range(
+        (1..=24).contains(&p.objects.len())
+            && p.objects
+                .iter()
+                .all(|o| short_name(&o.name) && (1..=2_000_000).contains(&o.bytes))
+            && total <= max_bytes
+            && (1..=8).contains(&p.parallel)
+            && (1_000..=1_000_000).contains(&p.rtt_us)
+            && (100_000..=10_000_000_000).contains(&p.rate_bps)
+            && (500..=9_000).contains(&p.mss_bytes)
+            && (1..=100).contains(&p.iw)
+            && p.loss.is_finite()
+            && (0.0..=0.2).contains(&p.loss)
+            && p.drops.len() <= 32,
+    )
+}
+
 fn check_dns(p: &dns::DnsParams, queries: f64) -> Result<(), String> {
     const WEEK: u32 = 604_800;
     const MONTH_US: u64 = 30 * 86_400 * 1_000_000;
