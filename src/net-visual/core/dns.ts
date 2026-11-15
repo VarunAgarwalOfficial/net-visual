@@ -236,6 +236,7 @@ export const zoneOfNode = (run: DnsRun, p: DnsParams, node: number) => (node > r
 /** Formats microseconds as µs, ms or s, keeping four significant figures. */
 export function fmtUs(u: number): string {
   if (!Number.isFinite(u)) return "∞"
+  if (u === 0) return "0 s"
   const a = Math.abs(u)
   if (a >= 1e6) return `${Number((u / 1e6).toPrecision(a >= 1e9 ? 6 : 5))} s`
   if (a >= 1e3) return `${Number((u / 1e3).toPrecision(4))} ms`

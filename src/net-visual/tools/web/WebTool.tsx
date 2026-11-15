@@ -99,6 +99,8 @@ function WebLoaded({ sim }: { sim: Netsim }) {
   const offset = Math.max(0, Math.floor(index / SLICE) * SLICE - SLICE)
   const traceSlice = useMemo(() => trace.slice(offset, offset + 3 * SLICE), [trace, offset])
 
+  // After a mode, scenario or tour button the keys belong to the clock again, not to the button group.
+  const focusRoot = () => setTimeout(() => root.current?.focus({ preventScroll: true }), 0)
   const apply = (next: WebParams, id = "") => {
     setParams(next)
     setPreset(id)
@@ -124,6 +126,7 @@ function WebLoaded({ sim }: { sim: Netsim }) {
   }, [])
   const goTour = (i: number | null) => {
     setTour(i)
+    focusRoot()
     if (i === null) return
     load(TOUR[i].preset, TOUR[i].at)
   }
@@ -151,6 +154,7 @@ function WebLoaded({ sim }: { sim: Netsim }) {
           if (!v) return
           load(PRESETS.find((pr) => pr.mode === v)!.id)
           setTour(null)
+          focusRoot()
         }}
         className="flex-wrap"
       >
@@ -166,7 +170,13 @@ function WebLoaded({ sim }: { sim: Netsim }) {
           <label className="mb-1 block font-sans text-xs text-muted-foreground" htmlFor="web-preset">
             Scenario
           </label>
-          <Select value={preset || "custom"} onValueChange={(id) => load(id)}>
+          <Select
+            value={preset || "custom"}
+            onValueChange={(id) => {
+              load(id)
+              focusRoot()
+            }}
+          >
             <SelectTrigger id="web-preset" className="w-full max-w-md">
               <SelectValue />
             </SelectTrigger>
@@ -194,6 +204,7 @@ function WebLoaded({ sim }: { sim: Netsim }) {
             value={params.dns.mode}
             onValueChange={(v) => {
               if (v === "iterative" || v === "recursive") apply({ ...params, dns: { ...params.dns, mode: v } })
+              focusRoot()
             }}
           >
             <ToggleGroupItem value="iterative" className="px-3">
@@ -274,7 +285,6 @@ function WebLoaded({ sim }: { sim: Netsim }) {
             xDomain={chart.xDomain}
             yDomain={chart.yDomain}
             height={220}
-            log={chart.log ? { x: true } : undefined}
             cursor={chart.timed && event ? event.t : undefined}
             onSeek={chart.timed ? (x) => tl.seekIndex(eventAt(run, x)) : undefined}
             overlay={(s) => <RefLines s={s} refs={chart.refs} />}

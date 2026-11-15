@@ -61,7 +61,7 @@ export function outcomeWords(o: string): string {
 export function ladderFigure(p: DnsParams, run: DnsRun, index: number, width: number): LadderFigure {
   const w = Math.max(320, Math.round(width))
   const narrow = w < 560
-  const fs = narrow ? 12 : 11
+  const fs = narrow ? 12 : 13
   const L = narrow ? 44 : 56
   const R = 12
   const top = narrow ? 50 : 42
@@ -100,7 +100,9 @@ export function ladderFigure(p: DnsParams, run: DnsRun, index: number, width: nu
   const ev = run.events[index]
   const t0 = res.at_us
   const t1 = Math.max(res.done_us, t0 + 1)
-  const now = Math.max(t0, Math.min(t1, ev?.t ?? t1))
+  // The event's own message is drawn whole: the event is its sending.
+  const sent = ev && ev.msg !== null ? run.messages[ev.msg] : undefined
+  const now = Math.max(t0, Math.min(t1, Math.max(ev?.t ?? t1, sent && sent.res === r ? sent.arrive_us : 0)))
   const y = (t: number) => top + 6 + ((t - t0) / (t1 - t0)) * (H - 12)
   const latency = res.done_us - res.at_us
   const who = p.clients[res.client].name

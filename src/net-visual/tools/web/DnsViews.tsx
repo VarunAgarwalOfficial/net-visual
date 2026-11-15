@@ -34,6 +34,10 @@ const MS = 1000
 const S = 1_000_000
 const sec = (u: number) => `${Number((u / S).toPrecision(6))} s`
 const ms = (u: number) => texNum(u / MS, 1)
+/** A duration for the cache table: seconds up to an hour, then hours. */
+const dur = (u: number) => (u < 3600 * S ? sec(Math.round(u / 1000) * 1000) : `${(u / 3600 / S).toFixed(2)} h`)
+/** Lets a long name break after its dots. */
+const wrapName = (n: string) => n.replace(/\./g, ".\u200b")
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
 /** Who acted at event i. */
@@ -95,14 +99,14 @@ function LatencyEquation({ p, run, index }: { p: DnsParams; run: DnsRun; index: 
       >{`t_{\\text{lookup}} = \\text{RTT}_{\\text{${c.name}}} + \\text{rest of the walk in flight} = ${ms(took)}\\text{ ms}`}</Tex>
     )
   const terms = [ms(c.rtt_us), ...res.servers.map((z) => ms(p.zones[z].rtt_us))]
-  const names = [
-    "\\text{RTT}_{\\text{client}}",
-    ...res.servers.map((z) => `\\text{RTT}_{\\text{${p.zones[z].origin === "." ? "root" : p.zones[z].origin}}}`),
-  ]
+  const asked = res.servers.map((z) => (p.zones[z].origin === "." ? "root" : p.zones[z].origin))
   return (
     <>
-      <Tex display>{`t_{\\text{lookup}} = ${names.join(" + ")}`}</Tex>
-      <Tex display>{`= ${terms.join(" + ")} = ${ms(hopSum(p, res))}\\text{ ms};\\ \\text{measured } ${ms(took)}\\text{ ms}`}</Tex>
+      <Tex display>{`t_{\\text{lookup}} = \\text{RTT}_c + \\textstyle\\sum_{z\\,\\in\\,\\text{asked}} \\text{RTT}_z`}</Tex>
+      <Tex display>{`= ${terms.join(" + ")} = ${ms(hopSum(p, res))}\\text{ ms}`}</Tex>
+      <p className="font-sans text-xs text-muted-foreground">
+        {c.name} to the resolver, then {asked.length ? asked.join(", ") : "no server"}; measured {fmtUs(took)}.
+      </p>
     </>
   )
 }
@@ -115,9 +119,14 @@ function EntryEquation({ run, index }: { run: DnsRun; index: number }) {
   if (!e) return null
   const left = Math.max(0, e.expires_us - ev.t)
   return (
-    <Tex
-      display
-    >{`\\text{expires} = t_{\\text{in}} + \\text{TTL} = ${texNum(e.from_us / S, 3)} + ${texNum(e.ttl_us / S, 1)} = ${texNum(e.expires_us / S, 3)}\\text{ s};\\ \\text{left } ${texNum(left / S, 1)}\\text{ s}`}</Tex>
+    <>
+      <Tex
+        display
+      >{`\\text{expires} = t_{\\text{in}} + \\text{TTL} = ${texNum(e.from_us / S, 3)} + ${texNum(e.ttl_us / S, 1)} = ${texNum(e.expires_us / S, 3)}\\text{ s}`}</Tex>
+      <p className="font-sans text-xs text-muted-foreground">
+        {e.name} {e.kind} at {e.cache === run.resolver ? "the resolver" : run.nodes[e.cache]}: {sec(left)} left at {fmtUs(ev.t)}.
+      </p>
+    </>
   )
 }
 
@@ -130,9 +139,8 @@ export function DnsEquations({ w, run, index }: { w: WebParams; run: DnsRun; ind
       <Card title="Latency is the sum of the round trips taken; each cached set counts down from its TTL">
         <LatencyEquation p={p} run={run} index={index} />
         <EntryEquation run={run} index={index} />
-        <Tex
-          display
-        >{`\\text{TTL}_{\\text{neg}} = \\min(\\text{SOA TTL}, \\text{MINIMUM}) = \\min(${z.soa_ttl_s}, ${z.soa_minimum_s}) = ${negativeTtl(z)}\\text{ s}`}</Tex>
+        <Tex display>{`\\text{TTL}_{\\text{neg}} = \\min(\\text{SOA TTL}, \\text{MINIMUM})`}</Tex>
+        <Tex display>{`= \\min(${z.soa_ttl_s}, ${z.soa_minimum_s}) = ${negativeTtl(z)}\\text{ s}`}</Tex>
         <p className="font-sans text-xs text-muted-foreground">
           A referral cached on the way down removes its server's term from every later lookup under that zone. The last line is RFC 2308's
           negative TTL for {z.origin}
@@ -154,21 +162,20 @@ export function DnsEquations({ w, run, index }: { w: WebParams; run: DnsRun; ind
             <Tex
               display
             >{`h = \\frac{\\lambda T}{1 + \\lambda T} = \\frac{${texNum(lam * T, 3)}}{${texNum(1 + lam * T, 3)}} = ${texNum(hitRatio(lam, T), 3)}`}</Tex>
-            <Tex
-              display
-            >{`h_L = \\frac{\\lambda T}{1 + \\lambda L + \\lambda T} = ${texNum(hitRatio(lam, T, L), 3)},\\ L = ${texNum(L * 1000, 1)}\\text{ ms}`}</Tex>
+            <Tex display>{`h_L = \\frac{\\lambda T}{1 + \\lambda L + \\lambda T} = ${texNum(hitRatio(lam, T, L), 3)}`}</Tex>
             <Tex display>{`h_{\\text{run}} = \\frac{${s.resolver_hits}}{${s.resolver_queries}} = ${texNum(s.hit_ratio, 3)}`}</Tex>
             <p className="font-sans text-xs text-muted-foreground">
-              One run of {s.resolver_queries} queries wanders around the prediction: the standard deviation of a hit ratio over n cycles is
-              of order 1/√n. The chart's dots use {PER_POINT} queries each.
+              L = {texNum(L * 1000, 1)} ms is this run's mean miss at the resolver. One run of {s.resolver_queries} queries wanders around
+              the prediction: the standard deviation of a hit ratio over n cycles is of order 1/√n. The chart's dots use {PER_POINT} queries
+              each.
             </p>
           </>
         ) : (
           <>
             <Tex
               display
-            >{`\\text{root load} = \\frac{${root}}{${s.queries}\\text{ lookups}},\\quad \\text{top-level load} = \\frac{${tld}}{${s.queries}}`}</Tex>
-            <Tex display>{`\\text{joined} = ${s.joined}:\\ \\text{queries that waited for a lookup already in flight}`}</Tex>
+            >{`\\frac{\\text{root queries}}{\\text{lookups}} = \\frac{${root}}{${s.queries}},\\quad \\frac{\\text{top-level}}{\\text{lookups}} = \\frac{${tld}}{${s.queries}}`}</Tex>
+            <p className="font-sans text-sm">{s.joined} queries waited for a lookup already in flight.</p>
             <p className="font-sans text-xs text-muted-foreground">
               An iterating resolver keeps the referrals, so the root hears from it about once per top-level domain per referral TTL. A
               recursive chain forwards every miss through the root.
@@ -189,12 +196,12 @@ export function DnsEquations({ w, run, index }: { w: WebParams; run: DnsRun; ind
       {ch && (
         <Tex
           display
-        >{`t_{\\text{last stale}} < t_{\\text{fetch}} + \\text{TTL}_{\\text{fetched}},\\quad t_{\\text{fetch}} < t_{\\text{change}} = ${texNum(ch.at_us / S, 1)}\\text{ s}`}</Tex>
+        >{`t_{\\text{last stale}} < \\max_{f\\,<\\,t_{\\text{change}}} (f + T_f),\\ t_{\\text{change}} = ${texNum(ch.at_us / S, 1)}\\text{ s}`}</Tex>
       )}
       {held ? (
         <Tex
           display
-        >{`\\text{resolver's copy: } ${texNum(held.entry.from_us / S, 3)} + ${texNum(held.entry.ttl_us / S, 1)} = ${texNum(held.entry.expires_us / S, 3)}\\text{ s},\\ \\text{left } ${texNum((held.entry.expires_us - t) / S, 1)}\\text{ s}`}</Tex>
+        >{`f + T_f = ${texNum(held.entry.from_us / S, 3)} + ${texNum(held.entry.ttl_us / S, 1)} = ${texNum(held.entry.expires_us / S, 3)}\\text{ s}`}</Tex>
       ) : (
         <p className="font-sans text-sm text-muted-foreground">
           The resolver holds no copy of {ch?.name ?? "the name"} at {fmtUs(t)}.
@@ -202,8 +209,10 @@ export function DnsEquations({ w, run, index }: { w: WebParams; run: DnsRun; ind
       )}
       <p className={cn("font-sans text-xs", stale ? "text-destructive" : "text-muted-foreground")}>
         {stale
-          ? `At ${fmtUs(t)} the resolver's copy (${held!.entry.values.join(", ")}) is stale: the zone now says ${ch!.value}.`
-          : "Lowering a TTL takes effect only on copies fetched after the lowering, so it must come at least one old TTL before the change."}
+          ? `At ${fmtUs(t)} the resolver's copy (${held!.entry.values.join(", ")}, ${sec(held!.entry.expires_us - t)} left) is stale: the zone now says ${ch!.value}.`
+          : held
+            ? `The resolver's copy has ${sec(held.entry.expires_us - t)} left. Lowering`
+            : "Lowering a TTL takes effect only on copies fetched after the lowering, so it must come at least one old TTL before the change."}
       </p>
     </Card>
   )
@@ -240,11 +249,11 @@ export function DnsCaches({ p, run, t }: { p: DnsParams; run: DnsRun; t: number 
                       const neg = e.kind === "NXDOMAIN" || e.kind === "NODATA"
                       return (
                         <tr key={index} className={cn("border-t border-border", neg && "text-destructive")}>
-                          <td className="pr-2 break-all">{e.name}</td>
+                          <td className="pr-2">{wrapName(e.name)}</td>
                           <td className="pr-2">{e.kind}</td>
-                          <td className="pr-2 break-all">{neg ? "(none)" : e.values.join(", ")}</td>
-                          <td className="pr-2 text-right">{sec(e.ttl_us)}</td>
-                          <td className={cn("text-right", left < 0.1 * e.ttl_us && "text-destructive")}>{sec(left)}</td>
+                          <td className="pr-2">{neg ? "(none)" : wrapName(e.values.join(", "))}</td>
+                          <td className="pr-2 text-right whitespace-nowrap">{dur(e.ttl_us)}</td>
+                          <td className={cn("text-right whitespace-nowrap", left < 0.1 * e.ttl_us && "text-destructive")}>{dur(left)}</td>
                         </tr>
                       )
                     })}
@@ -509,7 +518,7 @@ function grid(lo: number, hi: number, n: number, log = false): number[] {
   return Array.from({ length: n + 1 }, (_, i) => (log ? lo * (hi / lo) ** (i / n) : lo + ((hi - lo) * i) / n))
 }
 
-export function dnsChart(sim: Netsim, w: WebParams, run: DnsRun): LinkChart & { log?: boolean } {
+export function dnsChart(sim: Netsim, w: WebParams, run: DnsRun): LinkChart {
   const p = w.dns
   const endT = Math.max(run.end_us, 1)
   if (w.mode === "cache" && p.poisson && p.poisson.names.length === 1) {
@@ -521,39 +530,38 @@ export function dnsChart(sim: Netsim, w: WebParams, run: DnsRun): LinkChart & { 
     return {
       title: "Resolver hit ratio against λT",
       series: [
-        { id: "f", label: "λT / (1 + λT)", color: "var(--chart-1)", kind: "line", points: xs.map((x) => [x, x / (1 + x)]) },
+        { id: "f", label: "λT / (1 + λT)", color: "var(--chart-1)", kind: "line", points: xs.map((x) => [Math.log10(x), x / (1 + x)]) },
         {
           id: "fl",
-          label: `with the miss time L (${texNum(L * 1000, 0)} ms)`,
+          label: `with the sweep's miss time L = ${texNum(L * 1000, 0)} ms`,
           color: "var(--chart-1)",
           kind: "line",
           dashed: true,
-          points: xs.map((x) => [x, hitRatio(x / T, T, L)]),
+          points: xs.map((x) => [Math.log10(x), hitRatio(x / T, T, L)]),
         },
         {
           id: "sim",
           label: `simulated, ${PER_POINT} queries a point`,
           color: "var(--chart-2)",
           kind: "dots",
-          points: pts.map((x) => [x.rate_per_s * T, x.hit_ratio]),
+          points: pts.map((x) => [Math.log10(x.rate_per_s * T), x.hit_ratio]),
         },
         {
           id: "run",
           label: "this run",
           color: "var(--chart-3)",
           kind: "dots",
-          points: [[Math.min(20, Math.max(0.05, lt)), run.stats.hit_ratio]],
+          points: [[Math.log10(Math.min(20, Math.max(0.05, lt))), run.stats.hit_ratio]],
         },
       ],
-      xLabel: "λT (queries per TTL)",
+      xLabel: "λT, queries per TTL (log scale)",
       yLabel: "hit ratio",
-      xFormat: (v) => String(Number(v.toPrecision(2))),
+      xFormat: (v) => String(Number((10 ** v).toPrecision(2))),
       yFormat: (v) => v.toFixed(2),
-      xDomain: [0.05, 20],
+      xDomain: [Math.log10(0.05), Math.log10(20)],
       yDomain: [0, 1],
       refs: [],
       timed: false,
-      log: true,
     }
   }
   if (w.mode === "cache") {
@@ -607,7 +615,7 @@ export function dnsChart(sim: Netsim, w: WebParams, run: DnsRun): LinkChart & { 
       title: `TTL left on ${name} at the resolver, and each answer`,
       series: [
         { id: "saw", label: "resolver's copy", color: "var(--chart-1)", kind: "line", points: saw },
-        { id: "fresh", label: "answer, current address", color: "var(--chart-2)", kind: "dots", points: fresh },
+        { id: "fresh", label: "answer, current address", color: "var(--chart-3)", kind: "dots", points: fresh },
         { id: "stale", label: "answer, stale address", color: "var(--destructive)", kind: "dots", points: stale },
       ],
       xLabel: "time",
