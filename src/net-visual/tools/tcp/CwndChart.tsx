@@ -24,6 +24,14 @@ export function toEnd(points: [number, number][], end: number): [number, number]
 export const flowLabel = (p: TcpParams, i: number) =>
   p.flows.length > 1 ? `flow ${i + 1}, ${algoName(p.flows[i].algo)}, ${p.flows[i].rtt_us / 1000} ms` : algoName(p.flows[i].algo)
 
+/** What each version does to its window when a packet is lost, for the chart's key. */
+const afterLoss = (a: Algo) =>
+  a === "tahoe"
+    ? "after a loss, starts again from 1 packet"
+    : a === "reno" || a === "newreno"
+      ? "after a loss, halves its window"
+      : undefined
+
 interface Built {
   series: Series[]
   top: number
@@ -40,6 +48,7 @@ function build(run: TcpRun, compare: TcpRun | null, cmp: Algo | null, p: TcpPara
     color: FLOW_COLORS[i],
     kind: "step",
     points: s.cwnd,
+    note: p.flows.length === 1 ? afterLoss(p.flows[0].algo) : undefined,
   }))
   if (compare && cmp)
     series.push({
@@ -49,12 +58,21 @@ function build(run: TcpRun, compare: TcpRun | null, cmp: Algo | null, p: TcpPara
       kind: "step",
       points: compare.series[0].cwnd,
       dashed: true,
+      note: afterLoss(cmp),
     })
   if (p.flows.length === 1) {
     // Before the first loss ssthresh may be effectively infinite; draw it from where it fits.
     const ss = toEnd(run.series[0].ssthresh, p.duration_us).filter(([, v]) => v <= top)
     if (ss.length)
-      series.push({ id: "ssthresh", label: "slow-start threshold (dashed)", color: SSTHRESH_COLOR, kind: "step", points: ss, dashed: true })
+      series.push({
+        id: "ssthresh",
+        label: "slow-start threshold (grey dashed)",
+        note: "below it the window doubles each round trip;\na loss sets it to half the window",
+        color: SSTHRESH_COLOR,
+        kind: "step",
+        points: ss,
+        dashed: true,
+      })
   }
   return { series, top }
 }
@@ -112,6 +130,7 @@ export const CwndChart = memo(function CwndChart({
         xDomain={[0, p.duration_us]}
         yDomain={[0, top]}
         height={280}
+        keyEarly
         cursor={t}
         upTo={t}
         onSeek={onSeek}

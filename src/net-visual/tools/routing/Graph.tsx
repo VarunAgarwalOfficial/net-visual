@@ -68,7 +68,7 @@ export function Graph({
   const marker = useId().replace(/:/g, "")
   // On a narrow screen the drawing shrinks, so routers, labels and messages grow in drawing units to stay legible.
   const [box, width] = useWidth<HTMLDivElement>()
-  const k = Math.min(2, Math.max(1, 640 / width))
+  const k = Math.min(2.3, Math.max(1, 760 / width))
   const r = R * k
   const P = fig.pos.map(px)
   const dTree: { from: number; to: number }[] = dijkstra

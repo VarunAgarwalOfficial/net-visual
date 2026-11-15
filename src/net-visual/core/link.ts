@@ -618,7 +618,8 @@ export const PRESETS: Preset[] = [
   {
     id: "pure",
     mode: "aloha",
-    title: "Pure ALOHA, sending whenever ready: each frame lasts 1 millisecond (ms), and a new one starts every 2 ms on average",
+    title:
+      "ALOHA, an early rule for sharing one radio channel: send whenever ready. Each frame lasts 1 millisecond (ms); a new one starts every 2 ms on average",
     source: "Abramson 1970; Kurose and Ross, Section 6.3.2",
     note: "Six stations send 1 ms (millisecond) frames whenever they like, half a frame per frame time between them (a frame time is the 1 ms one frame takes to send). A frame is lost if any other starts within one frame time either side of it, a window of two frame times. With G frames per frame time on average, the chance that no other starts in that window is e^(−2G), so the share of time carrying a frame that gets through is G·e^(−2G). That is largest at G = 0.5, as here: 1/(2e), or 18.4%. Forty frame times is a small sample; the chart of throughput against load, under Go deeper further down the page, runs 20,000 per point.",
     params: aloha({}),

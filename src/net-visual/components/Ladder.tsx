@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react"
+import { useEffect, useId, useRef, useState, type ReactNode } from "react"
 
 import { useWidth } from "./LineChart"
 import { inUnit, runUnit } from "./timeline"
@@ -42,6 +42,8 @@ interface Props {
   start?: number
   /** Lines said in the empty diagram before the first event: what Play will draw. */
   empty?: string[]
+  /** A key drawn inside the diagram's frame, above the lanes, so it stays in view while the lanes scroll. */
+  legend?: ReactNode
 }
 
 /** Labels closer than this many pixels to the last one on the same lane are left out. */
@@ -114,10 +116,15 @@ export function Ladder(props: Props) {
   const unit = runUnit(props.duration)
 
   return (
-    <div ref={box} className="w-full">
+    <div ref={box} className="w-full overflow-hidden rounded-sm border border-border">
+      {props.legend && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-border px-2 py-1.5 font-sans text-xs text-muted-foreground">
+          {props.legend}
+        </div>
+      )}
       <div
         ref={scroller}
-        className="relative overflow-x-hidden overflow-y-auto overscroll-contain rounded-sm border border-border"
+        className="relative overflow-x-hidden overflow-y-auto overscroll-contain"
         style={{ height }}
         onScroll={(e) => setScroll(e.currentTarget.scrollTop)}
       >
@@ -340,4 +347,35 @@ function Cross({ x, y }: { x: number; y: number }) {
 function niceStep(raw: number): number {
   const mag = 10 ** Math.floor(Math.log10(raw))
   return [1, 2, 5, 10].map((m) => m * mag).find((s) => s >= raw) ?? raw
+}
+
+/** One entry of a ladder's key: a small drawing of the mark, then what it means. */
+export function LadderKey({
+  mark,
+  color = "var(--chart-1)",
+  children,
+}: {
+  mark: "band" | "back" | "cross" | "now" | "timer"
+  color?: string
+  children: ReactNode
+}) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <svg width="24" height="14" aria-hidden="true" className="shrink-0">
+        {mark === "band" || mark === "back" ? (
+          <>
+            <polygon points={mark === "band" ? "1,1 1,5 23,13 23,9" : "23,1 23,5 1,13 1,9"} fill={color} fillOpacity={0.3} />
+            <line x1={mark === "band" ? 1 : 23} y1={1} x2={mark === "band" ? 23 : 1} y2={9} stroke={color} strokeWidth={1.75} />
+          </>
+        ) : mark === "cross" ? (
+          <Cross x={12} y={7} />
+        ) : mark === "now" ? (
+          <line x1={0} x2={24} y1={7} y2={7} stroke="var(--foreground)" strokeOpacity={0.6} strokeDasharray="2 3" />
+        ) : (
+          <rect x={8} y={3} width={8} height={8} fill="var(--background)" stroke="var(--foreground)" transform="rotate(45 12 7)" />
+        )}
+      </svg>
+      {children}
+    </span>
+  )
 }

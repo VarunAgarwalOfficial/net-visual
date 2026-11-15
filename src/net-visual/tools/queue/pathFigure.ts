@@ -33,7 +33,8 @@ export interface PathFigure {
   dropped: number
   /** A drop in the last moment, to flash where it happened. */
   flash: null | { flow: number; where: "shaper" | "buffer" }
-  link: string
+  /** The link's rate, how the router chooses, and its room, as lines (wide figures join all but the first). */
+  link: string[]
   caption: string
   selected: number | null
 }
@@ -88,7 +89,13 @@ export function pathAt(p: QueueParams, run: QueueRun, t: number, selected: numbe
     if (q.t_reach <= t) delivered++
   }
   waiting.sort((a, b) => a.key - b.key || a.key2 - b.key2)
-  const name = { fifo: "first come, first served", priority: "urgent first", wfq: "shared by weight" }[p.discipline]
+  const name = {
+    fifo: "first come, first served: in arrival order",
+    priority: "urgent packets sent first",
+    wfq: "the link shared by weight",
+  }[p.discipline]
+  const rate = bps(p.rate_bps)
+  const per = rate.endsWith("Gb/s") ? "billion" : rate.endsWith("Mb/s") ? "million" : "thousand"
   return {
     flows,
     processing,
@@ -98,7 +105,7 @@ export function pathAt(p: QueueParams, run: QueueRun, t: number, selected: numbe
     delivered,
     dropped,
     flash,
-    link: `${bps(p.rate_bps)}, ${name}${p.buffer_pkts ? `, room for ${p.buffer_pkts} waiting` : ""}`,
+    link: [`link: ${rate} (${per} bits a second)`, name, ...(p.buffer_pkts ? [`room for ${p.buffer_pkts} waiting`] : [])],
     caption: "",
     selected,
   }
@@ -130,19 +137,38 @@ const rowY = (k: number, n: number) => 118 + (k - (n - 1) / 2) * Math.min(46, 16
 
 export const SLOTS = 13
 
-/** The part of the W by H box a figure uses: one flow needs only a band around the router. */
-export const pathBox = (fig: PathFigure) => (fig.flows.length === 1 ? { y0: 44, h: 152 } : { y0: 0, h: H })
+/** The part of the box a figure uses: one flow needs only a band around the router. */
+export const pathBox = (fig: PathFigure, narrow = false) => {
+  const w = geometry(fig, narrow).W
+  return fig.flows.length === 1 ? { y0: 26, h: 192, w } : { y0: 0, h: H + 18, w }
+}
 
-/** The figure as shapes in a W by H box. `k` enlarges text for narrow screens. */
-export function pathShapes(fig: PathFigure, k = 1): Shape[] {
+/**
+ * Where the parts go. The wide layout fills 640 units; the narrow one, for
+ * phones, packs the same parts into about 400 so that, scaled to a phone's
+ * width, the text stays legible.
+ */
+function geometry(fig: PathFigure, narrow: boolean, k = 1) {
+  if (!narrow) return { W, RX: 176, RX2: 452, WIRE0: 470, WIRE1: 588, bx: 100, below: false }
+  const n = fig.flows.length
+  const anyShaper = fig.flows.some((f) => f.shaper)
+  const below = n === 1
+  const nameEnd = below ? 30 : 30 + Math.max(...fig.flows.map((f) => f.name.length)) * 6.6 * k + 4
+  const bx = nameEnd + 6
+  const RX = Math.round(anyShaper ? bx + 34 + 18 : below ? 56 : nameEnd + 20)
+  const RX2 = RX + 234
+  const WIRE0 = RX2 + 8
+  const WIRE1 = WIRE0 + 52
+  return { W: WIRE1 + 48, RX, RX2, WIRE0, WIRE1, bx, below }
+}
+
+/** The figure as shapes. `k` enlarges text for narrow screens; `narrow` packs the parts closer. */
+export function pathShapes(fig: PathFigure, k = 1, narrow = false): Shape[] {
   const out: Shape[] = []
   const n = fig.flows.length
   const fs = (s: number) => s * k
-  const RX = 176
-  const RX2 = 452
+  const { RX, RX2, WIRE0, WIRE1, bx, below } = geometry(fig, narrow, k)
   const MID = 118
-  const WIRE0 = 470
-  const WIRE1 = 588
   const anyShaper = fig.flows.some((f) => f.shaper)
 
   // Sources and shapers.
@@ -151,10 +177,15 @@ export function pathShapes(fig: PathFigure, k = 1): Shape[] {
     out.push({ kind: "rect", x: 6, y: y - 9, w: 18, h: 18, fill: flowInk(i), stroke: "ink" })
     // One flow is just "source"; several are told apart by name.
     const name = n === 1 ? "source" : f.name
-    out.push({ kind: "text", x: 30, y: y + 4, text: name, size: fs(12), anchor: "start", fill: "ink" })
-    let from = 30 + name.length * 7 * k + 4
+    let from: number
+    if (below) {
+      out.push({ kind: "text", x: 4, y: y + 9 + 14 * k, text: name, size: fs(12), anchor: "start", fill: "ink" })
+      from = 28
+    } else {
+      out.push({ kind: "text", x: 30, y: y + 4, text: name, size: fs(12), anchor: "start", fill: "ink" })
+      from = 30 + name.length * 7 * k + 4
+    }
     if (f.shaper) {
-      const bx = 100
       const bh = n === 1 ? 44 : Math.max(12, Math.min(46, 168 / n) - 28)
       out.push({ kind: "rect", x: bx, y: y - bh / 2, w: 34, h: bh, stroke: "ink", fill: "surface" })
       const lh = Math.max(0, Math.min(1, f.shaper.level)) * (bh - 2)
@@ -178,17 +209,29 @@ export function pathShapes(fig: PathFigure, k = 1): Shape[] {
   if (anyShaper) {
     const kinds = new Set(fig.flows.map((f) => f.shaper?.kind).filter(Boolean))
     const what = kinds.size === 2 ? "tokens or bytes held" : kinds.has("token") ? "tokens" : "bytes held"
-    const box = pathBox(fig)
+    const sb = pathBox(fig, narrow)
     out.push({
       kind: "text",
-      x: 117,
-      y: box.y0 + box.h - 10,
+      x: narrow ? 4 : bx + 17,
+      y: sb.y0 + sb.h - 8 - 15 * k,
       text: `shaper (fill: ${what})`,
       size: fs(10),
-      anchor: "middle",
+      anchor: narrow ? "start" : "middle",
       fill: "muted",
     })
   }
+
+  // What a coloured block is, in the picture rather than only in the caption.
+  const box = pathBox(fig, narrow)
+  out.push({
+    kind: "text",
+    x: 4,
+    y: box.y0 + box.h - 8,
+    text: n === 1 ? "Each blue block is one packet." : "Each block is one packet, coloured by the source it came from.",
+    size: fs(10),
+    anchor: "start",
+    fill: "muted",
+  })
 
   // The router: processing, then the queue, then the transmitter.
   out.push({ kind: "rect", x: RX, y: MID - 30, w: RX2 - RX, h: 60, stroke: "ink", fill: "surface" })
@@ -246,7 +289,18 @@ export function pathShapes(fig: PathFigure, k = 1): Shape[] {
     if (fig.sending.id === fig.selected) out.push({ kind: "rect", x: TX - 2, y: MID - 17, w: 34, h: 34, stroke: "ink" })
   }
   out.push({ kind: "text", x: TX + 15, y: MID + 46, text: "send", size: fs(10), anchor: "middle", fill: "muted" })
-  out.push({ kind: "text", x: (RX + RX2) / 2, y: MID - 38, text: fig.link, size: fs(11), anchor: "middle", fill: "ink" })
+  const lines = narrow ? fig.link : [fig.link[0], fig.link.slice(1).join(", ")]
+  lines.forEach((text, j) =>
+    out.push({
+      kind: "text",
+      x: (RX + RX2) / 2,
+      y: MID - 38 - (lines.length - 1 - j) * 14 * k,
+      text,
+      size: fs(11),
+      anchor: "middle",
+      fill: "ink",
+    }),
+  )
 
   // The wire, and the receiver.
   out.push({ kind: "line", x1: RX2, y1: MID, x2: WIRE0, y2: MID, stroke: "muted" })

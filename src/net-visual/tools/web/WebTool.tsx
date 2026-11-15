@@ -224,7 +224,13 @@ function DnsPanel({
         </p>
       )}
 
-      <Transport tl={tl} events={n} us={clockUs} stepIs="one question or answer sent or arriving, or a cached copy running out" />
+      <Transport
+        tl={tl}
+        events={n}
+        us={clockUs}
+        inMs={clockUs(n - 1) < 60e6}
+        stepIs="one question or answer sent or arriving, or a cached copy running out"
+      />
 
       <figure className="space-y-2">
         <div ref={figBox}>

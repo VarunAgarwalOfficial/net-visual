@@ -32,45 +32,31 @@ export function App() {
   return (
     <div className="mx-auto max-w-[96rem] px-4 pb-24 sm:px-6">
       <header className="border-b border-border py-3 sm:py-4">
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
           <a href="#" className="text-xl text-foreground no-underline">
             Networks you can take apart
           </a>
-          <nav aria-label="Tools" className="hidden flex-1 flex-wrap items-center justify-end gap-x-4 gap-y-1 font-sans text-sm sm:flex">
-            {TOOLS.map((t) =>
-              t.id === id ? (
-                <span key={t.id} aria-current="page">
-                  {t.title} <span className="text-muted-foreground">(this page)</span>
-                </span>
-              ) : (
-                <a key={t.id} href={`#${t.id}`}>
-                  {t.title}
-                </a>
-              ),
-            )}
-          </nav>
-          <ThemeButton dark={dark} set={setDark} className="hidden sm:inline-flex" />
-        </div>
-        <div className="mt-1 flex items-start justify-between gap-3 sm:hidden">
-          <details className="font-sans text-sm">
-            <summary className="cursor-pointer text-link">The six tools</summary>
-            <nav aria-label="Tools">
-              <ul className="mt-1 space-y-1">
-                {TOOLS.map((t) => (
-                  <li key={t.id}>
-                    {t.id === id ? (
-                      <span aria-current="page">
-                        {t.title} <span className="text-muted-foreground">(this page)</span>
-                      </span>
-                    ) : (
-                      <a href={`#${t.id}`}>{t.title}</a>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </nav>
-          </details>
-          <ThemeButton dark={dark} set={setDark} />
+          <div className="flex items-start gap-3">
+            <details className="font-sans text-sm">
+              <summary className="cursor-pointer py-1 text-link">The six tools</summary>
+              <nav aria-label="Tools">
+                <ul className="mt-1 space-y-1">
+                  {TOOLS.map((t) => (
+                    <li key={t.id}>
+                      {t.id === id ? (
+                        <span aria-current="page">
+                          {t.title} <span className="text-muted-foreground">(this page)</span>
+                        </span>
+                      ) : (
+                        <a href={`#${t.id}`}>{t.title}</a>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            </details>
+            <ThemeButton dark={dark} set={setDark} />
+          </div>
         </div>
       </header>
 
@@ -92,9 +78,9 @@ export function App() {
 }
 
 /** The colour scheme, named in words: it says what pressing it will do. */
-function ThemeButton({ dark, set, className }: { dark: boolean; set(dark: boolean): void; className?: string }) {
+function ThemeButton({ dark, set }: { dark: boolean; set(dark: boolean): void }) {
   return (
-    <Button variant="outline" size="sm" className={className} onClick={() => set(!dark)}>
+    <Button variant="outline" size="sm" onClick={() => set(!dark)}>
       {dark ? "Use light colours" : "Use dark colours"}
     </Button>
   )

@@ -28,6 +28,8 @@ export function Transport({
   noun = "step",
   stepIs = "one thing happening in the run",
   clock = true,
+  timeIs,
+  inMs = false,
 }: {
   tl: Timeline
   events: number | null
@@ -41,11 +43,15 @@ export function Transport({
   stepIs?: string
   /** False where the clock only counts steps, so the counter is not said twice. */
   clock?: boolean
+  /** What one unit of a formatted clock is, as "one message crossing a link". */
+  timeIs?: string
+  /** Count time in milliseconds whatever the run's length, to match a picture marked in milliseconds. */
+  inMs?: boolean
 }) {
   const atEnd = tl.t >= tl.duration && tl.duration > 0
-  const unit = runUnit(us(tl.duration))
+  const unit = inMs ? { name: "milliseconds", per: 1e3, digits: 1 } : runUnit(us(tl.duration))
   const time = format
-    ? `${format(tl.t)} of ${format(tl.duration).replace(/^[a-z ]+/, "")}`
+    ? `${format(tl.t)} of ${format(tl.duration).replace(/^[a-z ]+/, "")}${timeIs ? ` (${timeIs})` : ""}`
     : `${inUnit(us(tl.t), unit)} of ${inUnit(us(tl.duration), unit)} ${unit.name}`
   const Noun = noun[0].toUpperCase() + noun.slice(1)
   return (
@@ -72,8 +78,9 @@ export function Transport({
           </Button>
         </span>
       </div>
+      <p className="font-sans text-sm text-muted-foreground">Drag the round knob on the bar below to jump to any moment of the example.</p>
       <LabelledSlider
-        label="Simulated time"
+        label="Time bar: drag to jump to any moment of the example"
         valueText={format ? format(tl.t) : `${inUnit(us(tl.t), unit)} ${unit.name}`}
         min={0}
         max={Math.max(1, tl.duration)}

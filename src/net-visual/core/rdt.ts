@@ -156,7 +156,7 @@ const pipe = { ...BASE, messages: 12, seq_bits: 3, window: 4 }
 export const PRESETS: Preset[] = [
   {
     id: "sw-clean",
-    title: "One message at a time, nothing lost (stop-and-wait)",
+    title: "Stop-and-wait (send one message, wait until the receiver says it arrived, then send the next), with nothing lost",
     source: "Kurose and Ross, Fig. 3.16(a)",
     note: "The sender has four messages for the receiver. It sends one, then waits for the receiver to send back an acknowledgement (ACK) before it sends the next. Nothing is lost, so each message costs one trip there and back. Two sequence numbers, 0 and 1, are enough to tell each message from the one before it.",
     params: { ...BASE },

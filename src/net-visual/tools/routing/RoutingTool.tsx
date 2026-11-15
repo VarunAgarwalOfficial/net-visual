@@ -192,7 +192,10 @@ function RoutingLoaded({ sim }: { sim: Netsim }) {
     onLink.set(`${m.from}-${m.to}`, w)
   }
 
-  const fig = useMemo(() => graphAt(run, p, index, d), [run, p, index, d])
+  const base = useMemo(() => graphAt(run, p, index, d), [run, p, index, d])
+  // Before Play, the routers that already know a cost are the destination's neighbours: their own link says so.
+  const direct = base.links.filter((l) => l.cost !== null && (l.a === d || l.b === d)).map((l) => (l.a === d ? l.b : l.a))
+  const fig = started ? base : { ...base, labels: base.labels.map((t, i) => (direct.includes(i) ? `${t}, direct link` : t)) }
   const loops = forwardingTo(event.hop, d)
   const changed = useMemo(() => (started ? new Set(event.changed.map(([r]) => r)) : new Set<number>()), [event, started])
   const plain = started ? plainRouting(run, p, index, d) : null
@@ -305,10 +308,56 @@ function RoutingLoaded({ sim }: { sim: Netsim }) {
         tl={tl}
         events={run.events.length}
         format={p.jitter_us === 0 && !periodic(p) ? (t) => clock(t, p) : undefined}
-        stepIs="one router sending its table to a neighbour, or taking one in"
+        stepIs="one router sending its table of costs to a neighbour, or taking one in"
+        timeIs={p.jitter_us === 0 && !periodic(p) ? "a round is the time one message takes to cross a link" : undefined}
       />
 
       <figure className="space-y-3">
+        {!started && <p className="font-sans text-sm font-semibold">Nothing has been exchanged yet: this is the start.</p>}
+        <Graph
+          fig={fig}
+          messages={wire}
+          changed={changed}
+          actor={started ? event.node : -1}
+          selected={picked ? x : null}
+          link={link}
+          dijkstra={overlay}
+          onNode={(i) => (dijOpen ? setDijSource(i) : setRouter(i))}
+          onLink={(a, b) => setLink(link && link[0] === a && link[1] === b ? null : [a, b])}
+        />
+        <div className="max-w-[70ch] space-y-1 font-sans text-sm">
+          <p>
+            {started ? (
+              <>
+                Method:{" "}
+                {ls
+                  ? "link state, each router sharing its whole list of links with all the others"
+                  : "distance vector, each router telling its neighbours its own costs"}
+                .
+              </>
+            ) : (
+              <>
+                Each router knows only its own links
+                {direct.length > 0
+                  ? `, so only ${direct.map((i) => p.nodes[i]).join(" and ")}, linked straight to ${D}, already know a cost to it`
+                  : ""}
+                . Method:{" "}
+                {ls ? "link state (routers share their whole list of links)" : "distance vector (routers tell neighbours their costs)"}.
+              </>
+            )}
+          </p>
+          <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <svg width="28" height="10" aria-hidden="true" className="shrink-0">
+                <line x1="1" y1="5" x2="20" y2="5" className="stroke-chart-1" strokeWidth="3" />
+                <path d="M19,0 L28,5 L19,10 z" className="fill-chart-1" />
+              </svg>
+              blue arrow: the next router on the way to {D}
+            </span>
+            <span>cost ∞: no route known yet</span>
+            <span>number on a line: that link&apos;s cost</span>
+          </p>
+        </div>
         <div className="flex flex-wrap items-center gap-2 font-sans text-sm">
           <span id="routing-dest-label">Showing the routes to {D}, marked &quot;destination&quot; in the picture. To choose another:</span>
           <ToggleGroup
@@ -326,17 +375,6 @@ function RoutingLoaded({ sim }: { sim: Netsim }) {
             ))}
           </ToggleGroup>
         </div>
-        <Graph
-          fig={fig}
-          messages={wire}
-          changed={changed}
-          actor={started ? event.node : -1}
-          selected={picked ? x : null}
-          link={link}
-          dijkstra={overlay}
-          onNode={(i) => (dijOpen ? setDijSource(i) : setRouter(i))}
-          onLink={(a, b) => setLink(link && link[0] === a && link[1] === b ? null : [a, b])}
-        />
         <p className="max-w-[70ch] font-sans text-sm" aria-live="polite">
           {overlay ? (
             <>

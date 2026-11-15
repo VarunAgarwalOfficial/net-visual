@@ -64,9 +64,6 @@ export function ladderFigure(p: DnsParams, run: DnsRun, index: number, width: nu
   const fs = narrow ? 12 : 13
   const L = narrow ? 44 : 56
   const R = 12
-  const top = narrow ? 50 : 42
-  const H = narrow ? 400 : 340
-  const h = top + H + 30
   const cols = [null, "resolver", ...p.zones.map((z) => zoneLabel(z.origin))]
   const span = (w - L - R) / cols.length
   const xOf = (c: number) => L + (c + 0.5) * span
@@ -76,18 +73,104 @@ export function ladderFigure(p: DnsParams, run: DnsRun, index: number, width: nu
   const res = r === null ? null : run.resolutions[r]
   cols[0] = res ? p.clients[res.client].name : p.clients.map((c) => c.name).join(" or ")
 
-  cols.forEach((label, c) => {
-    const x = xOf(c)
-    const row = narrow && c % 2 === 1 ? 1 : 0
+  // What each column is, in the picture: under its name where there is room, in a key above the names on a phone.
+  const zones = p.zones.map((z) => zoneLabel(z.origin))
+  const tlds = zones.filter((z) => z !== "root" && !z.includes("."))
+  const gloss = (c: number, label: string) =>
+    c === 0
+      ? "the device asking"
+      : c === 1
+        ? "looks the name up"
+        : label === "root"
+          ? `knows ${tlds.join(", ") || "the next servers"}`
+          : label.includes(".")
+            ? "holds the address"
+            : `names ending .${label}`
+  const keyLines: string[] = []
+  if (narrow) {
+    const phrases = [
+      "resolver: looks the name up, asking these name servers:",
+      `root knows ${tlds.join(" and ") || "the next servers"}`,
+      ...tlds.map((t) => `${t} knows names ending .${t}`),
+      `${zones.filter((z) => z.includes(".")).join(" and ")} hold the addresses.`,
+    ]
+    const fit = Math.floor((w - 8) / ((fs - 1) * 0.5))
+    let line = ""
+    phrases.forEach((ph, i) => {
+      const piece = i === 0 || i === phrases.length - 1 ? ph : `${ph};`
+      if (line && (line + " " + piece).length > fit) {
+        keyLines.push(line)
+        line = piece
+      } else line = line ? `${line} ${piece}` : piece
+    })
+    if (line) keyLines.push(line)
+  }
+  keyLines.forEach((l, i) => shapes.push({ kind: "text", x: 4, y: 13 + i * 14, text: l, size: fs - 1, anchor: "start", fill: "muted" }))
+  const head = narrow ? 14 + keyLines.length * 14 + 6 : 14
+  const top = head + 28
+  const H = 340
+  // The line colours, under the columns, each phrase in its own colour.
+  const colourKey: { text: string; fill: Ink }[] = [
+    { text: "grey: a question", fill: "muted" },
+    { text: "blue: a referral (ask this other server)", fill: KIND_INK.referral },
+    { text: "green: the answer", fill: KIND_INK.answer },
+    ...(run.messages.some((m) => m.kind === "cname")
+      ? [{ text: "orange: an alias (CNAME), look up this other name", fill: KIND_INK.cname }]
+      : []),
+    ...(run.messages.some((m) => m.kind === "nxdomain" || m.kind === "nodata")
+      ? [{ text: "red: no such name or record", fill: KIND_INK.nxdomain }]
+      : []),
+    { text: "small square: a record kept in a cache", fill: KIND_INK.answer },
+  ]
+  const keyAt: { x: number; row: number }[] = []
+  {
+    let x = 4
+    let row = 0
+    for (const k of colourKey) {
+      const len = k.text.length * (fs - 1) * 0.48
+      if (x > 4 && x + len > w - 4) {
+        x = 4
+        row++
+      }
+      keyAt.push({ x, row })
+      x += len + 14
+    }
+  }
+  const keyRows = keyAt[keyAt.length - 1].row + 1
+  const h = top + H + 30 + keyRows * 15
+  colourKey.forEach((k, i) =>
     shapes.push({
       kind: "text",
-      x,
-      y: 14 + row * 15,
-      text: label ?? "",
-      size: fs,
-      anchor: "middle",
-      fill: "ink",
-    })
+      x: keyAt[i].x,
+      y: top + H + 16 + keyAt[i].row * 15,
+      text: k.text,
+      size: fs - 1,
+      anchor: "start",
+      fill: k.fill,
+    }),
+  )
+
+  cols.forEach((label, c) => {
+    const x = xOf(c)
+    const name = label ?? ""
+    // On a phone a long name breaks onto two lines (at " or " or its first dot) instead of running into its neighbours.
+    const cut = name.indexOf(" or ") > 0 ? name.indexOf(" or ") + 1 : name.indexOf(".") > 0 ? name.indexOf(".") : -1
+    const lines = narrow
+      ? name.length * fs * 0.52 > span - 4 && cut > 0
+        ? [name.slice(0, cut).trim(), name.slice(cut).trim()]
+        : [name]
+      : [name, gloss(c, name)]
+    lines.forEach((t, j) =>
+      shapes.push({
+        kind: "text",
+        x,
+        y: head + j * 14,
+        text: t,
+        size: narrow ? fs - 1 : j === 0 ? fs : fs - 2,
+        anchor: "middle",
+        fill: j === 0 || narrow ? "ink" : "muted",
+      }),
+    )
     shapes.push({ kind: "line", x1: x, y1: top - 6, x2: x, y2: top + H, stroke: "muted", width: 0.6, dashed: true })
   })
 

@@ -33,7 +33,7 @@ import {
   type QueueRun,
   type SweepPoint,
 } from "../../core/queue"
-import { CSS, FLOW_COLORS, W, pathBox, pathShapes, type PathFigure } from "./pathFigure"
+import { CSS, FLOW_COLORS, pathBox, pathShapes, type PathFigure } from "./pathFigure"
 
 const ms = (v: number) => String(Number((v / 1000).toPrecision(4)))
 const DISCIPLINE: Record<Discipline, string> = { fifo: "FIFO", priority: "strict priority", wfq: "WFQ" }
@@ -123,11 +123,14 @@ export function eventWhy(p: QueueParams, e: QEvent): string | undefined {
 /** The path, drawn in the theme's colours. Text grows on narrow screens so it stays legible. */
 export const PathView = memo(function PathView({ fig, label }: { fig: PathFigure; label: string }) {
   const [box, width] = useWidth<HTMLDivElement>()
-  const k = width > 0 && width < 560 ? Math.min(1.45, 560 / width) : 1
-  const shapes = useMemo(() => pathShapes(fig, k), [fig, k])
+  // On a phone the parts are packed closer (about 400 units across instead of 640), so text can stay near full size.
+  const narrow = width > 0 && width < 560
+  const k = narrow ? Math.min(1.35, Math.max(1, 480 / width)) : 1
+  const shapes = useMemo(() => pathShapes(fig, k, narrow), [fig, k, narrow])
+  const vb = pathBox(fig, narrow)
   return (
     <div ref={box}>
-      <svg viewBox={`0 ${pathBox(fig).y0} ${W} ${pathBox(fig).h}`} className="block h-auto w-full font-sans" role="img" aria-label={label}>
+      <svg viewBox={`0 ${vb.y0} ${vb.w} ${vb.h}`} className="block h-auto w-full font-sans" role="img" aria-label={label}>
         <defs>
           <marker id="nvq-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
             <path d="M0,0 L10,5 L0,10 z" fill="var(--muted-foreground)" />

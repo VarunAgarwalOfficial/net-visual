@@ -14,7 +14,7 @@ import {
   type CdParams,
   type CdRun,
 } from "../../core/link.ts"
-import { clipY, station, type Shape, type ShapeFigure } from "./shapes.ts"
+import { clipY, station, type Ink, type Shape, type ShapeFigure } from "./shapes.ts"
 
 /** A window of the run that follows the clock, keeping it three quarters of the way across. */
 export function windowAt(t: number, span: number, total: number): [number, number] {
@@ -61,8 +61,32 @@ export function alohaFigure(p: AlohaParams, run: AlohaRun, t: number, w: number)
   const [t0, t1] = windowAt(t, span, (p.length + 1) * F)
   const left = 34
   const right = w - 8
-  const top = 20
   const n = p.stations
+  // A key over the rows, so the colours and names are read in the picture, not only in the caption under it.
+  const key: { swatch: null | { fill: Ink; opacity: number }; label: string }[] = [
+    { swatch: null, label: `S1 to S${n}: stations, the computers sharing the channel` },
+    { swatch: { fill: station(0), opacity: 0.9 }, label: "a frame that got through (#0 is the first)" },
+    { swatch: { fill: "alarm", opacity: 0.75 }, label: "a frame lost: another overlapped it" },
+    { swatch: { fill: "muted", opacity: 0.25 }, label: "vulnerable window" },
+    { swatch: null, label: "air: everything a receiver hears" },
+  ]
+  const keyShapes: Shape[] = []
+  let kx = 4
+  let ky = 12
+  for (const k of key) {
+    const width = (k.swatch ? 20 : 0) + k.label.length * 5.6
+    if (kx > 4 && kx + width > right) {
+      kx = 4
+      ky += 15
+    }
+    if (k.swatch) {
+      keyShapes.push({ kind: "rect", x: kx, y: ky - 8, w: 14, h: 9, fill: k.swatch.fill, opacity: k.swatch.opacity })
+      kx += 18
+    }
+    keyShapes.push(text(kx, ky, k.label, { size: 11, fill: "ink" }))
+    kx += k.label.length * 5.6 + 16
+  }
+  const top = ky + 26
   const rowH = Math.max(10, Math.min(22, 176 / n))
   const chanY = top + n * rowH + 10
   const chanH = 18
@@ -80,7 +104,9 @@ export function alohaFigure(p: AlohaParams, run: AlohaRun, t: number, w: number)
     const [a, b] = p.slotted ? [focus.start_us, focus.end_us] : [focus.start_us - F, focus.end_us]
     if (b > t0 && a < t1) {
       shapes.push({ kind: "rect", x: X(a), y: top, w: X(b) - X(a), h: n * rowH, fill: "muted", opacity: 0.14 })
-      const label = p.slotted ? `frame #${focus.id}: only this slot is vulnerable` : `frame #${focus.id}: vulnerable for 2 frame times`
+      const label = p.slotted
+        ? `only a frame in this same slot ruins frame #${focus.id}`
+        : `any frame starting in this band ruins frame #${focus.id}`
       const mid = (X(a) + X(b)) / 2
       shapes.push(
         text(Math.min(right, Math.max(left, mid)), top - 6, label, {
@@ -149,7 +175,7 @@ export function alohaFigure(p: AlohaParams, run: AlohaRun, t: number, w: number)
   }
   if (t >= t0 && t <= t1) shapes.push({ kind: "line", x1: X(t), y1: top - 2, x2: X(t), y2: chanY + chanH + 2, stroke: "ink", width: 1.5 })
 
-  return { w, h, shapes, caption: "", onAir, delivered, garbled }
+  return { w, h, shapes: [...keyShapes, ...shapes], caption: "", onAir, delivered, garbled }
 }
 
 // --- CSMA/CD -------------------------------------------------------------

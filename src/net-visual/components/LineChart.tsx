@@ -8,6 +8,8 @@ export interface Series {
   kind: "line" | "dots" | "step"
   points: [number, number][]
   dashed?: boolean
+  /** Lines under the series' name, in the key only, separated by newlines. */
+  note?: string
 }
 
 interface Props {
@@ -34,6 +36,12 @@ interface Props {
   children?: ReactNode | ((scale: Scale) => ReactNode)
   /** Marks drawn over the series, such as labels that must stay legible. */
   overlay?: (scale: Scale) => ReactNode
+  /**
+   * Where the clock is still near the left edge, name the series in a key
+   * at the top left instead of at their line ends, which would sit on the
+   * axis there.
+   */
+  keyEarly?: boolean
 }
 
 /** The chart's scales, for marks placed in data coordinates. */
@@ -144,6 +152,12 @@ export function LineChart(props: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [series, upTo, width, height, x0, x1, y0, y1])
   const ahead = upTo !== undefined && upTo < x1 ? Math.max(m.l, sx(Math.max(upTo, x0))) : null
+  const asKey = !!props.keyEarly && series.length >= 2 && (upTo ?? Infinity) < x0 + 0.15 * (x1 - x0)
+  const keyRows: { s: Series; row: number; note?: string }[] = []
+  for (const s of series) {
+    keyRows.push({ s, row: keyRows.length })
+    for (const note of s.note?.split("\n") ?? []) keyRows.push({ s, row: keyRows.length, note })
+  }
 
   const move = (e: React.PointerEvent<SVGSVGElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
@@ -203,13 +217,20 @@ export function LineChart(props: Props) {
             {yt.map((v) => (
               <g key={`y${v}`}>
                 <line x1={m.l} x2={m.l + w} y1={sy(v)} y2={sy(v)} stroke="var(--chart-grid)" />
-                <text x={m.l - 6} y={sy(v)} dy="0.32em" textAnchor="end" fontSize="11" fill="var(--chart-ink)">
+                <text x={m.l - 6} y={sy(v) - (v === y0 ? 4 : 0)} dy="0.32em" textAnchor="end" fontSize="11" fill="var(--chart-ink)">
                   {yFormat(v)}
                 </text>
               </g>
             ))}
             {xt.map((v) => (
-              <text key={`x${v}`} x={sx(v)} y={m.t + h + 16} textAnchor="middle" fontSize="11" fill="var(--chart-ink)">
+              <text
+                key={`x${v}`}
+                x={sx(v) + (v === x0 ? 2 : 0)}
+                y={m.t + h + 16}
+                textAnchor={v === x0 ? "start" : "middle"}
+                fontSize="11"
+                fill="var(--chart-ink)"
+              >
                 {xFormat(v)}
               </text>
             ))}
@@ -262,7 +283,35 @@ export function LineChart(props: Props) {
                 faint: the rest of the run, not reached yet
               </text>
             )}
-            {labels.map((l) => (
+            {asKey &&
+              keyRows.map(({ s, row, note }) => (
+                <g key={`key${row}`} pointerEvents="none">
+                  {!note && (
+                    <line
+                      x1={m.l + 8}
+                      x2={m.l + 26}
+                      y1={m.t + 24 + row * 14}
+                      y2={m.t + 24 + row * 14}
+                      stroke={s.color}
+                      strokeWidth={2}
+                      strokeDasharray={s.dashed ? "5 3" : undefined}
+                    />
+                  )}
+                  <text
+                    x={m.l + 30}
+                    y={m.t + 24 + row * 14}
+                    dy="0.32em"
+                    fontSize="11"
+                    fill={note ? "var(--chart-ink)" : s.color}
+                    stroke="var(--background)"
+                    strokeWidth={3}
+                    paintOrder="stroke"
+                  >
+                    {note ?? s.label}
+                  </text>
+                </g>
+              ))}
+            {(asKey ? [] : labels).map((l) => (
               <text
                 key={l.id}
                 x={l.x < m.l + w * 0.6 ? Math.max(l.x, m.l) + 6 : l.x - 6}

@@ -24,7 +24,7 @@ import { ParamSlider, ParamSwitch } from "../../components/Controls"
 import { ladderExports } from "../../components/figure"
 import { HeaderDiagram, type HeaderField } from "../../components/HeaderDiagram"
 import { LabPanel } from "../../components/LabPanel"
-import { Ladder, type LadderFlight, type LadderMark } from "../../components/Ladder"
+import { Ladder, LadderKey, type LadderFlight, type LadderMark } from "../../components/Ladder"
 import { LiterateSource } from "../../components/LiterateSource"
 import {
   DeeperHeading,
@@ -250,12 +250,23 @@ function RdtLoaded({ sim }: { sim: Netsim }) {
             follow={follow}
             height={ladderHeight}
             empty={["Nothing sent yet.", "Play draws each packet", "as a band crossing the gap."]}
+            legend={
+              <>
+                <LadderKey mark="band">data packet; in &quot;packet 0&quot;, 0 is its sequence number, its place in the order</LadderKey>
+                <LadderKey mark="back" color="var(--chart-2)">
+                  acknowledgement (ACK): the receiver&apos;s note that it arrived
+                </LadderKey>
+                <LadderKey mark="cross">lost on the way</LadderKey>
+                <LadderKey mark="timer">sender&apos;s timer ran out</LadderKey>
+                <LadderKey mark="now">now</LadderKey>
+              </>
+            }
           />
         </div>
         <figcaption className="font-sans text-sm text-muted-foreground">
           Sender on the left, receiver on the right, time running down. A band from the sender to the receiver is a data packet, named by
-          its sequence number; a band back is an acknowledgement (ACK) that it arrived. A red cross is a packet lost on the way. Once Play
-          starts, a dotted line marks now.
+          its sequence number (its place in the order, counting from 0); a band back is an acknowledgement (ACK) that it arrived. A red
+          cross is a packet lost on the way. Once Play starts, a dotted line marks now.
         </figcaption>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-sans text-sm text-muted-foreground">
           {started && <span className="mr-auto">Select a packet to see its header, drop it or delay it.</span>}
