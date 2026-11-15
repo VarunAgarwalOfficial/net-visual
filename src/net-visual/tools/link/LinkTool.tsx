@@ -10,6 +10,7 @@ import { Transport } from "../../components/Transport"
 import {
   DeeperHeading,
   Disclosure,
+  AboutExample,
   ExampleIntro,
   Readouts,
   StepCard,
@@ -18,7 +19,7 @@ import {
   scrollBehavior,
   sourceLine,
 } from "../../components/ToolFrame"
-import { keepFocus, timelineKeys, useTimeline } from "../../components/timeline"
+import { keepFocus, timeIn, timelineKeys, useTimeline } from "../../components/timeline"
 import {
   LABS,
   MODES,
@@ -140,12 +141,21 @@ const FORMAT: Record<Mode, (t: number) => string> = {
   crc: (t) => fmtTime(t, "crc"),
   hamming: (t) => fmtTime(t, "hamming"),
 }
+const STEP_IS: Record<Mode, string> = {
+  aloha: "one frame starting or ending",
+  csmacd: "one station sensing, sending, hearing a collision or backing off",
+  csmaca: "one station sensing, counting down, sending or being acknowledged",
+  switch: "one thing a switch does with a frame",
+  stp: "one switch sending or taking in a message about the tree",
+  crc: "one stage of the calculation",
+  hamming: "one stage of the calculation",
+}
 /** Events in each slice of the trace on screen; the slice moves in steps so most clock ticks re-render nothing. */
 const SLICE = 200
 
 const HELP: Record<Mode, string> = {
   aloha:
-    "One row per station (S1, S2 and so on), time left to right. A frame is drawn as it is sent, with its number (#0 is the first): solid when it got through, red when another frame overlapped it. The bottom row, air, is the channel as a receiver hears it, every frame at once. The shaded band is the latest frame's vulnerable window: any other start inside it destroys the frame.",
+    "One row per station (S1, S2 and so on), time left to right in milliseconds (ms). The picture shows 12 ms at a time (8 on a phone) and slides along as the run plays. A frame is drawn as a bar while it is sent, with its number (#0 is the first): in its station's colour when it got through, red when another frame overlapped it. The bottom row, air, is the channel as a receiver hears it, every frame at once. Once frames appear, a grey band marks the latest frame's vulnerable window: any other frame starting inside it destroys this one.",
   csmacd:
     "Position along the cable across, time down. Each transmission spreads both ways along the cable at the speed of the signal, so it fills a widening band; a station hears another only once that band reaches its line. Red is the jam after a collision is heard.",
   csmaca:
@@ -293,7 +303,8 @@ function LinkLoaded({ sim }: { sim: Netsim }) {
   }
   const { run, p } = good
   const mode = p.mode
-  const fmt = FORMAT[mode]
+  // The clock in microseconds, so every time on the first screen uses the player's one unit.
+  const toUs = (t: number) => (mode === "csmacd" ? t / 1000 : mode === "stp" ? t * 1000 : t)
   const sourceTool = SOURCE[mode].tool
   const source = useMemo(() => sim.call<string>(sourceTool, "source"), [sim, sourceTool])
   const stepTitles = useMemo(() => new Map([...source.matchAll(STEP_RE)].map((m) => [m[1], m[2]])), [source])
@@ -343,6 +354,7 @@ function LinkLoaded({ sim }: { sim: Netsim }) {
 
   const presetInfo = PRESETS.find((q) => q.id === preset)
   const title = presetInfo?.title ?? "Your own setup"
+  const fmt = mode === "crc" || mode === "hamming" ? FORMAT[mode] : (t: number) => timeIn(toUs(t), toUs(tl.duration))
   const caption = `${title}, at ${fmt(tl.t)}`
   const started = tl.index >= 0 && !!event
   const coding = mode === "crc" || mode === "hamming"
@@ -354,34 +366,40 @@ function LinkLoaded({ sim }: { sim: Netsim }) {
       ref={root}
       tabIndex={-1}
       aria-label="Link layer and wireless"
-      className="nv-tool max-w-4xl space-y-6 outline-none [&.nv-present]:max-w-none [&.nv-present]:[zoom:1.2] [&.nv-present]:overflow-auto [&.nv-present]:bg-background [&.nv-present]:p-6"
+      className="nv-tool max-w-4xl space-y-4 outline-none [&.nv-present]:max-w-none [&.nv-present]:[zoom:1.2] [&.nv-present]:overflow-auto [&.nv-present]:bg-background [&.nv-present]:p-6"
       onKeyDown={(e) => {
         if (timelineKeys(tl, e)) e.preventDefault()
       }}
     >
       {tour !== null && <TourCard index={tour} steps={TOUR} go={goTour} playing={tl.playing} toggle={tl.toggle} />}
 
-      <ExampleIntro
-        title={title}
-        note={
-          presetInfo?.note ??
-          `Your own settings for: ${MODES.find((m) => m.id === mode)?.title}. Open "Change the settings" below to see them.`
-        }
-      />
+      <ExampleIntro title={title} />
       {error && (
         <p role="alert" className="font-sans text-sm text-destructive">
           That setting cannot run ({error}); the run shown is the last one that could.
         </p>
       )}
 
-      <Transport tl={tl} events={run.run.events.length} format={fmt} noun={coding ? "step" : "event"} clock={!coding} />
+      <Transport
+        tl={tl}
+        events={run.run.events.length}
+        us={toUs}
+        stepIs={coding ? "one stage of the calculation" : STEP_IS[mode]}
+        clock={!coding}
+      />
 
       <figure className="space-y-2">
-        <figcaption className="max-w-[70ch] font-sans text-sm text-muted-foreground">{HELP[mode]}</figcaption>
         <div ref={figBox}>
           <ShapeView fig={fig} label={`${caption}. ${label}`} />
         </div>
+        <figcaption className="max-w-[70ch] font-sans text-sm text-muted-foreground">{HELP[mode]}</figcaption>
       </figure>
+      <AboutExample
+        note={
+          presetInfo?.note ??
+          `Your own settings for: ${MODES.find((m) => m.id === mode)?.title}. Open "Change the settings", further down the page, to see them.`
+        }
+      />
 
       <StepCard
         live={!tl.playing}
@@ -390,8 +408,8 @@ function LinkLoaded({ sim }: { sim: Netsim }) {
         text={started ? textFor(p, run, index) : undefined}
         empty={
           <>
-            Nothing has happened yet. Press <b>Play</b> to run the example, or <b>Next {coding ? "step" : "event"}</b> to go one{" "}
-            {coding ? "step" : "event"} at a time (the arrow keys do the same).
+            Nothing has happened yet. Press <b>Play</b> to run the example, or <b>Next</b> to go one step at a time (the arrow keys do the
+            same).
           </>
         }
       />

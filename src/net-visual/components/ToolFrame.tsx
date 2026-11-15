@@ -70,12 +70,21 @@ export function Disclosure({
 }
 
 /** The example on screen: its name and what it shows, in plain words. */
-export function ExampleIntro({ title, note }: { title: string; note: ReactNode }) {
+export function ExampleIntro({ title }: { title: string; note?: ReactNode }) {
+  // Only the example's name above the player, so Play stays the first control and the picture reaches the first screen.
+  return <h2 className="max-w-[70ch] text-xl leading-snug">Example: {title}</h2>
+}
+
+/** The example's paragraph, behind one line under the picture. */
+export function AboutExample({ note }: { note: ReactNode }) {
   return (
-    <div className="max-w-[70ch] space-y-1">
-      <h2 className="text-xl leading-snug">Example: {title}</h2>
-      <p className="text-[0.98rem]">{note}</p>
-    </div>
+    <details className="group/about max-w-[70ch]">
+      <summary className="flex w-fit cursor-pointer list-none items-center gap-1 font-sans text-sm text-link [&::-webkit-details-marker]:hidden">
+        <ChevronRight aria-hidden className="size-4 shrink-0 group-open/about:rotate-90" />
+        About this example
+      </summary>
+      <p className="mt-1 text-[0.98rem]">{note}</p>
+    </details>
   )
 }
 
@@ -108,7 +117,7 @@ export function StepCard({
         <p className="mt-1">
           {empty ?? (
             <>
-              Nothing yet. Press <b>Play</b> to run the example, or <b>Next</b> to go one event at a time.
+              Nothing yet. Press <b>Play</b> to run the example, or <b>Next</b> to go one step at a time.
             </>
           )}
         </p>

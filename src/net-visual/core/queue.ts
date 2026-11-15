@@ -396,7 +396,7 @@ export const PRESETS: Preset[] = [
   {
     id: "four-delays",
     mode: "delay",
-    title: "The four delays of one hop",
+    title: "The four delays of one hop (one router and the link after it)",
     source: "Kurose and Ross, Section 1.4",
     note: "Six packets of 1500 bytes, one every 900 µs (microseconds), cross a link 2000 km long that sends 10 Mb/s (megabits per second). Each spends 20 µs being processed in the router, 1.2 ms being pushed onto the wire (its length divided by the link's rate) and 10 ms travelling along it (the distance divided by the signal's speed). The link needs 1.2 ms per packet but they come every 0.9 ms, so each waits in line 300 µs longer than the one before.",
     params: FOUR,

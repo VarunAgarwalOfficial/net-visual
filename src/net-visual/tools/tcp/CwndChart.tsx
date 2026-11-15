@@ -105,7 +105,7 @@ export const CwndChart = memo(function CwndChart({
       <LineChart
         title="Congestion window: how many packets the sender may have on the way"
         series={series}
-        xLabel="simulated time (s)"
+        xLabel="simulated time (seconds)"
         yLabel="packets"
         xFormat={seconds}
         yFormat={(y) => (y >= 100 ? y.toFixed(0) : String(Number(y.toFixed(1))))}
@@ -227,7 +227,7 @@ export const CwndChart = memo(function CwndChart({
 export function cwndFigure(run: TcpRun, compare: TcpRun | null, cmp: Algo | null, p: TcpParams, caption: string): ChartFigure {
   const { series, top } = build(run, compare, cmp, p)
   return {
-    xLabel: "time (s)",
+    xLabel: "time (seconds)",
     yLabel: "congestion window (packets)",
     xFormat: seconds,
     yFormat: (y) => y.toFixed(0),

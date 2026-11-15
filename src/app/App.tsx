@@ -1,8 +1,6 @@
 import { Suspense, useEffect, useState } from "react"
-import { Moon, Sun } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
 import { TOOLS } from "@/net-visual/tools"
 
 const route = () => window.location.hash.slice(1).split("?")[0]
@@ -33,27 +31,54 @@ export function App() {
 
   return (
     <div className="mx-auto max-w-[96rem] px-4 pb-24 sm:px-6">
-      <header className="flex flex-wrap items-baseline justify-between gap-3 border-b border-border py-4">
-        <a href="#" className="text-xl text-foreground no-underline">
-          Networks you can take apart
-        </a>
-        <nav aria-label="Tools" className="flex flex-wrap items-center gap-x-4 gap-y-1 font-sans text-sm">
-          {TOOLS.map((t) => (
-            <a key={t.id} href={`#${t.id}`} aria-current={t.id === id ? "page" : undefined} className={cn(t.id === id && "font-semibold")}>
-              {t.title}
-            </a>
-          ))}
-          <Button variant="ghost" size="icon-sm" aria-label={dark ? "Use light theme" : "Use dark theme"} onClick={() => setDark(!dark)}>
-            {dark ? <Sun /> : <Moon />}
-          </Button>
-        </nav>
+      <header className="border-b border-border py-3 sm:py-4">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+          <a href="#" className="text-xl text-foreground no-underline">
+            Networks you can take apart
+          </a>
+          <nav aria-label="Tools" className="hidden flex-1 flex-wrap items-center justify-end gap-x-4 gap-y-1 font-sans text-sm sm:flex">
+            {TOOLS.map((t) =>
+              t.id === id ? (
+                <span key={t.id} aria-current="page">
+                  {t.title} <span className="text-muted-foreground">(this page)</span>
+                </span>
+              ) : (
+                <a key={t.id} href={`#${t.id}`}>
+                  {t.title}
+                </a>
+              ),
+            )}
+          </nav>
+          <ThemeButton dark={dark} set={setDark} className="hidden sm:inline-flex" />
+        </div>
+        <div className="mt-1 flex items-start justify-between gap-3 sm:hidden">
+          <details className="font-sans text-sm">
+            <summary className="cursor-pointer text-link">The six tools</summary>
+            <nav aria-label="Tools">
+              <ul className="mt-1 space-y-1">
+                {TOOLS.map((t) => (
+                  <li key={t.id}>
+                    {t.id === id ? (
+                      <span aria-current="page">
+                        {t.title} <span className="text-muted-foreground">(this page)</span>
+                      </span>
+                    ) : (
+                      <a href={`#${t.id}`}>{t.title}</a>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          </details>
+          <ThemeButton dark={dark} set={setDark} />
+        </div>
       </header>
 
-      <main className="pt-6">
+      <main className="pt-4">
         {tool ? (
           <>
-            <h1 className="mb-1 text-3xl">{tool.title}</h1>
-            <p className="mb-6 max-w-[70ch]">{tool.lead}</p>
+            <h1 className="mb-1 text-3xl leading-tight">{tool.title}</h1>
+            <p className="mb-4 max-w-[70ch] [font-variant-numeric:lining-nums]">{tool.lead}</p>
             <Suspense fallback={<p className="font-sans text-sm text-muted-foreground">Loading…</p>}>
               <tool.Component />
             </Suspense>
@@ -63,6 +88,15 @@ export function App() {
         )}
       </main>
     </div>
+  )
+}
+
+/** The colour scheme, named in words: it says what pressing it will do. */
+function ThemeButton({ dark, set, className }: { dark: boolean; set(dark: boolean): void; className?: string }) {
+  return (
+    <Button variant="outline" size="sm" className={className} onClick={() => set(!dark)}>
+      {dark ? "Use light colours" : "Use dark colours"}
+    </Button>
   )
 }
 

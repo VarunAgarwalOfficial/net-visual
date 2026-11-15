@@ -163,6 +163,27 @@ export function keepFocus(root: { readonly current: HTMLElement | null }) {
   })
 }
 
+/**
+ * One unit for the whole run, chosen from its length and spelled out, so the
+ * counter never reads "0 µs of 3.000 s".
+ */
+export function runUnit(durationUs: number): { name: string; per: number; digits: number } {
+  const [name, per] = durationUs >= 2e6 ? ["seconds", 1e6] : durationUs >= 2e3 ? ["milliseconds", 1e3] : ["microseconds", 1]
+  const span = durationUs / per
+  return { name, per, digits: span >= 100 ? 1 : span >= 10 ? 2 : 3 }
+}
+
+export const inUnit = (us: number, u: { per: number; digits: number }) => {
+  const v = us / u.per
+  return v === 0 ? "0" : Number(v.toFixed(u.digits)).toString()
+}
+
+/** A time in the unit the player uses for this run, spelled out: "12.5 milliseconds". */
+export const timeIn = (us: number, durationUs: number) => {
+  const u = runUnit(durationUs)
+  return `${inUnit(us, u)} ${u.name}`
+}
+
 export function formatTime(us: number): string {
   if (us < 1000) return `${us.toFixed(0)} µs`
   if (us < 1_000_000) return `${(us / 1000).toFixed(us < 10_000 ? 2 : 1)} ms`

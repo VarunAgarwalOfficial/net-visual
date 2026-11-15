@@ -137,7 +137,7 @@ export const QueueChart = memo(function QueueChart({
     <LineChart
       title="Bottleneck queue"
       series={series}
-      xLabel="time (s)"
+      xLabel="time (seconds)"
       yLabel="packets"
       xFormat={seconds}
       yFormat={(y) => y.toFixed(0)}
@@ -193,7 +193,7 @@ export const RttChart = memo(function RttChart({ run, p, t, onSeek }: { run: Tcp
       <LineChart
         title="Round trip and timeout, flow 1"
         series={series}
-        xLabel="time (s)"
+        xLabel="time (seconds)"
         yLabel="ms"
         xFormat={seconds}
         yFormat={ms}

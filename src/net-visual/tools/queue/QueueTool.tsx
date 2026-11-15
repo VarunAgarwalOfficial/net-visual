@@ -10,6 +10,7 @@ import { Transport } from "../../components/Transport"
 import {
   DeeperHeading,
   Disclosure,
+  AboutExample,
   ExampleIntro,
   Readouts,
   StepCard,
@@ -18,7 +19,7 @@ import {
   scrollBehavior,
   sourceLine,
 } from "../../components/ToolFrame"
-import { keepFocus, timelineKeys, useTimeline } from "../../components/timeline"
+import { keepFocus, timeIn, timelineKeys, useTimeline } from "../../components/timeline"
 import { loadNetsim } from "../../core/load"
 import type { Netsim } from "../../core/netsim"
 import {
@@ -28,7 +29,6 @@ import {
   TOUR,
   runDuration,
   runQueue,
-  us,
   type Mode,
   type QPacket,
   type QueueParams,
@@ -127,7 +127,8 @@ function QueueLoaded({ sim }: { sim: Netsim }) {
   const index = Math.max(0, tl.index)
   const event = run.events[index]
 
-  const fig = useMemo(() => pathAt(p, run, tl.t, selected), [p, run, tl.t, selected])
+  // Before the first step nothing has arrived, even a packet due at time 0.
+  const fig = useMemo(() => pathAt(p, run, tl.index >= 0 ? tl.t : -1, selected), [p, run, tl.t, tl.index, selected])
   const running = useRunning(run)
   const chart = useMemo(() => modeChart(mode, p, run, duration), [mode, p, run, duration])
   // The packet whose delays the equation card shows: the one picked, else the last to arrive by now.
@@ -181,7 +182,7 @@ function QueueLoaded({ sim }: { sim: Netsim }) {
 
   const presetInfo = PRESETS.find((q) => q.id === preset)
   const title = presetInfo?.title ?? "Your own setup"
-  const caption = `${title}, at ${us(tl.t)}`
+  const caption = `${title}, at ${timeIn(tl.t, tl.duration)}`
   const started = tl.index >= 0
   const many = p.flows.length > 1
   const shaped = p.flows.some((f) => f.shaper.kind !== "none")
@@ -192,49 +193,51 @@ function QueueLoaded({ sim }: { sim: Netsim }) {
       ref={root}
       tabIndex={-1}
       aria-label="Queueing and delay"
-      className="nv-tool max-w-4xl space-y-6 outline-none [&.nv-present]:max-w-none [&.nv-present]:[zoom:1.2] [&.nv-present]:overflow-auto [&.nv-present]:bg-background [&.nv-present]:p-6"
+      className="nv-tool max-w-4xl space-y-4 outline-none [&.nv-present]:max-w-none [&.nv-present]:[zoom:1.2] [&.nv-present]:overflow-auto [&.nv-present]:bg-background [&.nv-present]:p-6"
       onKeyDown={(e) => {
         if (timelineKeys(tl, e)) e.preventDefault()
       }}
     >
       {tour !== null && <TourCard index={tour} steps={TOUR} go={goTour} playing={tl.playing} toggle={tl.toggle} />}
 
-      <ExampleIntro
-        title={title}
-        note={
-          presetInfo?.note ??
-          `${p.flows.length} flow${many ? "s" : ""} of packets into a router whose link sends ${p.rate_bps / 1e6} Mb/s. Open "Change the link and the traffic" below to see the rest.`
-        }
-      />
+      <ExampleIntro title={title} />
       {error && (
         <p role="alert" className="font-sans text-sm text-destructive">
           That setting cannot run ({error}); the run shown is the last one that could.
         </p>
       )}
 
-      <Transport tl={tl} events={run.events.length} />
+      <Transport tl={tl} events={run.events.length} stepIs="one packet arriving, starting to be sent, or leaving" />
 
       <figure className="space-y-2">
-        <figcaption className="max-w-[70ch] font-sans text-sm text-muted-foreground">
-          Packets go left to right. {many ? "Each flow has its own colour, named on the left. " : "They come from the source on the left. "}
-          {shaped ? "They pass through a bucket that smooths bursts (the filled part is how full it is), then " : "They "}
-          enter the router (the long box), where each is processed, waits in line (the next to go is on the right), and is sent: pushed onto
-          the wire bit by bit. Then it travels along the link. Each block on the wire is one packet, as long as the stretch of link its bits
-          fill. The box on the right counts packets that have arrived.
-        </figcaption>
         <PathView fig={fig} label={`${caption}: ${fig.waiting.length} packets waiting, ${fig.delivered} arrived, ${fig.dropped} lost`} />
+        <figcaption className="max-w-[70ch] font-sans text-sm text-muted-foreground">
+          {started ? "" : "Nothing has been sent yet. "}Packets go left to right.{" "}
+          {many ? "Each flow has its own colour, named on the left. " : "They come from the source on the left. "}
+          {shaped ? "They pass through a bucket that smooths bursts (the filled part is how full it is), then " : "They "}
+          enter the router (the long box). Inside it, each packet is first checked in the dashed square marked process, then waits in line
+          (the next to go is on the right), then is sent from the solid square marked send: pushed onto the wire bit by bit. Then it travels
+          along the link. Each block on the wire is one packet, as long as the stretch of link its bits fill. The box on the right counts
+          packets that have arrived.
+        </figcaption>
       </figure>
+      <AboutExample
+        note={
+          presetInfo?.note ??
+          `${p.flows.length} flow${many ? "s" : ""} of packets into a router whose link sends ${p.rate_bps / 1e6} Mb/s. Open "Change the link and the traffic", further down the page, to see the rest.`
+        }
+      />
 
       <StepCard
         live={!tl.playing}
-        when={started ? `At ${us(event.t)}` : null}
+        when={started ? `At ${timeIn(event.t, tl.duration)}` : null}
         title={started ? eventTitle(event) : undefined}
         text={started ? trace[index].text : undefined}
         why={started ? eventWhy(p, event) : undefined}
         empty={
           <>
-            Nothing has happened yet. Press <b>Play</b> to run the example, or <b>Next event</b> to go one event at a time (the arrow keys
-            do the same).
+            Nothing has happened yet. Press <b>Play</b> to run the example, or <b>Next</b> to go one step at a time (the arrow keys do the
+            same).
           </>
         }
       />
@@ -242,11 +245,11 @@ function QueueLoaded({ sim }: { sim: Netsim }) {
       <Readouts
         caption="So far"
         items={[
-          ["Simulated time", us(tl.t)],
+          ["Simulated time", timeIn(tl.t, tl.duration)],
           ["Waiting in line now", `${fig.waiting.length} packet${fig.waiting.length === 1 ? "" : "s"}`],
           ["Arrived at the far end", `${fig.delivered} of ${run.packets.length} packets`],
           ["Lost", fig.dropped ? `${fig.dropped} packet${fig.dropped === 1 ? "" : "s"}` : "none"],
-          ["Average time in line and being sent, packets sent so far", now.w === null ? "none sent yet" : us(now.w)],
+          ["Average time in line and being sent, packets sent so far", now.w === null ? "none sent yet" : timeIn(now.w, tl.duration)],
         ]}
       />
 
@@ -292,7 +295,7 @@ function QueueLoaded({ sim }: { sim: Netsim }) {
           <LineChart
             title={chart.title}
             series={chart.series}
-            xLabel="time (ms)"
+            xLabel="time (milliseconds)"
             yLabel={chart.yLabel}
             xFormat={(v) => String(Number((v / 1000).toPrecision(4)))}
             yFormat={chart.yFormat}

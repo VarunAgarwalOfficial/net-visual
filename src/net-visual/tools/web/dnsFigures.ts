@@ -74,7 +74,7 @@ export function ladderFigure(p: DnsParams, run: DnsRun, index: number, width: nu
   const shapes: Shape[] = []
   const r = focusResolution(run, index)
   const res = r === null ? null : run.resolutions[r]
-  cols[0] = res ? p.clients[res.client].name : "client"
+  cols[0] = res ? p.clients[res.client].name : p.clients.map((c) => c.name).join(" or ")
 
   cols.forEach((label, c) => {
     const x = xOf(c)
@@ -86,15 +86,19 @@ export function ladderFigure(p: DnsParams, run: DnsRun, index: number, width: nu
       text: label ?? "",
       size: fs,
       anchor: "middle",
-      fill: c < 2 ? "ink" : "muted",
-      bold: c < 2,
+      fill: "ink",
     })
     shapes.push({ kind: "line", x1: x, y1: top - 6, x2: x, y2: top + H, stroke: "muted", width: 0.6, dashed: true })
   })
 
   if (!res) {
-    shapes.push({ kind: "text", x: w / 2, y: top + H / 2, text: "No lookup yet", size: fs + 1, anchor: "middle", fill: "muted" })
-    return { w, h, shapes, caption: "", res: null, summary: "No lookup yet" }
+    // Before the first question: say so in the picture, and what Play will draw.
+    const lines = ["Nothing sent yet.", "Play draws each question and answer", "as a line between these columns."]
+    shapes.push({ kind: "rect", x: w / 2 - 130, y: top + 70, w: 260, h: 58, fill: "surface", opacity: 0.92 })
+    lines.forEach((l, i) =>
+      shapes.push({ kind: "text", x: w / 2, y: top + 90 + i * 17, text: l, size: fs + 1, anchor: "middle", fill: "ink" }),
+    )
+    return { w, h, shapes, caption: "", res: null, summary: "Nothing sent yet" }
   }
 
   const ev = run.events[index]
@@ -125,7 +129,15 @@ export function ladderFigure(p: DnsParams, run: DnsRun, index: number, width: nu
     for (let k = 0; k * step <= latency + 1e-6; k++) {
       const yy = y(t0 + k * step)
       shapes.push({ kind: "line", x1: L - 4, y1: yy, x2: L, y2: yy, stroke: "muted", width: 0.8 })
-      shapes.push({ kind: "text", x: L - 6, y: yy + 4, text: fmtUs(k * step), size: fs - 1, anchor: "end", fill: "muted" })
+      shapes.push({
+        kind: "text",
+        x: L - 6,
+        y: yy + 4,
+        text: String(Number(((k * step) / 1000).toPrecision(3))),
+        size: fs - 1,
+        anchor: "end",
+        fill: "muted",
+      })
     }
     // What was cached, and where, as the lookup went.
     const marks = new Set<string>()

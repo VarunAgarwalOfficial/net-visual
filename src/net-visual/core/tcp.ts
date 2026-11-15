@@ -252,7 +252,7 @@ export interface Preset {
 export const PRESETS: Preset[] = [
   {
     id: "kr",
-    title: "One packet lost: Reno against Tahoe",
+    title: "One packet lost: Reno against Tahoe, two versions of TCP's rules",
     source: "Kurose and Ross, Section 3.7, the figure comparing Tahoe and Reno",
     note: "One sender on a 10 Mb/s link with a 100 ms round trip. The line is its congestion window: how many packets it may have on the way at once. The window starts at 1 and doubles every round trip until it reaches 8 (the slow-start threshold), then grows by one packet per round trip. Packet 50 is lost when the window is about 12. Three repeated acknowledgements tell the sender, and the threshold drops to 6, half of what was on the way. Reno, the solid line, carries on from 6; Tahoe, dashed, starts again from 1.",
     params: { ...BASE, init_ssthresh: 8, duration_us: 3_000_000, drops: drops(50) },

@@ -78,7 +78,7 @@ export function Graph({
     <div ref={box}>
       <svg
         viewBox={`-24 -36 ${W + 48} ${H + 72}`}
-        className="w-full touch-manipulation font-sans select-none"
+        className="max-h-[min(55vh,26rem)] w-full touch-manipulation font-sans select-none"
         role="group"
         aria-label="The network: routers, links and their costs"
       >

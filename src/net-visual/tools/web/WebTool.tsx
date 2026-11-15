@@ -10,6 +10,7 @@ import { Transport } from "../../components/Transport"
 import {
   DeeperHeading,
   Disclosure,
+  AboutExample,
   ExampleIntro,
   Readouts,
   StepCard,
@@ -17,7 +18,7 @@ import {
   TourCard,
   scrollBehavior,
 } from "../../components/ToolFrame"
-import { keepFocus, timelineKeys, useTimeline } from "../../components/timeline"
+import { keepFocus, timeIn, timelineKeys, useTimeline } from "../../components/timeline"
 import { LABS, PRESETS, SOURCE, TOUR, eventAt, fmtUs, runDns, type DnsRun, type WebMode, type WebParams } from "../../core/dns"
 import { isHttpMode, type HttpMode } from "../../core/http"
 import { loadNetsim } from "../../core/load"
@@ -88,10 +89,10 @@ const RATE = 1.5
 
 const HELP: Record<WebMode, string> = {
   resolve:
-    "One lookup at a time: a column per machine, time running down. Each device asks through its stub, a small resolver that only passes the question on; the resolver does the looking up and keeps what it learns. Grey lines are questions, blue referrals (go and ask this other server), green answers, orange an alias (a CNAME, canonical name, record) and red a reply that the name does not exist. A small square marks a set of records being cached. Names end in a dot, which stands for the root of the name tree. The clock steps from event to event; the card below gives each one's real time.",
+    "One lookup at a time: a column per machine, time running down, in milliseconds (ms) from the question. The first column is the device asking, named after whichever device asks at the moment. Each device asks through its stub, a small resolver that only passes the question on; the resolver does the looking up and keeps what it learns. The other columns are name servers, each in charge of one part of the name tree (root, com, example.com and so on); a lookup uses only the ones its name needs, so some columns stay empty. Line colours: grey, a question; blue, a referral (go and ask this other server); green, an answer; orange, an alias (a CNAME, canonical name, record); red, a reply that the name does not exist. A small square marks a set of records being cached. Names end in a dot, which stands for the root of the name tree.",
   cache:
-    "The ladder shows the lookup behind the current event; most are answered by the resolver from its cache, in one round trip. The chart under Go deeper compares the share of lookups the cache answered with what the formula predicts, or, with several names, counts the questions each level of server received.",
-  ttl: "The ladder shows the lookup behind the current event. Every cached answer carries a time to live (TTL): how long a cache may keep it. The chart under Go deeper draws the TTL left on the resolver's copy, falling to zero at each expiry; dots are answers, red where the address was already out of date.",
+    "The ladder shows the lookup behind the current event; most are answered by the resolver from its cache, in one round trip (the question there and its answer back). The chart under Go deeper, further down the page, compares the share of lookups the cache answered with what the formula predicts, or, with several names, counts the questions each level of server received.",
+  ttl: "The ladder shows the lookup behind the current event. Every cached answer carries a time to live (TTL): how long a cache may keep it. The chart under Go deeper, further down the page, draws the TTL left on the resolver's copy, falling to zero at each expiry; dots are answers, red where the address was already out of date.",
 }
 
 const FIGURE_LABEL = "The lookup at this moment"
@@ -141,7 +142,7 @@ function DnsPanel({
   const tl = useTimeline(times, Math.max(1, n - 1), RATE, shared?.i ?? 0)
   const index = Math.max(0, Math.min(n - 1, tl.index))
   const event = run.events[index]
-  const fmtClock = useCallback((x: number) => fmtUs(run.events[Math.max(0, Math.min(n - 1, Math.round(x)))]?.t ?? 0), [run, n])
+  const clockUs = useCallback((x: number) => run.events[Math.max(0, Math.min(n - 1, Math.round(x)))]?.t ?? 0, [run, n])
 
   // Before the first event the ladder is empty, not the first lookup already finished.
   const figIndex = tl.index < 0 ? -1 : index
@@ -193,7 +194,7 @@ function DnsPanel({
   const presetInfo = PRESETS.find((q) => q.id === preset)
   const title = presetInfo?.title ?? "Your own setup"
   const started = tl.index >= 0 && !!event
-  const caption = `${title}, at ${started ? fmtUs(event.t) : "0 s"}: ${fig.summary}`
+  const caption = `${title}, at ${timeIn(started ? event.t : 0, clockUs(n - 1))}: ${fig.summary}`
   const stepTitle = started ? (stepTitles.get(event.step) ?? "").replace(/\.$/, "") : ""
   const who = started ? dnsWho(run, index) : ""
   const pickExample = (id: string) => {
@@ -209,41 +210,41 @@ function DnsPanel({
       ref={root}
       tabIndex={-1}
       aria-label="Naming and the web"
-      className="nv-tool max-w-4xl space-y-6 outline-none [&.nv-present]:max-w-none [&.nv-present]:[zoom:1.2] [&.nv-present]:overflow-auto [&.nv-present]:bg-background [&.nv-present]:p-6"
+      className="nv-tool max-w-4xl space-y-4 outline-none [&.nv-present]:max-w-none [&.nv-present]:[zoom:1.2] [&.nv-present]:overflow-auto [&.nv-present]:bg-background [&.nv-present]:p-6"
       onKeyDown={(e) => {
         if (timelineKeys(tl, e)) e.preventDefault()
       }}
     >
       {tour !== null && <TourCard index={tour} steps={TOUR} go={goTour} playing={tl.playing} toggle={tl.toggle} />}
 
-      <ExampleIntro
-        title={title}
-        note={presetInfo?.note ?? 'Your own settings for the name lookups. Open "Change the settings" below to see them.'}
-      />
+      <ExampleIntro title={title} />
       {error && (
         <p role="alert" className="font-sans text-sm text-destructive">
           That setting cannot run ({error}); the run shown is the last one that could.
         </p>
       )}
 
-      <Transport tl={tl} events={n} format={fmtClock} />
+      <Transport tl={tl} events={n} us={clockUs} stepIs="one question or answer sent or arriving, or a cached copy running out" />
 
       <figure className="space-y-2">
-        <figcaption className="max-w-[70ch] font-sans text-sm text-muted-foreground">{HELP[mode]}</figcaption>
         <div ref={figBox}>
           <ShapeView fig={fig} label={caption} />
         </div>
+        <figcaption className="max-w-[70ch] font-sans text-sm text-muted-foreground">{HELP[mode]}</figcaption>
       </figure>
+      <AboutExample
+        note={presetInfo?.note ?? 'Your own settings for the name lookups. Open "Change the settings", further down the page, to see them.'}
+      />
 
       <StepCard
         live={!tl.playing}
-        when={started ? `At ${fmtUs(event.t)}${who ? `, ${who}` : ""}` : null}
+        when={started ? `At ${timeIn(event.t, clockUs(n - 1))}${who ? `, ${who}` : ""}` : null}
         title={stepTitle || undefined}
         text={started ? event.text : undefined}
         empty={
           <>
-            Nothing has happened yet. Press <b>Play</b> to run the example, or <b>Next event</b> to go one event at a time (the arrow keys
-            do the same).
+            Nothing has happened yet. Press <b>Play</b> to run the example, or <b>Next</b> to go one step at a time (the arrow keys do the
+            same).
           </>
         }
       />
@@ -252,7 +253,7 @@ function DnsPanel({
         caption="So far"
         cols={2}
         items={[
-          ["Simulated time", started ? fmtUs(event.t) : "0 s"],
+          ["Simulated time", timeIn(started ? event.t : 0, clockUs(n - 1))],
           ["Events so far", `${started ? tl.index + 1 : 0} of ${n}`],
         ]}
       />

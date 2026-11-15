@@ -37,6 +37,13 @@ function summaryAt(run: HttpRun, t: number): string {
 }
 
 /** The streams view at time t (ns). */
+/** Before the first event: say so in the picture, and what Play will draw. */
+function emptyNote(s: Shape[], x: number, y: number, fs: number, lines: string[]) {
+  const lh = fs + 5
+  s.push({ kind: "rect", x: x - 95, y: y - lh - 4, w: 190, h: lines.length * lh + 8, fill: "surface", opacity: 0.92 })
+  lines.forEach((l, i) => s.push({ kind: "text", x, y: y + i * lh - 4, text: l, size: fs + 2, anchor: "middle", fill: "ink" }))
+}
+
 export function streamsFigure(p: HttpParams, run: HttpRun, t: number, width: number): HttpFigure {
   const w = Math.max(320, width)
   const narrow = w < 560
@@ -122,6 +129,8 @@ export function streamsFigure(p: HttpParams, run: HttpRun, t: number, width: num
 
   // The clock.
   s.push({ kind: "line", x1: sx(t), y1: top - 4, x2: sx(t), y2: axisY, stroke: "ink", width: 1 })
+  if (t < 0)
+    emptyNote(s, (left + right) / 2, top + (n * rowH) / 2, fs, ["Nothing sent yet.", "Play draws each object's packets", "along its row."])
   return { w, h, shapes: s, caption: "", summary: summaryAt(run, t) }
 }
 
@@ -248,5 +257,7 @@ export function ladderFigure(p: HttpParams, run: HttpRun, t: number, width: numb
   s.push({ kind: "line", x1: axisW, y1: sy(t), x2: w - 4, y2: sy(t), stroke: "ink", width: 0.6, dashed: true })
   const sent = run.packets.filter((q) => q.start_ns <= t).length
   const summary = `${sent} data packet${sent === 1 ? "" : "s"} sent by ${fmtNs(Math.max(0, t))}; ${summaryAt(run, t)}`
+  if (t < 0)
+    emptyNote(s, (cx + sxv) / 2, top + 120, fs, ["Nothing sent yet.", "Play draws each message", "as a line between", "client and server."])
   return { w, h, shapes: s, caption: "", summary }
 }

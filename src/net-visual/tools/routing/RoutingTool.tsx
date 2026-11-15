@@ -9,6 +9,7 @@ import { LiterateSource } from "../../components/LiterateSource"
 import {
   DeeperHeading,
   Disclosure,
+  AboutExample,
   ExampleIntro,
   Readouts,
   StepCard,
@@ -260,13 +261,13 @@ function RoutingLoaded({ sim }: { sim: Netsim }) {
   const sync = !timed && p.jitter_us === 0
   // Rounds when every message takes one delay, as the clock elsewhere says; otherwise milliseconds or seconds.
   const xAxis = timed
-    ? { label: "simulated time (s)", format: (v: number) => String(Number((v / 1e6).toFixed(0))) }
+    ? { label: "simulated time (seconds)", format: (v: number) => String(Number((v / 1e6).toFixed(0))) }
     : sync
       ? {
           label: `round (one message delay, ${Number((p.delay_us / 1000).toFixed(2))} ms)`,
           format: (v: number) => String(Number((v / p.delay_us).toFixed(1))),
         }
-      : { label: "simulated time (ms)", format: (v: number) => String(Number((v / 1000).toFixed(1))) }
+      : { label: "simulated time (milliseconds)", format: (v: number) => String(Number((v / 1000).toFixed(1))) }
   const chartFigure = (): ChartFigure => ({
     xLabel: xAxis.label,
     yLabel: `cost to ${p.nodes[d]}`,
@@ -285,7 +286,7 @@ function RoutingLoaded({ sim }: { sim: Netsim }) {
       ref={root}
       tabIndex={-1}
       aria-label="Routing"
-      className="nv-tool max-w-4xl space-y-6 outline-none [&.nv-present]:max-w-none [&.nv-present]:[zoom:1.2] [&.nv-present]:overflow-auto [&.nv-present]:bg-background [&.nv-present]:p-6"
+      className="nv-tool max-w-4xl space-y-4 outline-none [&.nv-present]:max-w-none [&.nv-present]:[zoom:1.2] [&.nv-present]:overflow-auto [&.nv-present]:bg-background [&.nv-present]:p-6"
       onKeyDown={(e) => {
         if (timelineKeys(tl, e)) e.preventDefault()
         else if (e.key === "Escape") closeLink()
@@ -293,44 +294,23 @@ function RoutingLoaded({ sim }: { sim: Netsim }) {
     >
       {tour !== null && <TourCard index={tour} steps={TOUR} go={goTour} playing={tl.playing} toggle={tl.toggle} />}
 
-      <ExampleIntro
-        title={presetInfo?.title ?? "Your own network"}
-        note={
-          presetInfo?.note ??
-          `${p.nodes.length} routers and ${p.links.length} links, using ${ls ? "link state" : "distance vector"}. Open "Change the network and the rules" below to see the rest.`
-        }
-      />
+      <ExampleIntro title={presetInfo?.title ?? "Your own network"} />
       {error && (
         <p role="alert" className="font-sans text-sm text-destructive">
           That setting cannot run ({error}); the run shown is the last one that could.
         </p>
       )}
 
-      <Transport tl={tl} events={run.events.length} format={(t) => clock(t, p)} />
+      <Transport
+        tl={tl}
+        events={run.events.length}
+        format={p.jitter_us === 0 && !periodic(p) ? (t) => clock(t, p) : undefined}
+        stepIs="one router sending its table to a neighbour, or taking one in"
+      />
 
       <figure className="space-y-3">
-        <figcaption className="max-w-[70ch] space-y-2 font-sans text-sm text-muted-foreground">
-          <span className="block">
-            Circles are routers and lines are links. The number on a link is its cost, the price of sending over it; routers look for the
-            cheapest total. Under each router is its cost to reach {D}, as far as it knows now (∞: it knows no route yet). The arrows show
-            where each router sends traffic for {D}
-            {loops.cycles.length > 0 ? "; red arrows go round in a loop" : ""}.
-            {fig.links.some((l) => l.cost === null)
-              ? " A dashed link marked × has failed; a faded box marked × is a message lost on it."
-              : ""}
-          </span>
-          <span className="block">
-            {ls
-              ? `A box on a link is a router's list of its links on its way, named by the router that wrote it and its number ("${p.nodes[0]} #1"); "+2" means two more on the same link.`
-              : `A box on a link is a table on its way, showing the sender's cost to ${D}${p.poison ? "; dashed when the sender says it cannot reach it" : ""}${p.split_horizon ? "; a dash when the sender leaves it out" : ""}.`}{" "}
-            A shaded ring marks a router whose table just changed.
-            {sync ? ` Each message takes one round, ${Number((p.delay_us / 1000).toFixed(2))} ms, to cross a link.` : ""} Select a router to
-            see its working under Go deeper, or a link to change it.
-            {picked ? ` The router you selected, ${p.nodes[x]}, has a blue outline.` : ""}
-          </span>
-        </figcaption>
         <div className="flex flex-wrap items-center gap-2 font-sans text-sm">
-          <span id="routing-dest-label">Show the routes to</span>
+          <span id="routing-dest-label">Showing the routes to {D}, marked &quot;destination&quot; in the picture. To choose another:</span>
           <ToggleGroup
             type="single"
             variant="outline"
@@ -381,7 +361,34 @@ function RoutingLoaded({ sim }: { sim: Netsim }) {
             close={closeLink}
           />
         )}
+        <figcaption className="max-w-[70ch] space-y-2 font-sans text-sm text-muted-foreground">
+          <span className="block">
+            Circles are routers and lines are links. The number on a link is its cost, the price of sending over it; routers look for the
+            cheapest total. Next to each router, as &quot;cost 5&quot;, is its cost to reach {D} as far as it knows now (&quot;cost ∞&quot;:
+            it knows no route yet). A thick blue arrow running beside a link shows where a router sends traffic for {D}
+            {loops.cycles.length > 0 ? "; red arrows go round in a loop" : ""}; routers with no arrow have no route yet.
+            {fig.links.some((l) => l.cost === null)
+              ? " A dashed link marked × has failed; a faded box marked × is a message lost on it."
+              : ""}
+          </span>
+          <span className="block">
+            {started ? "" : "Once Play starts, "}
+            {ls
+              ? `${started ? "A" : "a"} box on a link is a router's list of its links on its way, named by the router that wrote it and its number ("${p.nodes[0]} #1"); "+2" means two more on the same link.`
+              : `${started ? "A" : "a"} box on a link is a table on its way, showing the sender's cost to ${D}${p.poison ? "; dashed when the sender says it cannot reach it" : ""}${p.split_horizon ? "; a dash when the sender leaves it out" : ""}.`}{" "}
+            A shaded ring marks a router whose table just changed.
+            {sync ? ` Each message takes one round, ${Number((p.delay_us / 1000).toFixed(2))} milliseconds, to cross a link.` : ""} Select a
+            router to see its working under Go deeper, further down the page, or a link to change it.
+            {picked ? ` The router you selected, ${p.nodes[x]}, has a blue outline.` : ""}
+          </span>
+        </figcaption>
       </figure>
+      <AboutExample
+        note={
+          presetInfo?.note ??
+          `${p.nodes.length} routers and ${p.links.length} links, using ${ls ? "link state" : "distance vector"}. Open "Change the network and the rules", further down the page, to see the rest.`
+        }
+      />
 
       <StepCard
         live={!tl.playing}
@@ -391,8 +398,8 @@ function RoutingLoaded({ sim }: { sim: Netsim }) {
         why={plain?.why}
         empty={
           <>
-            Nothing has happened yet: each router knows only its own links. Press <b>Play</b> to run the example, or <b>Next event</b> to go
-            one event at a time (the arrow keys do the same).
+            Nothing has happened yet: each router knows only its own links. Press <b>Play</b> to run the example, or <b>Next</b> to go one
+            step at a time (the arrow keys do the same).
           </>
         }
       />

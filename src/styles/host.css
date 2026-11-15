@@ -396,3 +396,15 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Inside a tool nearly every number is data: lining figures, so a zero never
+   reads as the letter o, and a slashed zero where numbers are read off. */
+.nv-tool {
+  font-variant-numeric: lining-nums;
+}
+.nv-tool svg,
+.nv-tool dd,
+.nv-tool table,
+.nv-tool [data-nv-num] {
+  font-variant-numeric: lining-nums tabular-nums slashed-zero;
+}

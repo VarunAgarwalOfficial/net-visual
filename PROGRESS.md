@@ -327,6 +327,29 @@ Checks: `/tmp/nv-work/check.js` (overflow, truncation, side-by-side,
 first focusable, animations) and `/tmp/nv-work/capture.sh <tool>` write
 `/tmp/rebuild-shots/net-visual/load/<tool>/`. Dev server on port 5391.
 
+## Second cold-read pass (ten items)
+
+All six tools, one commit. The example paragraph is closed on arrival
+behind "About this example" (after the picture, so Play stays first);
+captions moved under their pictures; sections tightened to space-y-4.
+Player: outlined Back, Next, Start, End in two unbreakable pairs; the
+counter reads "Step N of M (a step is ...); time X of Y milliseconds" in
+one unit per run (`runUnit`, `inUnit`, `timeIn` in timeline.ts); the speed
+select says "normal speed" and so on. Empty pictures (rdt, ALOHA, DNS,
+HTTP both views) draw their columns and rows with "Nothing sent yet" and
+what Play will draw; queue no longer draws the t=0 packet before step 1.
+Header: the theme icon became a named button ("Use dark colours"); the
+current tool says "(this page)". Lining figures in tools, slashed zero
+in data (host.css). Routing: cost labels described as next to the router,
+blue arrows described, chosen destination said in words, graph height
+capped. Terms explained in the leads (link layer, frame, distance vector,
+link state, address) and preset titles (Reno/Tahoe, hop, ALOHA). The
+checker also reports `picture.topOnFirstScreen` (first svg or canvas over
+80 px in the tool's figure); true for all six at 390 and 1440.
+Left: web's player counts seconds (the run is 4 s) while the ladder ticks
+in milliseconds from each question; at 390 routing's, rdt's and web's
+pictures start on the first screen but run past its bottom.
+
 ## Next
 
 Only known gaps remain; all six tools are built.

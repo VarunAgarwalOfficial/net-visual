@@ -155,8 +155,11 @@ export function LineChart(props: Props) {
     <figure className="font-sans">
       <figcaption className="mb-1 flex items-baseline justify-between gap-2 text-sm">
         <span className="font-serif text-base text-foreground">{props.title}</span>
-        <button className="text-xs text-link underline-offset-2 hover:underline" onClick={() => setTable(!table)}>
-          {table ? "Show chart" : "Show table"}
+        <button
+          className="shrink-0 rounded-sm border border-input bg-background px-2 py-0.5 text-xs hover:bg-muted"
+          onClick={() => setTable(!table)}
+        >
+          {table ? "Show the chart" : "Show the numbers as a table"}
         </button>
       </figcaption>
       <div ref={box} className="relative">

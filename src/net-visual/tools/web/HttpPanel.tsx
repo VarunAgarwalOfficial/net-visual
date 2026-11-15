@@ -12,6 +12,7 @@ import { Transport } from "../../components/Transport"
 import {
   DeeperHeading,
   Disclosure,
+  AboutExample,
   ExampleIntro,
   Readouts,
   StepCard,
@@ -19,7 +20,7 @@ import {
   TourCard,
   scrollBehavior,
 } from "../../components/ToolFrame"
-import { keepFocus, timelineKeys, useTimeline } from "../../components/timeline"
+import { keepFocus, timeIn, timelineKeys, useTimeline } from "../../components/timeline"
 import {
   HTTP_LABS,
   HTTP_PRESETS,
@@ -189,34 +190,31 @@ export function HttpPanel({
       ref={root}
       tabIndex={-1}
       aria-label="Naming and the web"
-      className="nv-tool max-w-4xl space-y-6 outline-none [&.nv-present]:max-w-none [&.nv-present]:[zoom:1.2] [&.nv-present]:overflow-auto [&.nv-present]:bg-background [&.nv-present]:p-6"
+      className="nv-tool max-w-4xl space-y-4 outline-none [&.nv-present]:max-w-none [&.nv-present]:[zoom:1.2] [&.nv-present]:overflow-auto [&.nv-present]:bg-background [&.nv-present]:p-6"
       onKeyDown={(e) => {
         if (timelineKeys(tl, e)) e.preventDefault()
       }}
     >
       {tour !== null && <TourCard index={tour} steps={HTTP_TOUR} go={goTour} playing={tl.playing} toggle={tl.toggle} />}
 
-      <ExampleIntro
-        title={title}
-        note={presetInfo?.note ?? 'Your own settings for the page load. Open "Change the settings" below to see them.'}
-      />
+      <ExampleIntro title={title} />
       {error && (
         <p role="alert" className="font-sans text-sm text-destructive">
           That setting cannot run ({error}); the run shown is the last one that could.
         </p>
       )}
 
-      <Transport tl={tl} events={n} format={(x) => fmtNs(x * 1000)} />
+      <Transport tl={tl} events={n} stepIs="one packet or message sent or arriving" />
 
       <figure className="space-y-2">
-        <figcaption className="max-w-[70ch] font-sans text-sm text-muted-foreground">{HELP[view]}</figcaption>
         <div ref={figBox}>
           <ShapeView fig={fig} label={caption} />
         </div>
+        <figcaption className="max-w-[70ch] font-sans text-sm text-muted-foreground">{HELP[view]}</figcaption>
       </figure>
       <div className="space-y-2">
         <p className="font-sans text-sm text-muted-foreground" id="http-view">
-          Draw the page load as
+          Showing {view === "ladder" ? "packets on the wire" : "streams, each object"}. To draw the page load the other way:
         </p>
         <ToggleGroup
           type="single"
@@ -239,15 +237,19 @@ export function HttpPanel({
         </ToggleGroup>
       </div>
 
+      <AboutExample
+        note={presetInfo?.note ?? 'Your own settings for the page load. Open "Change the settings", further down the page, to see them.'}
+      />
+
       <StepCard
         live={!tl.playing}
-        when={started ? `At ${fmtNs(event.t)}${who ? `, ${who}` : ""}` : null}
+        when={started ? `At ${timeIn(event.t / 1000, tl.duration)}${who ? `, ${who}` : ""}` : null}
         title={stepTitle ? stepTitle[0].toUpperCase() + stepTitle.slice(1) : undefined}
         text={started ? event.text : undefined}
         empty={
           <>
-            Nothing has happened yet. Press <b>Play</b> to run the example, or <b>Next event</b> to go one event at a time (the arrow keys
-            do the same).
+            Nothing has happened yet. Press <b>Play</b> to run the example, or <b>Next</b> to go one step at a time (the arrow keys do the
+            same).
           </>
         }
       />
@@ -256,7 +258,7 @@ export function HttpPanel({
         caption="So far"
         cols={2}
         items={[
-          ["Simulated time", fmtNs(tNs)],
+          ["Simulated time", timeIn(tl.t, tl.duration)],
           ["Events so far", `${started ? tl.index + 1 : 0} of ${n}`],
         ]}
       />

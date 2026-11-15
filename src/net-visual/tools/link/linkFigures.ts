@@ -129,10 +129,24 @@ export function alohaFigure(p: AlohaParams, run: AlohaRun, t: number, w: number)
   shapes.push(text(left - 6, chanY + chanH / 2 + 3.5, "air", { anchor: "end", fill: "ink", size: 11, bold: true }))
   shapes.push({ kind: "rect", x: left, y: chanY, w: right - left, h: chanH, stroke: "muted" })
 
+  // Ticks in milliseconds, the unit the player uses; the unit is named once, at the left.
   const every = (right - left) / (span / F) < 34 ? 2 : 1
   for (let k = Math.ceil(t0 / F); k * F <= t1; k++)
     if (k % every === 0)
-      shapes.push(text(X(k * F), h - 4, fmtTime(k * F, "aloha"), { anchor: X(k * F) > right - 16 ? "end" : "middle", size: 11 }))
+      shapes.push(
+        text(X(k * F), h - 4, String(Number(((k * F) / 1000).toPrecision(4))), {
+          anchor: X(k * F) > right - 16 ? "end" : "middle",
+          size: 11,
+        }),
+      )
+  shapes.push(text(left - 6, h - 4, "ms", { anchor: "end", size: 11 }))
+  if (!started.length) {
+    // Before the first frame: say so in the picture, and what Play will draw.
+    const cy = top + (n * rowH) / 2
+    const lines = ["Nothing sent yet.", "Play draws each frame as a bar", "in its station's row, and on air."]
+    shapes.push({ kind: "rect", x: (left + right) / 2 - 110, y: cy - 26, w: 220, h: 50, fill: "surface", opacity: 0.92 })
+    lines.forEach((l, i) => shapes.push(text((left + right) / 2, cy - 10 + i * 15, l, { anchor: "middle", fill: "ink", size: 12 })))
+  }
   if (t >= t0 && t <= t1) shapes.push({ kind: "line", x1: X(t), y1: top - 2, x2: X(t), y2: chanY + chanH + 2, stroke: "ink", width: 1.5 })
 
   return { w, h, shapes, caption: "", onAir, delivered, garbled }

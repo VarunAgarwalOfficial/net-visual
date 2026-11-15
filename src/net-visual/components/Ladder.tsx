@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react"
 
 import { useWidth } from "./LineChart"
-import { formatTime } from "./timeline"
+import { inUnit, runUnit } from "./timeline"
 
 export interface LadderFlight {
   id: number
@@ -40,6 +40,8 @@ interface Props {
   height: number
   /** The diagram begins here (default 0), for a trace that covers a window of a long run. */
   start?: number
+  /** Lines said in the empty diagram before the first event: what Play will draw. */
+  empty?: string[]
 }
 
 /** Labels closer than this many pixels to the last one on the same lane are left out. */
@@ -108,6 +110,8 @@ export function Ladder(props: Props) {
   )
   const yt = y(t)
   const tickStep = niceStep(usPerPx * 80)
+  // One unit down the whole axis, named once at its head.
+  const unit = runUnit(props.duration)
 
   return (
     <div ref={box} className="w-full">
@@ -138,9 +142,26 @@ export function Ladder(props: Props) {
               <g key={v}>
                 <line x1={xs[0]} x2={xs[1]} y1={y(v)} y2={y(v)} stroke="var(--chart-grid)" />
                 <text x={4} y={y(v)} dy="0.32em" fontSize="10" fill="var(--chart-ink)" className="font-sans">
-                  {formatTime(v)}
+                  {inUnit(v, { ...unit, digits: 3 })}
                 </text>
               </g>
+            ))}
+          <text x={4} y={16} fontSize="10" fill="var(--chart-ink)" className="font-sans">
+            {unit.name}
+          </text>
+          {t < 0 &&
+            props.empty?.map((line, i) => (
+              <text
+                key={i}
+                x={(xs[0] + xs[1]) / 2}
+                y={top + 48 + i * 18}
+                textAnchor="middle"
+                fontSize="13"
+                fill="var(--muted-foreground)"
+                className="font-sans"
+              >
+                {line}
+              </text>
             ))}
           {props.lanes.map((name, i) => (
             <g key={name}>
@@ -271,7 +292,7 @@ export function Ladder(props: Props) {
                 />
               )
             })}
-          <line x1={0} x2={width} y1={yt} y2={yt} stroke="var(--foreground)" strokeOpacity={0.35} strokeDasharray="2 3" />
+          {t >= 0 && <line x1={0} x2={width} y1={yt} y2={yt} stroke="var(--foreground)" strokeOpacity={0.35} strokeDasharray="2 3" />}
           {props.onDelay &&
             visible
               .filter((f) => f.id === selected && !f.lost && t >= f.t_start)

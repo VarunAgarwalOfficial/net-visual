@@ -29,6 +29,7 @@ import { LiterateSource } from "../../components/LiterateSource"
 import {
   DeeperHeading,
   Disclosure,
+  AboutExample,
   ExampleIntro,
   Readouts,
   StepCard,
@@ -38,7 +39,7 @@ import {
 } from "../../components/ToolFrame"
 import { TraceList } from "../../components/TraceList"
 import { Transport } from "../../components/Transport"
-import { formatTime, keepFocus, timelineKeys, useTimeline } from "../../components/timeline"
+import { formatTime, keepFocus, timeIn, timelineKeys, useTimeline } from "../../components/timeline"
 import { RdtAnalysis, RdtFrontier, RdtIntro, RdtInternals } from "./RdtArticle"
 import { plainRdt } from "./plain"
 import { WindowView } from "./WindowView"
@@ -213,7 +214,7 @@ function RdtLoaded({ sim }: { sim: Netsim }) {
       ref={root}
       tabIndex={-1}
       aria-label="Reliable data transfer"
-      className="nv-tool max-w-4xl space-y-6 outline-none [&.nv-present]:max-w-none [&.nv-present]:[zoom:1.2] [&.nv-present]:overflow-auto [&.nv-present]:bg-background [&.nv-present]:p-6"
+      className="nv-tool max-w-4xl space-y-4 outline-none [&.nv-present]:max-w-none [&.nv-present]:[zoom:1.2] [&.nv-present]:overflow-auto [&.nv-present]:bg-background [&.nv-present]:p-6"
       onKeyDown={(e) => {
         if (timelineKeys(tl, e)) {
           e.preventDefault()
@@ -226,21 +227,15 @@ function RdtLoaded({ sim }: { sim: Netsim }) {
     >
       {tour !== null && <TourCard index={tour} steps={TOUR} go={goTour} playing={tl.playing} toggle={playToggle} />}
 
-      <ExampleIntro
-        title={presetInfo?.title ?? "Your own settings"}
-        note={
-          presetInfo?.note ??
-          `${protocol} with up to ${params.window} message${params.window === 1 ? "" : "s"} out at once, ${params.messages} messages to send, sequence numbers 0 to ${m - 1}. Open "Change the settings" below to see the rest.`
-        }
+      <ExampleIntro title={presetInfo?.title ?? "Your own settings"} />
+
+      <Transport
+        tl={{ ...tl, toggle: playToggle }}
+        events={run.events.length}
+        stepIs="one packet or acknowledgement sent, arriving or lost, or a timer running out"
       />
 
-      <Transport tl={{ ...tl, toggle: playToggle }} events={run.events.length} />
-
       <figure className="space-y-2">
-        <figcaption className="font-sans text-sm text-muted-foreground">
-          Time runs down the page. A band from the sender to the receiver is a data packet, named by its sequence number; a band back is an
-          acknowledgement (ACK). A red cross is a packet lost on the way. The dotted line is now.
-        </figcaption>
         <div onWheel={() => setFollow(false)} onTouchMove={() => setFollow(false)}>
           <Ladder
             lanes={["Sender", "Receiver"]}
@@ -254,15 +249,21 @@ function RdtLoaded({ sim }: { sim: Netsim }) {
             onDelay={delay}
             follow={follow}
             height={ladderHeight}
+            empty={["Nothing sent yet.", "Play draws each packet", "as a band crossing the gap."]}
           />
         </div>
+        <figcaption className="font-sans text-sm text-muted-foreground">
+          Sender on the left, receiver on the right, time running down. A band from the sender to the receiver is a data packet, named by
+          its sequence number; a band back is an acknowledgement (ACK) that it arrived. A red cross is a packet lost on the way. Once Play
+          starts, a dotted line marks now.
+        </figcaption>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-sans text-sm text-muted-foreground">
-          <span className="mr-auto">Select a packet to see its header, drop it or delay it.</span>
-          <Button variant="ghost" size="xs" onClick={() => setZoom(zoom / 1.6)}>
-            Show more time
+          {started && <span className="mr-auto">Select a packet to see its header, drop it or delay it.</span>}
+          <Button variant="outline" size="xs" onClick={() => setZoom(zoom / 1.6)}>
+            Zoom out: more time in view
           </Button>
-          <Button variant="ghost" size="xs" onClick={() => setZoom(zoom * 1.6)}>
-            Show less time
+          <Button variant="outline" size="xs" onClick={() => setZoom(zoom * 1.6)}>
+            Zoom in: less time in view
           </Button>
         </div>
         {flight && (
@@ -284,17 +285,23 @@ function RdtLoaded({ sim }: { sim: Netsim }) {
           </div>
         )}
       </figure>
+      <AboutExample
+        note={
+          presetInfo?.note ??
+          `${protocol} with up to ${params.window} message${params.window === 1 ? "" : "s"} out at once, ${params.messages} messages to send, sequence numbers 0 to ${m - 1}. Open "Change the settings", further down the page, to see the rest.`
+        }
+      />
 
       <StepCard
         live={!tl.playing}
-        when={started ? `At ${formatTime(event.t)}, the ${event.who === "S" ? "sender" : "receiver"}` : null}
+        when={started ? `At ${timeIn(event.t, tl.duration)}, the ${event.who === "S" ? "sender" : "receiver"}` : null}
         title={plain?.title}
         text={plain?.text}
         why={plain?.why}
         empty={
           <>
-            Nothing has happened yet. Press <b>Play</b> to run the example, or <b>Next event</b> to go one event at a time (the arrow keys
-            do the same).
+            Nothing has happened yet. Press <b>Play</b> to run the example, or <b>Next</b> to go one step at a time (the arrow keys do the
+            same).
           </>
         }
       />
@@ -305,7 +312,7 @@ function RdtLoaded({ sim }: { sim: Netsim }) {
         caption="So far"
         cols={4}
         items={[
-          ["Simulated time", formatTime(tl.t)],
+          ["Simulated time", timeIn(tl.t, tl.duration)],
           ["Packets put on the link", started ? `${sofar.sent}${sofar.again ? `, ${sofar.again} of them again` : ""}` : "0"],
           ["Times a timer ran out", started ? String(sofar.timeouts) : "0"],
           ["Messages handed to the application", `${delivered} of ${params.messages}`],
