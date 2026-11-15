@@ -10,7 +10,7 @@ use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
-use netsim::{queue, rdt, routing, tcp};
+use netsim::{link, queue, rdt, routing, tcp};
 
 /// Reserves `len` bytes and returns their address.
 #[no_mangle]
@@ -67,6 +67,7 @@ fn source(tool: &str) -> Option<&'static str> {
         "tcp" => Some(include_str!("../../netsim/src/tcp.rs")),
         "routing" => Some(include_str!("../../netsim/src/routing.rs")),
         "queue" => Some(include_str!("../../netsim/src/queue.rs")),
+        "link" => Some(include_str!("../../netsim/src/link.rs")),
         _ => None,
     }
 }
@@ -128,6 +129,57 @@ pub fn handle(bytes: &[u8]) -> Value {
                     return Err("parameters out of range".into());
                 }
                 json!(queue::sweep(&s.base, &s.rhos, s.packets))
+            }
+            ("link", "aloha") => {
+                let p: link::AlohaParams = parse(request.params)?;
+                check_aloha(&p, if p.trace { 20_000.0 } else { 2_000_000.0 })?;
+                json!(link::aloha_run(&p))
+            }
+            ("link", "aloha_sweep") => {
+                #[derive(Deserialize)]
+                struct Sweep {
+                    base: link::AlohaParams,
+                    gs: Vec<f64>,
+                }
+                let s: Sweep = parse(request.params)?;
+                if !(1..=40).contains(&s.gs.len()) {
+                    return Err("parameters out of range".into());
+                }
+                for &g in &s.gs {
+                    check_aloha(
+                        &link::AlohaParams {
+                            g,
+                            ..s.base.clone()
+                        },
+                        500_000.0,
+                    )?;
+                }
+                json!(link::aloha_sweep(&s.base, &s.gs))
+            }
+            ("link", "csmacd") => {
+                let p: link::CdParams = parse(request.params)?;
+                check_cd(&p, if p.trace { 4e6 } else { 4e8 })?;
+                json!(link::cd_run(&p))
+            }
+            ("link", "csmacd_sweep") => {
+                #[derive(Deserialize)]
+                struct Sweep {
+                    base: link::CdParams,
+                    frame_bytes: Vec<u32>,
+                }
+                let s: Sweep = parse(request.params)?;
+                check_cd(&s.base, 2e8)?;
+                if !(1..=24).contains(&s.frame_bytes.len())
+                    || !s.frame_bytes.iter().all(|b| (1..=9000).contains(b))
+                {
+                    return Err("parameters out of range".into());
+                }
+                json!(link::cd_sweep(&s.base, &s.frame_bytes))
+            }
+            ("link", "csmaca") => {
+                let p: link::CaParams = parse(request.params)?;
+                check_ca(&p)?;
+                json!(link::ca_run(&p))
             }
             (tool, op) => return Err(format!("unknown request {tool}/{op}")),
         })
@@ -260,6 +312,94 @@ fn check_queue(p: &queue::Params, per_flow: usize, total: usize) -> Result<(), S
     }
 }
 
+fn in_range(ok: bool) -> Result<(), String> {
+    if ok {
+        Ok(())
+    } else {
+        Err("parameters out of range".into())
+    }
+}
+
+/// ALOHA: at most `frames` frames (offered load times length), and a load
+/// each station can carry (pure ALOHA needs a silence between frames, so
+/// G must stay below the number of stations).
+fn check_aloha(p: &link::AlohaParams, frames: f64) -> Result<(), String> {
+    let n = p.stations as f64;
+    in_range(
+        (1..=200).contains(&p.stations)
+            && p.g.is_finite()
+            && p.g >= 0.0
+            && p.g <= 10.0
+            && (if p.slotted { p.g <= n } else { p.g < n })
+            && (1..=1_000_000).contains(&p.frame_us)
+            && (1..=500_000).contains(&p.length)
+            && p.g * p.length as f64 <= frames,
+    )
+}
+
+/// CSMA/CD: a bus of at most 10 km with 32 stations, a run of at most
+/// `bits` bit times, and timings of at least a bit.
+fn check_cd(p: &link::CdParams, bits: f64) -> Result<(), String> {
+    in_range(
+        (2..=32).contains(&p.stations.len())
+            && p.stations.iter().all(|s| {
+                s.pos_m <= 10_000
+                    && s.start_ns <= p.duration_ns
+                    && s.frames <= 100_000
+                    && (1..=12).contains(&s.name.chars().count())
+            })
+            && (1_000_000..=10_000_000_000).contains(&p.rate_bps)
+            && (1..=9000).contains(&p.frame_bytes)
+            && (8..=8192).contains(&p.slot_bits)
+            && (1..=512).contains(&p.jam_bits)
+            && (1..=1000).contains(&p.ifg_bits)
+            && (10_000_000..=300_000_000).contains(&p.speed_mps)
+            && (1..=32).contains(&p.attempt_limit)
+            && p.backoff_cap <= 16
+            && p.duration_ns >= 1
+            && p.duration_ns as f64 * p.rate_bps as f64 / 1e9 <= bits,
+    )
+}
+
+/// CSMA/CA: a dozen nodes in a 20 km square, one flow per sender, and a
+/// run of at most a few hundred thousand frames.
+fn check_ca(p: &link::CaParams) -> Result<(), String> {
+    let n = p.nodes.len();
+    let mut senders: Vec<usize> = p.flows.iter().map(|f| f.from).collect();
+    senders.sort();
+    senders.dedup();
+    let shortest = link::ca_air_us(p, link::ACK_BYTES.min(link::CTS_BYTES)) + p.sifs_us;
+    in_range(
+        (2..=12).contains(&n)
+            && p.nodes.iter().all(|v| {
+                v.x_m.abs() <= 10_000.0
+                    && v.y_m.abs() <= 10_000.0
+                    && (1..=12).contains(&v.name.chars().count())
+            })
+            && p.range_m.is_finite()
+            && (1.0..=20_000.0).contains(&p.range_m)
+            && (1..=n).contains(&p.flows.len())
+            && senders.len() == p.flows.len()
+            && p.flows.iter().all(|f| {
+                f.from < n
+                    && f.to < n
+                    && f.from != f.to
+                    && f.start_us <= p.duration_us
+                    && f.frames <= 100_000
+            })
+            && (1_000_000..=1_000_000_000).contains(&p.rate_bps)
+            && p.payload_bytes <= 2304
+            && (1..=100).contains(&p.slot_us)
+            && (1..=100).contains(&p.sifs_us)
+            && (1..=1023).contains(&p.cw_min)
+            && (p.cw_min..=65_535).contains(&p.cw_max)
+            && (1..=16).contains(&p.attempt_limit)
+            && p.preamble_us <= 1000
+            && (1..=10_000_000).contains(&p.duration_us)
+            && p.duration_us / shortest <= 400_000,
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -300,5 +440,55 @@ mod tests {
             .as_str()
             .unwrap()
             .contains("W1. [Tag for fair queueing.]"));
+    }
+
+    #[test]
+    fn checks_link_requests() {
+        let ask = |op: &str, body: &str| {
+            handle(format!(r#"{{"tool":"link","op":"{op}","params":{body}}}"#).as_bytes())
+        };
+        let aloha = |g: f64| {
+            format!(
+                r#"{{"slotted":false,"stations":10,"g":{g},"frame_us":1000,"length":200,"seed":1}}"#
+            )
+        };
+        assert!(ask("aloha", &aloha(0.5))["ok"]["frames"].is_array());
+        // Pure ALOHA cannot offer as much load as it has stations.
+        assert!(ask("aloha", &aloha(10.0))["error"].is_string());
+        let sweep = format!(r#"{{"base":{},"gs":[0.25,0.5]}}"#, aloha(0.5));
+        assert_eq!(
+            ask("aloha_sweep", &sweep)["ok"].as_array().unwrap().len(),
+            2
+        );
+        let cd = |n: usize| {
+            let st: Vec<String> = (0..n)
+                .map(|i| format!(r#"{{"name":"S{i}","pos_m":{}}}"#, i * 100))
+                .collect();
+            format!(
+                r#"{{"stations":[{}],"rate_bps":10000000,"frame_bytes":64,"slot_bits":512,"jam_bits":32,"ifg_bits":96,"speed_mps":200000000,"attempt_limit":16,"backoff_cap":10,"duration_ns":1000000,"seed":1}}"#,
+                st.join(",")
+            )
+        };
+        assert!(
+            ask("csmacd", &cd(3))["ok"]["stats"]["delivered"]
+                .as_u64()
+                .unwrap()
+                > 0
+        );
+        assert!(ask("csmacd", &cd(40))["error"].is_string());
+        let ca = |flows: &str| {
+            format!(
+                r#"{{"nodes":[{{"name":"A","x_m":0,"y_m":0}},{{"name":"B","x_m":50,"y_m":0}}],"range_m":100,"flows":{flows},"rts":true,"rate_bps":6000000,"payload_bytes":1000,"slot_us":9,"sifs_us":16,"cw_min":15,"cw_max":1023,"attempt_limit":7,"preamble_us":20,"duration_us":100000,"seed":1}}"#
+            )
+        };
+        assert!(ask("csmaca", &ca(r#"[{"from":0,"to":1}]"#))["ok"]["airs"].is_array());
+        // Two flows from one sender are not supported.
+        assert!(
+            ask("csmaca", &ca(r#"[{"from":0,"to":1},{"from":0,"to":1}]"#))["error"].is_string()
+        );
+        assert!(handle(br#"{"tool":"link","op":"source"}"#)["ok"]
+            .as_str()
+            .unwrap()
+            .contains("E5. [Back off.]"));
     }
 }
