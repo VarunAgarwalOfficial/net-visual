@@ -42,7 +42,23 @@
   control, and the map note Computer networks. The tools' articles keep
   only tool-specific material.
 
+- Critic's pass on RDT and TCP at 1440 and 390, light and dark: long
+  equations break into lines on a phone, ssthresh drawn to the end of the
+  run, time ticks keep their decimals.
+- Routing model `crates/netsim/src/routing.rs` with `routing/run`:
+  distance vector (Bellman-Ford, triggered updates, optional poisoned
+  reverse, an infinity, delay and jitter, scripted cost changes and
+  failures) and Dijkstra from every source for each version of the
+  network. Five tests: Dijkstra against K&R Fig. 5.3; synchronous rounds
+  within the hop bound; DV agrees with Dijkstra on 40 random networks with
+  jitter, failure and repair; count to infinity on K&R Fig. 5.7 and
+  poisoned reverse stopping it; poisoned reverse failing on a loop of
+  three (RFC 2453, 3.4.4). `core/routing.ts`: nine scenarios, tour, four
+  labs, the Bellman-Ford terms replayed from the trace (tested against
+  every table).
+
 ## Next
 
-1. Routing tool if time allows.
-2. Critic's pass at 1440 and 390, light and dark; fresh screenshots.
+1. Routing tool UI: graph, vectors, Bellman-Ford card, staircase chart,
+   Dijkstra table, setup, labs, article; vault notes for routing.
+2. Browser pass on routing at 1440 and 390, light and dark.

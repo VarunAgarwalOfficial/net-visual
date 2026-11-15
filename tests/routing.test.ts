@@ -58,7 +58,12 @@ test("scenarios do what their notes say", () => {
     [1, 0],
     [2, 0],
   ]
-  assert.equal(updatesAfter(runRouting(sim, preset("bad-news")), 4 * MS, cells), 47)
+  const bad = runRouting(sim, preset("bad-news"))
+  assert.equal(updatesAfter(bad, 4 * MS, cells), 47)
+  assert.equal(bad.totals.last_change_us, 50 * MS)
+  // One of y and z climbs by 1 each round.
+  const route = bad.events.filter((e) => e.t > 4 * MS).map((e) => Math.max(e.dist[1][0], e.dist[2][0]))
+  for (let i = 1; i < route.length; i++) assert.ok(route[i] - route[i - 1] <= 1)
   assert.ok(updatesAfter(runRouting(sim, preset("poison")), 4 * MS, cells) <= 3)
 
   // Cut off: b takes c's offer of 2 and adds 1, and they count up to 16.
@@ -94,6 +99,18 @@ test("the Bellman-Ford terms the page shows reproduce every router's table", () 
           assert.equal(best, run.events[i].dist[x][y], `${id} event ${i}: D_${p.nodes[x]}(${p.nodes[y]})`)
         }
     }
+  }
+})
+
+test("a change at time zero comes after the cold start", () => {
+  const p = { ...preset("three"), changes: [{ at_us: 0, a: 0, b: 1, cost: 5 }] }
+  const run = runRouting(sim, p)
+  assert.equal(stateAfter(run, p, 0).cost[0][1], 2)
+  const l1 = run.events.findIndex((e) => e.step === "L1")
+  assert.equal(stateAfter(run, p, l1).cost[0][1], 5)
+  for (let i = 0; i < run.events.length; i++) {
+    const best = Math.min(p.infinity, ...bellmanTerms(stateAfter(run, p, i), p, 0, 2).map((t) => t.total))
+    assert.equal(best, run.events[i].dist[0][2])
   }
 })
 

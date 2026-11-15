@@ -101,7 +101,11 @@ export interface State {
  */
 export function stateAfter(run: RoutingRun, p: RoutingParams, i: number): State {
   const n = p.nodes.length
-  const cost = run.epochs[0].cost.map((row) => [...row])
+  const cost = Array.from({ length: n }, () => Array<number>(n).fill(-1))
+  for (const l of p.links) {
+    cost[l.a][l.b] = l.cost
+    cost[l.b][l.a] = l.cost
+  }
   const heard: (RMessage | null)[][] = Array.from({ length: n }, () => Array<RMessage | null>(n).fill(null))
   const changes = ordered(p)
   let next = 0
@@ -187,6 +191,25 @@ export function pathTo(p: number[], s: number, v: number): number[] | null {
 }
 
 export const showDist = (d: number, inf: number) => (d >= inf ? "∞" : String(d))
+
+/** The largest cost any link has or is given; infinity must stay above it. */
+export const maxCost = (p: RoutingParams) => Math.max(1, ...p.links.map((l) => l.cost), ...p.changes.map((c) => c.cost ?? 0))
+
+/** Routers spaced round a circle, for networks that arrive without positions. */
+export const circle = (n: number): [number, number][] =>
+  Array.from({ length: n }, (_, i) => [
+    Math.round(50 + 40 * Math.sin((2 * Math.PI * i) / n)),
+    Math.round(30 - 25 * Math.cos((2 * Math.PI * i) / n)),
+  ])
+
+/** Make parameters from a share link safe to draw: one position per router, inside the box. */
+export function normalise(p: RoutingParams): RoutingParams {
+  const ok =
+    Array.isArray(p.pos) &&
+    p.pos.length === p.nodes.length &&
+    p.pos.every((q) => Array.isArray(q) && q[0] >= 0 && q[0] <= 100 && q[1] >= 0 && q[1] <= 60)
+  return { ...p, pos: ok ? p.pos : circle(p.nodes.length), changes: p.changes ?? [] }
+}
 
 /** Rounds when messages all take one delay; otherwise milliseconds. */
 export const clock = (t: number, p: RoutingParams) =>
@@ -349,7 +372,7 @@ export const PRESETS: Preset[] = [
     id: "bad-news",
     title: "Bad news travels slowly: count to infinity",
     source: "Kurose and Ross, Fig. 5.7(b)",
-    note: "At 4 ms the link x–y rises from 4 to 60. y does not know that z's route to x runs through y itself, so it takes z's 5 and adds 1. The two bounce the route between them, adding 2 each round, until z's own link at 50 wins: 47 updates.",
+    note: "At 4 ms the link x–y rises from 4 to 60. y does not know that z's route to x runs through y itself, so it takes z's 5 and adds 1. The two bounce the route between them, one of them adding 1 each round, until z's own link at 50 wins: 47 updates over 46 rounds.",
     params: { ...TRIANGLE, changes: [{ at_us: 4 * MS, a: 0, b: 1, cost: 60 }] },
     dest: 0,
   },
@@ -364,7 +387,7 @@ export const PRESETS: Preset[] = [
   {
     id: "cut-off",
     title: "Counting to infinity when a router is cut off",
-    source: "RFC 2453, Section 3.4",
+    source: "RFC 2453, Section 3.4.2",
     note: "a's only link fails. b hears c offer a at cost 2, not knowing c's route runs through b, and the two count up together until they reach RIP's infinity, 16.",
     params: CHAIN,
     dest: 0,
@@ -372,7 +395,7 @@ export const PRESETS: Preset[] = [
   {
     id: "loop-of-three",
     title: "Poisoned reverse fails on a loop of three",
-    source: "RFC 2453, Section 3.4.3",
+    source: "RFC 2453, Section 3.4.4",
     note: "Poisoned reverse is on, but when a is cut off c and d each offer the other a route through b, and neither routes through the one it tells. They count to 16 three at a time.",
     params: LOOP,
     dest: 0,
@@ -426,7 +449,7 @@ export const TOUR: TourStep[] = [
   {
     preset: "bad-news",
     at: 8 * MS,
-    text: "A link gets dearer. y's best offer now is z's, but z's route to x goes through y: they are offering each other their own stale route. Each round adds 2. The chart shows the staircase.",
+    text: "A link gets dearer. y's best offer now is z's, but z's route to x goes through y: they are offering each other their own stale route. Each takes the other's cost and adds 1, so the route climbs by 1 a round, y and z in turn. The chart shows the staircase.",
   },
   {
     preset: "poison",
