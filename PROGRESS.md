@@ -238,3 +238,12 @@ Only known gaps remain; all six tools are built.
    requests and acknowledgements; a finite bottleneck buffer; RFC 9002's
    time threshold and PTO in place of the 2-RTT timer; per-frame and
    per-packet header overhead.
+3. Small visual items: the two backoff labels on the CSMA/CD space-time
+   diagram overlap on the right; the queueing scheduler chart exports
+   lines where the page draws dots (the shared chart export has no dot
+   kind); the occupancy chart is dense on long runs; a few link scenarios
+   (storm with STP, ageing, filter, tie-break, burst, silent failure) and
+   the labs' pass messages were tested but not viewed in a browser.
+4. Model limits stated on each page: queueing has drop-tail only (no
+   AQM), non-preemptive priority, a packet-counted buffer; CSMA/CA has no
+   capture or rate adaptation; STP is 802.1D, not RSTP.
