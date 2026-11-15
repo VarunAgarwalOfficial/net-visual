@@ -384,3 +384,15 @@
   scrollbar-width: thin;
   scrollbar-color: var(--muted-foreground) transparent;
 }
+
+/* Motion only follows an action, and none at all when the reader asks for less. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0s !important;
+    scroll-behavior: auto !important;
+  }
+}

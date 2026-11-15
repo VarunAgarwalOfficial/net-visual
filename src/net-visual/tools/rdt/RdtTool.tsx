@@ -1,11 +1,8 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react"
-import { ZoomIn, ZoomOut } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { cn } from "@/lib/utils"
 import { loadNetsim } from "../../core/load"
 import type { Netsim } from "../../core/netsim"
 import {
@@ -29,11 +26,21 @@ import { HeaderDiagram, type HeaderField } from "../../components/HeaderDiagram"
 import { LabPanel } from "../../components/LabPanel"
 import { Ladder, type LadderFlight, type LadderMark } from "../../components/Ladder"
 import { LiterateSource } from "../../components/LiterateSource"
-import { ToolActions } from "../../components/ToolActions"
+import {
+  DeeperHeading,
+  Disclosure,
+  ExampleIntro,
+  Readouts,
+  StepCard,
+  TourAndSharing,
+  TourCard,
+  sourceLine,
+} from "../../components/ToolFrame"
 import { TraceList } from "../../components/TraceList"
 import { Transport } from "../../components/Transport"
 import { formatTime, keepFocus, timelineKeys, useTimeline } from "../../components/timeline"
 import { RdtAnalysis, RdtFrontier, RdtIntro, RdtInternals } from "./RdtArticle"
+import { plainRdt } from "./plain"
 import { WindowView } from "./WindowView"
 
 interface Shared {
@@ -53,6 +60,19 @@ export function RdtTool() {
   return <RdtLoaded sim={sim} />
 }
 
+// What happened to a packet on arrival, in a word or two that fits beside the lane.
+const FATES: Record<string, string> = {
+  "accepted as the wrong message": "wrong message",
+  delivered: "delivered",
+  buffered: "kept",
+  duplicate: "a copy",
+  "out of order": "thrown away",
+  "outside window": "thrown away",
+  "advances base": "accepted",
+  "marks one": "accepted",
+  ignored: "ignored",
+}
+
 const toLadder = (run: RdtRun): LadderFlight[] =>
   run.flights.map((f) => ({
     id: f.id,
@@ -61,13 +81,11 @@ const toLadder = (run: RdtRun): LadderFlight[] =>
     t_sent: f.t_sent,
     t_arrive: f.t_arrive,
     lost: f.lost,
-    label: f.kind === "data" ? `seq ${f.wire}${f.occurrence > 1 ? "′" : ""}` : `ACK ${f.wire}`,
-    fate: f.fate === "accepted as the wrong message" ? "wrong message" : f.fate,
+    label: f.kind === "data" ? `packet ${f.wire}${f.occurrence > 1 ? ", again" : ""}` : `ACK ${f.wire}`,
+    fate: FATES[f.fate] ?? f.fate,
     color: f.kind === "data" ? "var(--chart-1)" : "var(--chart-2)",
     alarm: f.fate.includes("wrong"),
   }))
-
-const STEP_RE = /([A-Z]\d+)\.\s\[([^\]]+)\]/g
 
 function RdtLoaded({ sim }: { sim: Netsim }) {
   const shared = useMemo(() => readHash<Shared>("rdt"), [])
@@ -76,12 +94,10 @@ function RdtLoaded({ sim }: { sim: Netsim }) {
   const [selected, setSelected] = useState<number | null>(null)
   const [zoom, setZoom] = useState(1)
   const [follow, setFollow] = useState(true)
-  const [tab, setTab] = useState("state")
   const [tour, setTour] = useState<number | null>(null)
   const root = useRef<HTMLElement>(null)
 
   const source = useMemo(() => sim.call<string>("rdt", "source"), [sim])
-  const stepTitles = useMemo(() => new Map([...source.matchAll(STEP_RE)].map((m) => [m[1], m[2]])), [source])
 
   const result = useMemo<{ run: RdtRun } | { error: string }>(() => {
     try {
@@ -97,7 +113,7 @@ function RdtLoaded({ sim }: { sim: Netsim }) {
   const roundTrip = run ? run.theory.t_data_us + run.theory.rtt_us + run.theory.t_ack_us : 1
   const tl = useTimeline(times, duration, roundTrip / 2.5, shared?.t ?? 0)
 
-  const ladderHeight = 520
+  const ladderHeight = 320
   const usPerPx = Math.max(0.01, Math.min(duration, Math.max(roundTrip, 1) * 3.2) / (ladderHeight - 60) / zoom)
 
   const apply = (p: RdtParams, id = "") => {
@@ -122,15 +138,30 @@ function RdtLoaded({ sim }: { sim: Netsim }) {
 
   const ladderFlights = useMemo(() => (run ? toLadder(run) : []), [run])
   const marks = useMemo<LadderMark[]>(
-    () => (run ? run.events.filter((e) => e.step === "S4").map((e) => ({ t: e.t, lane: 0, text: "timeout" })) : []),
+    () => (run ? run.events.filter((e) => e.step === "S4").map((e) => ({ t: e.t, lane: 0, text: "timer ran out" })) : []),
     [run],
   )
+
+  // Running counts up to each event, for the "so far" readouts.
+  const counts = useMemo(() => {
+    let sent = 0
+    let again = 0
+    let timeouts = 0
+    return (run?.events ?? []).map((e) => {
+      if (e.step === "S2") {
+        sent++
+        if (e.text.includes("(again)")) again++
+      }
+      if (e.step === "S4") timeouts++
+      return { sent, again, timeouts }
+    })
+  }, [run])
 
   if (!run) {
     return (
       <div className="space-y-3">
         <p role="alert">These settings cannot run: {"error" in result ? result.error : ""}</p>
-        <Button onClick={() => apply(PRESETS[0].params, PRESETS[0].id)}>Back to the first preset</Button>
+        <Button onClick={() => apply(PRESETS[0].params, PRESETS[0].id)}>Back to the first example</Button>
       </div>
     )
   }
@@ -168,12 +199,21 @@ function RdtLoaded({ sim }: { sim: Netsim }) {
 
   const protocol = protocolName(params)
   const presetInfo = PRESETS.find((x) => x.id === preset)
+  const started = tl.index >= 0
+  const plain = started ? plainRdt(event, run, params) : null
+  const sofar = counts[Math.max(0, tl.index)]
+  const delivered = started ? [...event.state.receiver].filter((c) => c === "d" || c === "x").length : 0
+  const playToggle = () => {
+    setFollow(true)
+    tl.toggle()
+  }
 
   return (
     <section
       ref={root}
       tabIndex={-1}
-      className="nv-tool space-y-5 outline-none [&.nv-present]:[zoom:1.2] [&.nv-present]:overflow-auto [&.nv-present]:bg-background [&.nv-present]:p-6"
+      aria-label="Reliable data transfer"
+      className="nv-tool max-w-4xl space-y-6 outline-none [&.nv-present]:max-w-none [&.nv-present]:[zoom:1.2] [&.nv-present]:overflow-auto [&.nv-present]:bg-background [&.nv-present]:p-6"
       onKeyDown={(e) => {
         if (timelineKeys(tl, e)) {
           e.preventDefault()
@@ -184,195 +224,195 @@ function RdtLoaded({ sim }: { sim: Netsim }) {
         } else if (e.key === "Escape") setSelected(null)
       }}
     >
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="min-w-56 flex-1">
-          <label className="mb-1 block font-sans text-xs text-muted-foreground" htmlFor="rdt-preset">
-            Scenario
-          </label>
-          <Select
-            value={preset || "custom"}
-            onValueChange={(id) => {
-              const pr = PRESETS.find((x) => x.id === id)
-              if (pr) {
-                apply(pr.params, pr.id)
-                tl.home()
-              }
-            }}
-          >
-            <SelectTrigger id="rdt-preset" className="w-full max-w-md">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {PRESETS.map((pr) => (
-                <SelectItem key={pr.id} value={pr.id}>
-                  {pr.title}
-                </SelectItem>
-              ))}
-              <SelectItem value="custom" disabled>
-                Your own settings
-              </SelectItem>
-            </SelectContent>
-          </Select>
+      {tour !== null && <TourCard index={tour} steps={TOUR} go={goTour} playing={tl.playing} toggle={playToggle} />}
+
+      <ExampleIntro
+        title={presetInfo?.title ?? "Your own settings"}
+        note={
+          presetInfo?.note ??
+          `${protocol} with up to ${params.window} message${params.window === 1 ? "" : "s"} out at once, ${params.messages} messages to send, sequence numbers 0 to ${m - 1}. Open "Change the settings" below to see the rest.`
+        }
+      />
+
+      <Transport tl={{ ...tl, toggle: playToggle }} events={run.events.length} />
+
+      <figure className="space-y-2">
+        <figcaption className="font-sans text-sm text-muted-foreground">
+          Time runs down the page. A band from the sender to the receiver is a data packet, named by its sequence number; a band back is an
+          acknowledgement (ACK). A red cross is a packet lost on the way. The dotted line is now.
+        </figcaption>
+        <div onWheel={() => setFollow(false)} onTouchMove={() => setFollow(false)}>
+          <Ladder
+            lanes={["Sender", "Receiver"]}
+            flights={ladderFlights}
+            marks={marks}
+            t={started ? tl.t : -1}
+            duration={duration}
+            usPerPx={usPerPx}
+            selected={selected}
+            onSelect={setSelected}
+            onDelay={delay}
+            follow={follow}
+            height={ladderHeight}
+          />
         </div>
-        <Button variant={tour === null ? "outline" : "secondary"} onClick={() => goTour(tour === null ? 0 : null)}>
-          {tour === null ? "Guided tour" : "End tour"}
-        </Button>
-        <ToolActions
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-sans text-sm text-muted-foreground">
+          <span className="mr-auto">Select a packet to see its header, drop it or delay it.</span>
+          <Button variant="ghost" size="xs" onClick={() => setZoom(zoom / 1.6)}>
+            Show more time
+          </Button>
+          <Button variant="ghost" size="xs" onClick={() => setZoom(zoom * 1.6)}>
+            Show less time
+          </Button>
+        </div>
+        {flight && (
+          <div className="space-y-2 border-t border-border pt-3">
+            <div className="flex items-baseline justify-between gap-2">
+              <h2 className="text-lg">The selected packet</h2>
+              <Button variant="ghost" size="xs" onClick={() => setSelected(null)}>
+                Close
+              </Button>
+            </div>
+            <PacketView
+              f={flight}
+              p={params}
+              m={m}
+              onToggle={() => toggleDrop(flight)}
+              onDelay={() => delay(flight.id, 5000)}
+              interventions={params.interventions}
+            />
+          </div>
+        )}
+      </figure>
+
+      <StepCard
+        live={!tl.playing}
+        when={started ? `At ${formatTime(event.t)}, the ${event.who === "S" ? "sender" : "receiver"}` : null}
+        title={plain?.title}
+        text={plain?.text}
+        why={plain?.why}
+        empty={
+          <>
+            Nothing has happened yet. Press <b>Play</b> to run the example, or <b>Next event</b> to go one event at a time (the arrow keys
+            do the same).
+          </>
+        }
+      />
+
+      <WindowView p={params} s={event.state} t={tl.t} started={started} />
+
+      <Readouts
+        caption="So far"
+        cols={4}
+        items={[
+          ["Simulated time", formatTime(tl.t)],
+          ["Packets put on the link", started ? `${sofar.sent}${sofar.again ? `, ${sofar.again} of them again` : ""}` : "0"],
+          ["Times a timer ran out", started ? String(sofar.timeouts) : "0"],
+          ["Messages handed to the application", `${delivered} of ${params.messages}`],
+        ]}
+      />
+
+      <div className="space-y-2">
+        <label className="block text-lg" htmlFor="rdt-preset">
+          Try another example
+        </label>
+        <Select
+          value={preset || "custom"}
+          onValueChange={(id) => {
+            const pr = PRESETS.find((x) => x.id === id)
+            if (pr) {
+              apply(pr.params, pr.id)
+              tl.home()
+            }
+          }}
+        >
+          <SelectTrigger
+            id="rdt-preset"
+            className="h-auto min-h-9 w-full max-w-xl text-left whitespace-normal [&_[data-slot=select-value]]:line-clamp-none"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {PRESETS.map((pr) => (
+              <SelectItem key={pr.id} value={pr.id}>
+                {pr.title}
+              </SelectItem>
+            ))}
+            <SelectItem value="custom" disabled>
+              Your own settings
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        {presetInfo && <p className="font-sans text-sm text-muted-foreground">{sourceLine(presetInfo.source)}</p>}
+      </div>
+
+      <div>
+        <DeeperHeading />
+        <Disclosure
+          title="Change the settings"
+          note="Protocol, how many messages may be out at once, link speed and length, the timer, and how often packets are lost."
+        >
+          <Setup p={params} set={(p) => apply(p)} />
+        </Disclosure>
+        <Disclosure
+          title="Every event so far, as a list"
+          note="The simulation's own log, one line per event, with its step code. Select a line to go back to that moment."
+        >
+          <TraceList events={run.events} index={tl.index} onSeek={tl.seekIndex} />
+        </Disclosure>
+        <Disclosure
+          title="How fast this run is, against the formula"
+          note="The figures this run ends with, and the bound the formula predicts."
+        >
+          <Totals run={run} p={params} />
+        </Disclosure>
+        <Disclosure
+          title="Exercises this page can check"
+          note="Short tasks, from recall to investigation. The page checks your answer against the run."
+          keepMounted
+        >
+          <LabPanel
+            labs={LABS}
+            load={(p) => {
+              apply(p)
+              tl.home()
+            }}
+            check={(lab) => LABS.find((l) => l.id === lab.id)!.check(params, run, sim)}
+          />
+        </Disclosure>
+        <Disclosure
+          title="The program that produced this run"
+          note="The Rust source, compiled into the page. The step behind the current event is shaded."
+        >
+          <p className="mb-2 font-sans text-xs text-muted-foreground">crates/netsim/src/rdt.rs</p>
+          <LiterateSource source={source} active={started ? event.step : ""} className="max-h-[32rem]" />
+        </Disclosure>
+        <TourAndSharing
           root={root}
+          tour={tour}
+          stops={TOUR.length}
+          startTour={() => goTour(0)}
           link={() => linkFor("rdt", { p: params, t: Math.round(tl.t) } satisfies Shared)}
           figures={[
             {
-              label: "Sequence diagram",
+              label: "the sequence diagram",
               stem: `rdt-${preset || "custom"}`,
               ...ladderExports({
                 lanes: ["Sender", "Receiver"],
                 flights: ladderFlights,
                 marks,
                 upTo: tl.t,
-                caption: `${protocol}, N = ${params.window}, sequence numbers mod ${m}, at ${formatTime(tl.t)}`,
+                caption: `${protocol}, window ${params.window}, sequence numbers mod ${m}, at ${formatTime(tl.t)}`,
               }),
             },
           ]}
         />
       </div>
 
-      {tour !== null ? (
-        <div className="rounded-sm border border-border bg-muted/40 p-4" aria-live="polite">
-          <p className="font-sans text-xs text-muted-foreground">
-            Tour, {tour + 1} of {TOUR.length}
-          </p>
-          <p className="mt-1 max-w-[70ch]">{TOUR[tour].text}</p>
-          <div className="mt-3 flex gap-2">
-            <Button size="sm" variant="outline" disabled={tour === 0} onClick={() => goTour(tour - 1)}>
-              Back
-            </Button>
-            <Button size="sm" onClick={() => goTour(tour + 1 < TOUR.length ? tour + 1 : null)}>
-              {tour + 1 < TOUR.length ? "Next" : "Finish"}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => tl.toggle()}>
-              {tl.playing ? "Pause" : "Play from here"}
-            </Button>
-          </div>
-        </div>
-      ) : (
-        presetInfo && (
-          <p className="max-w-[70ch] text-[0.98rem]">
-            {presetInfo.note} <span className="text-muted-foreground">({presetInfo.source}.)</span>
-          </p>
-        )
-      )}
-
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <div className="space-y-3">
-          <div className="flex items-center justify-between font-sans text-sm text-muted-foreground">
-            <span>
-              {protocol}, N = {params.window}, sequence numbers mod {m}
-            </span>
-            <span className="flex items-center gap-0.5">
-              <Button variant="ghost" size="icon-sm" aria-label="Zoom out in time" onClick={() => setZoom(zoom / 1.6)}>
-                <ZoomOut />
-              </Button>
-              <Button variant="ghost" size="icon-sm" aria-label="Zoom in in time" onClick={() => setZoom(zoom * 1.6)}>
-                <ZoomIn />
-              </Button>
-            </span>
-          </div>
-          <div onWheel={() => setFollow(false)} onTouchMove={() => setFollow(false)}>
-            <Ladder
-              lanes={["Sender", "Receiver"]}
-              flights={ladderFlights}
-              marks={marks}
-              t={tl.t}
-              duration={duration}
-              usPerPx={usPerPx}
-              selected={selected}
-              onSelect={(id) => {
-                setSelected(id)
-                if (id !== null) setTab("packet")
-              }}
-              onDelay={delay}
-              follow={follow}
-              height={ladderHeight}
-            />
-          </div>
-          <Transport
-            tl={{
-              ...tl,
-              toggle: () => {
-                setFollow(true)
-                tl.toggle()
-              },
-            }}
-            events={run.events.length}
-          />
-          <p className="font-sans text-xs text-muted-foreground">
-            Click a packet to inspect it; press <kbd>D</kbd> to drop it (or rescue a lost one) and drag the ring at its far end to delay it.
-            Space plays, arrow keys step, Home and End jump.
-          </p>
-        </div>
-
-        <div className="min-w-0 space-y-4">
-          <div className="rounded-sm border border-border p-3" aria-live={tl.playing ? "off" : "polite"}>
-            <p className="font-sans text-xs text-muted-foreground">
-              {formatTime(event.t)}, {event.who === "S" ? "sender" : "receiver"}
-            </p>
-            <p className="mt-0.5">
-              <b className="lining">{event.step}.</b> [{stepTitles.get(event.step) ?? ""}] {event.text}
-            </p>
-          </div>
-          <WindowView p={params} s={event.state} t={tl.t} />
-          <Totals run={run} p={params} />
-
-          <Tabs value={tab} onValueChange={setTab}>
-            <TabsList className="flex-wrap">
-              <TabsTrigger value="state">Trace</TabsTrigger>
-              <TabsTrigger value="setup">Setup</TabsTrigger>
-              <TabsTrigger value="packet">Packet</TabsTrigger>
-              <TabsTrigger value="source">Source</TabsTrigger>
-              <TabsTrigger value="lab">Lab</TabsTrigger>
-            </TabsList>
-            <TabsContent value="state">
-              <TraceList events={run.events} index={tl.index} onSeek={tl.seekIndex} />
-            </TabsContent>
-            <TabsContent value="setup">
-              <Setup p={params} set={(p) => apply(p)} />
-            </TabsContent>
-            <TabsContent value="packet">
-              {flight ? (
-                <PacketView
-                  f={flight}
-                  p={params}
-                  m={m}
-                  onToggle={() => toggleDrop(flight)}
-                  onDelay={() => delay(flight.id, 5000)}
-                  interventions={params.interventions}
-                />
-              ) : (
-                <p className="text-muted-foreground">Click a packet in the diagram to see its header.</p>
-              )}
-            </TabsContent>
-            <TabsContent value="source">
-              <p className="mb-2 font-sans text-xs text-muted-foreground">
-                The Rust that produced this run (crates/netsim/src/rdt.rs), compiled into the page. The step behind the current event is
-                shaded.
-              </p>
-              <LiterateSource source={source} active={event.step} className="max-h-[32rem]" />
-            </TabsContent>
-            <TabsContent value="lab" forceMount className="data-[state=inactive]:hidden">
-              <LabPanel
-                labs={LABS}
-                load={(p) => {
-                  apply(p)
-                  tl.home()
-                }}
-                check={(lab) => LABS.find((l) => l.id === lab.id)!.check(params, run, sim)}
-              />
-            </TabsContent>
-          </Tabs>
-        </div>
+      <div>
+        <DeeperHeading>Read about it</DeeperHeading>
+        <Article sim={sim} p={params} run={run} />
       </div>
-
-      <Article sim={sim} p={params} run={run} />
     </section>
   )
 }
@@ -390,25 +430,32 @@ const Article = memo(function Article(props: { sim: Netsim; p: RdtParams; run: R
   )
 })
 
+const pct = (x: number) => (x >= 0.001 ? `${(x * 100).toFixed(x >= 0.1 ? 1 : 2)}%` : `${(x * 100).toExponential(1)}%`)
+
 const Totals = memo(function Totals({ run, p }: { run: RdtRun; p: RdtParams }) {
   const T = run.totals
-  const items: [string, string][] = [
-    ["finished at", T.finished ? formatTime(T.completion_us) : "not finished"],
-    ["utilisation", T.utilisation >= 0.01 ? T.utilisation.toFixed(3) : T.utilisation.toExponential(2)],
-    ["formula bound", run.theory.bound >= 0.01 ? run.theory.bound.toFixed(3) : run.theory.bound.toExponential(2)],
-    ["transmissions", `${T.transmissions} (${T.retransmissions} again)`],
-    ["timeouts", String(T.timeouts)],
-    ["delivered", `${T.delivered} of ${p.messages}${T.misdelivered ? `, ${T.misdelivered} wrong` : ""}`],
-  ]
   return (
-    <dl className="grid grid-cols-2 gap-x-4 gap-y-1 font-sans text-sm sm:grid-cols-3">
-      {items.map(([k, v]) => (
-        <div key={k}>
-          <dt className="text-xs text-muted-foreground">{k}</dt>
-          <dd className={cn("tabular-nums lining", k === "delivered" && T.misdelivered > 0 && "text-destructive")}>{v}</dd>
-        </div>
-      ))}
-    </dl>
+    <div className="space-y-3">
+      <Readouts
+        caption="What this run ends with"
+        items={[
+          ["Every message acknowledged at", T.finished ? formatTime(T.completion_us) : "never: the run stops first"],
+          ["Share of time the link is busy sending data", pct(T.utilisation)],
+          ["The formula's upper bound on that share", pct(run.theory.bound)],
+          ["Packets put on the link", `${T.transmissions}, ${T.retransmissions} of them again`],
+          ["Times a timer ran out", String(T.timeouts)],
+          [
+            "Messages handed to the application",
+            `${T.delivered} of ${p.messages}${T.misdelivered ? `, ${T.misdelivered} of them wrong` : ""}`,
+          ],
+        ]}
+      />
+      <p className="max-w-[70ch] font-sans text-sm text-muted-foreground">
+        The bound is the smaller of two limits: the link cannot be busier than the share of packets that survive, and a window of N messages
+        can keep it busy at most N packet-sending times out of every time a message holds its place in the window. The reading section
+        &ldquo;How fast can it go?&rdquo; derives it.
+      </p>
+    </div>
   )
 })
 

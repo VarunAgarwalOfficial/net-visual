@@ -237,6 +237,45 @@
   Head-of-line blocking, QUIC and HTTP-3, and a web section in the
   subject index.
 
+## Rework: self-explanatory, low stimulation (in progress)
+
+Brief: one column read top to bottom; the tool's name and one plain
+sentence; Play first; a card saying what just happened and why; live
+readouts; everything deeper behind named disclosures, closed. No final
+results before the first event. Palette and type unchanged.
+
+Shared shell (done):
+- `components/ToolFrame.tsx`: Disclosure (native details, lazy mount),
+  ExampleIntro, StepCard, Readouts, TourCard, TourAndSharing (tour start
+  plus ToolActions behind one disclosure, kept mounted for presentation
+  mode), DeeperHeading, sourceLine, scrollBehavior (no smooth scroll under
+  reduced motion).
+- `timeline.ts`: `before` state, index -1 at load and after Start, so
+  nothing shows as done at step 0.
+- `Transport.tsx`: Play is the first, only filled button; other controls
+  in words ("Back one event", "Next event", "Start", "End").
+- `ToolActions.tsx`: three labelled rows, no bare icons, no truncation.
+- `LineChart.tsx`: `upTo` prop (the part not yet reached is faint) and
+  series labels on the lines in place of a separate legend.
+- Article layers are closed disclosures with a one-line note each.
+- `tools/index.ts` has a `lead` sentence per tool, shown under the h1.
+- `host.css`: reduced motion stops all animation and transition.
+
+Per tool, reading order: ExampleIntro, Transport, figure, StepCard, live
+views, Readouts "So far", "Try another example" (picker after the
+readouts so Play is the first focusable control), "Go deeper"
+disclosures, TourAndSharing, "Read about it".
+
+- [x] rdt: plain step sentences (`tools/rdt/plain.ts`), preset titles and
+  notes rewritten, window view labelled in place, ladder labels in words.
+- [ ] tcp (deep)  - [ ] routing (deep)
+- [ ] queue, link, web (shell and obvious labels only)
+- [ ] impeccable detect on changed files; final captures.
+
+Checks: `/tmp/nv-work/check.js` (overflow, truncation, side-by-side,
+first focusable, animations) and `/tmp/nv-work/capture.sh <tool>` write
+`/tmp/rebuild-shots/net-visual/load/<tool>/`. Dev server on port 5391.
+
 ## Next
 
 Only known gaps remain; all six tools are built.

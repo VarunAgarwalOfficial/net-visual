@@ -83,7 +83,9 @@ export function Ladder(props: Props) {
   const [drag, setDrag] = useState<{ id: number; y0: number; dy: number } | null>(null)
   const clip = useId().replace(/:/g, "")
   const top = 28
-  const xs = [Math.min(110, width * 0.22), width - Math.min(110, width * 0.22)] as const
+  // The right gutter holds what happened to each arriving packet, so it is
+  // never narrower than the longest of those words at phone width.
+  const xs = [Math.min(110, width * 0.22), width - Math.min(120, Math.max(92, width * 0.22))] as const
   const origin = props.start ?? 0
   const y = (time: number) => top + (time - origin) / usPerPx
   const total = y(props.duration) + 40
@@ -111,7 +113,7 @@ export function Ladder(props: Props) {
     <div ref={box} className="w-full">
       <div
         ref={scroller}
-        className="relative overflow-y-auto overscroll-contain rounded-sm border border-border"
+        className="relative overflow-x-hidden overflow-y-auto overscroll-contain rounded-sm border border-border"
         style={{ height }}
         onScroll={(e) => setScroll(e.currentTarget.scrollTop)}
       >

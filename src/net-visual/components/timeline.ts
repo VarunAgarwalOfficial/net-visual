@@ -36,11 +36,14 @@ export interface Timeline {
  */
 export function useTimeline(times: readonly number[], duration: number, rate: number, start = 0): Timeline {
   // `index` is kept only while the trace it was taken from is current; a new
-  // trace keeps the clock where it was, clamped to the new run.
-  const [cursor, setCursor] = useState<{ t: number; index: number | null; of: readonly number[] | null }>({
+  // trace keeps the clock where it was, clamped to the new run. `before`
+  // marks the moment before the first event: at the start, nothing has
+  // happened yet, even events stamped at time zero.
+  const [cursor, setCursor] = useState<{ t: number; index: number | null; of: readonly number[] | null; before?: boolean }>({
     t: start,
     index: null,
     of: null,
+    before: start <= 0,
   })
   const [playing, setPlaying] = useState(false)
   const [speed, setSpeed] = useState(1)
@@ -48,7 +51,7 @@ export function useTimeline(times: readonly number[], duration: number, rate: nu
   const last = useRef(0)
 
   const t = Math.max(0, Math.min(cursor.t, duration))
-  const index = cursor.of === times && cursor.index !== null ? cursor.index : lastAtOrBefore(times, t)
+  const index = cursor.before ? -1 : cursor.of === times && cursor.index !== null ? cursor.index : lastAtOrBefore(times, t)
 
   useEffect(() => {
     if (!playing) return
@@ -72,7 +75,7 @@ export function useTimeline(times: readonly number[], duration: number, rate: nu
   const seekIndex = useCallback(
     (i: number) => {
       const k = Math.max(-1, Math.min(times.length - 1, i))
-      setCursor({ t: k < 0 ? 0 : times[k], index: k, of: times })
+      setCursor({ t: k < 0 ? 0 : times[k], index: k, of: times, before: k < 0 })
     },
     [times],
   )
@@ -86,7 +89,7 @@ export function useTimeline(times: readonly number[], duration: number, rate: nu
       speed,
       setSpeed,
       toggle: () => {
-        if (!playing && t >= duration) setCursor({ t: 0, index: null, of: null })
+        if (!playing && t >= duration) setCursor({ t: 0, index: null, of: null, before: true })
         setPlaying(!playing)
       },
       pause: () => setPlaying(false),
@@ -95,11 +98,11 @@ export function useTimeline(times: readonly number[], duration: number, rate: nu
         seekIndex(index + delta)
       },
       // Not clamped here: a seek may target a run that is about to replace this one.
-      seek: (to: number) => setCursor({ t: Math.max(0, to), index: null, of: null }),
+      seek: (to: number) => setCursor({ t: Math.max(0, to), index: null, of: null, before: to <= 0 }),
       seekIndex,
       home: () => {
         setPlaying(false)
-        setCursor({ t: 0, index: null, of: null })
+        setCursor({ t: 0, index: null, of: null, before: true })
       },
       end: () => {
         setPlaying(false)

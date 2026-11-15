@@ -53,7 +53,7 @@ export function App() {
         {tool ? (
           <>
             <h1 className="mb-1 text-3xl">{tool.title}</h1>
-            <p className="mb-6 max-w-[70ch] text-muted-foreground">{tool.summary}</p>
+            <p className="mb-6 max-w-[70ch]">{tool.lead}</p>
             <Suspense fallback={<p className="font-sans text-sm text-muted-foreground">Loading…</p>}>
               <tool.Component />
             </Suspense>
@@ -81,7 +81,6 @@ function Index() {
               {i + 1}. {t.title}
             </a>
             <p className="text-[0.98rem]">{t.summary}</p>
-            <p className="font-sans text-xs text-muted-foreground">Layers: {t.layers.join(", ")}</p>
           </li>
         ))}
       </ol>

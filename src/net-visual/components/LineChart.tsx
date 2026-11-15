@@ -22,6 +22,12 @@ interface Props {
   height?: number
   /** A vertical marker, for charts synchronised with the timeline. */
   cursor?: number
+  /**
+   * Draw the series solid only up to this x, and faint after it, so a chart
+   * synchronised with the timeline does not show results the run has not
+   * reached as if they had happened.
+   */
+  upTo?: number
   onSeek?: (x: number) => void
   log?: { x?: boolean }
   /** Extra marks drawn under the series; a function receives the scales. */
@@ -65,17 +71,18 @@ export function useWidth<T extends HTMLElement>(): [React.RefObject<T | null>, n
 
 /**
  * Lines, steps and dots on one pair of axes. 2px lines, 8px dots with a
- * surface ring, hairline grid, a legend for two or more series, a hover
- * readout, and a table view so no value depends on colour alone.
+ * surface ring, hairline grid, each series named on the chart beside its
+ * line (no separate key), a hover readout, and a table view so no value
+ * depends on colour alone.
  */
 export function LineChart(props: Props) {
-  const { series, xLabel, yLabel, height = 260, cursor, onSeek } = props
+  const { series, xLabel, yLabel, height = 260, cursor, onSeek, upTo } = props
   const xFormat = props.xFormat ?? ((x: number) => String(x))
   const yFormat = props.yFormat ?? ((y: number) => y.toFixed(2))
   const [box, width] = useWidth<HTMLDivElement>()
   const [hover, setHover] = useState<number | null>(null)
   const [table, setTable] = useState(false)
-  const id = useId()
+  const id = useId().replace(/[^a-zA-Z0-9_-]/g, "")
   const m = { l: 52, r: 16, t: 10, b: 40 }
   const w = width - m.l - m.r
   const h = height - m.t - m.b
@@ -116,6 +123,28 @@ export function LineChart(props: Props) {
     return best
   }
 
+  // Each series is named where its line is drawn, at its last point up to
+  // the clock, pushed apart so names do not overlap.
+  const labels = useMemo(() => {
+    if (series.length < 2) return []
+    const limit = upTo ?? Infinity
+    const out = series.flatMap((s) => {
+      if (!s.points.length) return []
+      let p = s.points[0]
+      for (const q of s.points) if (q[0] <= limit) p = q
+      const X = sx(p[0])
+      return [{ id: s.id, label: s.label, color: s.color, x: X, y: sy(Math.min(Math.max(p[1], y0), y1)) - 7 }]
+    })
+    out.sort((a, b) => a.y - b.y)
+    for (let k = 1; k < out.length; k++) if (out[k].y - out[k - 1].y < 13) out[k].y = out[k - 1].y + 13
+    const over = out.length ? out[out.length - 1].y - (m.t + h - 2) : 0
+    if (over > 0) for (const l of out) l.y -= over
+    for (let k = 0; k < out.length; k++) out[k].y = Math.max(out[k].y, m.t + 10 + k * 13)
+    return out
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [series, upTo, width, height, x0, x1, y0, y1])
+  const ahead = upTo !== undefined && upTo < x1 ? Math.max(m.l, sx(Math.max(upTo, x0))) : null
+
   const move = (e: React.PointerEvent<SVGSVGElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
     const x = x0 + ((e.clientX - rect.left - m.l) / w) * (x1 - x0)
@@ -130,22 +159,6 @@ export function LineChart(props: Props) {
           {table ? "Show chart" : "Show table"}
         </button>
       </figcaption>
-      {series.length > 1 && (
-        <ul className="mb-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground" aria-label="Legend">
-          {series.map((s) => (
-            <li key={s.id} className="flex items-center gap-1.5">
-              <svg width="18" height="10" aria-hidden>
-                {s.kind === "dots" ? (
-                  <circle cx="9" cy="5" r="4" fill={s.color} />
-                ) : (
-                  <line x1="1" y1="5" x2="17" y2="5" stroke={s.color} strokeWidth="2" strokeDasharray={s.dashed ? "4 3" : undefined} />
-                )}
-              </svg>
-              {s.label}
-            </li>
-          ))}
-        </ul>
-      )}
       <div ref={box} className="relative">
         {table ? (
           <div className="max-h-72 overflow-auto text-xs">
@@ -207,26 +220,61 @@ export function LineChart(props: Props) {
             {typeof props.children === "function"
               ? props.children({ sx, sy, left: m.l, right: m.l + w, top: m.t, bottom: m.t + h })
               : props.children}
-            {series.map((s, i) =>
-              s.kind === "dots" ? (
-                <g key={s.id}>
-                  {s.points.map(([x, y], k) => (
-                    <circle key={k} cx={sx(x)} cy={sy(y)} r={4} fill={s.color} stroke="var(--background)" strokeWidth={2} />
-                  ))}
-                </g>
-              ) : (
-                <path
-                  key={s.id}
-                  d={paths[i]}
-                  fill="none"
-                  stroke={s.color}
-                  strokeWidth={2}
-                  strokeLinejoin="round"
-                  strokeLinecap="round"
-                  strokeDasharray={s.dashed ? "5 4" : undefined}
-                />
-              ),
+            {ahead !== null && (
+              <defs>
+                <clipPath id={`${id}-past`}>
+                  <rect x={0} y={0} width={ahead} height={height} />
+                </clipPath>
+                <clipPath id={`${id}-ahead`}>
+                  <rect x={ahead} y={0} width={Math.max(0, width - ahead)} height={height} />
+                </clipPath>
+              </defs>
             )}
+            {(ahead === null ? [null] : ["past", "ahead"]).map((part) => (
+              <g key={part ?? "all"} clipPath={part ? `url(#${id}-${part})` : undefined} opacity={part === "ahead" ? 0.2 : undefined}>
+                {series.map((s, i) =>
+                  s.kind === "dots" ? (
+                    <g key={s.id}>
+                      {s.points.map(([x, y], k) => (
+                        <circle key={k} cx={sx(x)} cy={sy(y)} r={4} fill={s.color} stroke="var(--background)" strokeWidth={2} />
+                      ))}
+                    </g>
+                  ) : (
+                    <path
+                      key={s.id}
+                      d={paths[i]}
+                      fill="none"
+                      stroke={s.color}
+                      strokeWidth={2}
+                      strokeLinejoin="round"
+                      strokeLinecap="round"
+                      strokeDasharray={s.dashed ? "5 4" : undefined}
+                    />
+                  ),
+                )}
+              </g>
+            ))}
+            {ahead !== null && m.l + w - ahead > 150 && (
+              <text x={m.l + w - 4} y={m.t + 12} textAnchor="end" fontSize="11" fill="var(--chart-ink)">
+                faint: the rest of the run, not reached yet
+              </text>
+            )}
+            {labels.map((l) => (
+              <text
+                key={l.id}
+                x={l.x < m.l + w * 0.6 ? Math.max(l.x, m.l) + 6 : l.x - 6}
+                y={l.y}
+                textAnchor={l.x < m.l + w * 0.6 ? "start" : "end"}
+                fontSize="11"
+                fill={l.color}
+                stroke="var(--background)"
+                strokeWidth={3}
+                paintOrder="stroke"
+                pointerEvents="none"
+              >
+                {l.label}
+              </text>
+            ))}
             {props.overlay?.({ sx, sy, left: m.l, right: m.l + w, top: m.t, bottom: m.t + h })}
             {cursor !== undefined && cursor >= x0 && cursor <= x1 && (
               <line x1={sx(cursor)} x2={sx(cursor)} y1={m.t} y2={m.t + h} stroke="var(--foreground)" strokeOpacity={0.6} />

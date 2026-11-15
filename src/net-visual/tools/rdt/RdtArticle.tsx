@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react"
+import { ChevronRight } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import type { Netsim } from "../../core/netsim"
@@ -6,20 +7,35 @@ import { fmt, protocolName, sweepRdt, type RdtParams, type RdtRun } from "../../
 import { LineChart, type Series } from "../../components/LineChart"
 import { Tex, texNum } from "../../components/Tex"
 
-/** A numbered section in the article, with its layer named in the margin. */
+const LAYER_NOTES: Record<string, string> = {
+  Intuition: "Reading, about five minutes. The idea in plain words, with the example above.",
+  Mechanics: "Reading. Each rule, step by step, against the trace.",
+  Analysis: "Reading, with formulas. What the numbers above follow from, and where they stop holding.",
+  Frontier: "Reading, with sources. What real systems do now.",
+  Internals: "Reading, for programmers. How this simulation is built and what it leaves out.",
+}
+
+/**
+ * One section of the reading below a tool, closed until asked for. Find in
+ * page still opens it (browsers search closed details), and presentation
+ * mode hides it.
+ */
 export function Layer({ id, layer, title, children }: { id: string; layer: string; title: string; children: ReactNode }) {
   return (
-    <section
-      id={id}
-      aria-labelledby={`${id}-h`}
-      className="nv-prose mt-14 max-w-[72ch] space-y-4 border-t border-border pt-8 [.nv-present_&]:hidden"
-    >
-      <p className="font-sans text-xs tracking-wide text-muted-foreground uppercase">{layer}</p>
-      <h2 id={`${id}-h`} className="text-2xl">
-        {title}
-      </h2>
-      {children}
-    </section>
+    <details id={id} className="group/layer mt-2 max-w-[72ch] border-t border-border py-3 [.nv-present_&]:hidden">
+      <summary className="flex cursor-pointer list-none items-start gap-2 py-1 [&::-webkit-details-marker]:hidden">
+        <ChevronRight aria-hidden className="mt-1.5 size-4 shrink-0 text-muted-foreground group-open/layer:rotate-90" />
+        <span className="min-w-0">
+          <h2 id={`${id}-h`} className="text-xl leading-snug">
+            {title}
+          </h2>
+          <span className="block font-sans text-sm text-muted-foreground">{LAYER_NOTES[layer] ?? "Reading."}</span>
+        </span>
+      </summary>
+      <section aria-labelledby={`${id}-h`} className="nv-prose space-y-4 pt-4 pl-6">
+        {children}
+      </section>
+    </details>
   )
 }
 
