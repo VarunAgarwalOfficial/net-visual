@@ -114,17 +114,17 @@ export const labelY = (fig: Pick<GraphFigure, "links" | "pos">, i: number, y: nu
 const n1 = (v: number) => v.toFixed(1)
 
 export function graphSvg(fig: GraphFigure): string {
-  const TREE = hex("var(--chart-1)")
+  const TREE = hex("var(--nv-busy)")
   const out: string[] = [
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${W + 40}" height="${H + 64}" viewBox="-20 -20 ${W + 40} ${H + 64}" font-family="'CMU Sans Serif', 'Latin Modern Sans', Helvetica, Arial, sans-serif">`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${W + 40}" height="${H + 64}" viewBox="-20 -20 ${W + 40} ${H + 64}" font-family="Newsreader, Georgia, serif">`,
     `<title>${esc(fig.caption)}</title>`,
-    `<rect x="-20" y="-20" width="100%" height="100%" fill="#ffffff"/>`,
+    `<rect x="-20" y="-20" width="100%" height="100%" fill="#f6f5f2"/>`,
     `<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/></marker></defs>`,
   ]
   for (const l of fig.links) {
     const s = segment(px(fig.pos[l.a]), px(fig.pos[l.b]), 0)
     out.push(
-      `<line x1="${n1(s.x1)}" y1="${n1(s.y1)}" x2="${n1(s.x2)}" y2="${n1(s.y2)}" stroke="${MUTED}" stroke-width="1.5"${l.cost === null ? ' stroke-dasharray="5 4" stroke-opacity="0.6"' : ""}/>`,
+      `<line x1="${n1(s.x1)}" y1="${n1(s.y1)}" x2="${n1(s.x2)}" y2="${n1(s.y2)}" stroke="${MUTED}" stroke-width="1.5"${l.cost === null ? ' stroke-dasharray="5 4"' : ""}/>`,
     )
   }
   for (const t of fig.tree) {
@@ -139,15 +139,15 @@ export function graphSvg(fig: GraphFigure): string {
     const [bx, by] = px(fig.pos[l.b])
     const text = l.cost === null ? "×" : String(l.cost)
     out.push(
-      `<text x="${n1((ax + bx) / 2)}" y="${n1((ay + by) / 2)}" dy="0.35em" text-anchor="middle" font-size="13" fill="${l.cost === null ? ALARM : INK}" stroke="#ffffff" stroke-width="4" paint-order="stroke">${text}</text>`,
+      `<text x="${n1((ax + bx) / 2)}" y="${n1((ay + by) / 2)}" dy="0.35em" text-anchor="middle" font-size="13" fill="${l.cost === null ? ALARM : INK}" stroke="#f6f5f2" stroke-width="4" paint-order="stroke">${text}</text>`,
     )
   }
   fig.nodes.forEach((name, i) => {
     const [x, y] = px(fig.pos[i])
     out.push(
-      `<circle cx="${n1(x)}" cy="${n1(y)}" r="${R}" fill="#ffffff" stroke="${INK}" stroke-width="${i === fig.dest ? 3 : 1.5}"/>`,
+      `<circle cx="${n1(x)}" cy="${n1(y)}" r="${R}" fill="#f6f5f2" stroke="${INK}" stroke-width="${i === fig.dest ? 3 : 1.5}"/>`,
       `<text x="${n1(x)}" y="${n1(y)}" dy="0.35em" text-anchor="middle" font-size="15" fill="${INK}">${esc(name)}</text>`,
-      `<text x="${n1(x)}" y="${n1(labelY(fig, i, y))}" text-anchor="middle" font-size="11" fill="${MUTED}" stroke="#ffffff" stroke-width="4" paint-order="stroke">${esc(fig.labels[i] ?? "")}</text>`,
+      `<text x="${n1(x)}" y="${n1(labelY(fig, i, y))}" text-anchor="middle" font-size="11" fill="${MUTED}" stroke="#f6f5f2" stroke-width="4" paint-order="stroke">${esc(fig.labels[i] ?? "")}</text>`,
     )
   })
   out.push(`<text x="${W / 2}" y="${H + 36}" text-anchor="middle" font-size="12" fill="${INK}">${esc(fig.caption)}</text>`, `</svg>`)
@@ -160,7 +160,7 @@ export function graphTikz(fig: GraphFigure): string {
   const L: string[] = [
     "% Exported from net-visual. Compile with pdflatex.",
     "\\documentclass[tikz,border=6pt]{standalone}",
-    `\\definecolor{nvtree}{HTML}{${hex("var(--chart-1)").slice(1).toUpperCase()}}`,
+    `\\definecolor{nvtree}{HTML}{${hex("var(--nv-busy)").slice(1).toUpperCase()}}`,
     `\\definecolor{nvalarm}{HTML}{${ALARM.slice(1).toUpperCase()}}`,
     "\\usetikzlibrary{arrows.meta}",
     "\\begin{document}",

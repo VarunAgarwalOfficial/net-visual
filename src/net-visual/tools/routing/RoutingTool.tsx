@@ -65,7 +65,9 @@ export function RoutingTool() {
   return <RoutingLoaded sim={sim} />
 }
 
-const COLORS = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)", "var(--chart-6)"]
+// Routers are told apart by ink, dash and the name at the line's end, not by colour: colour is kept for meaning.
+const COLORS = ["var(--foreground)", "var(--muted-foreground)"]
+const DASHES = [undefined, undefined, "7 3", "7 3", "2 3", "2 3", "10 3 2 3", "10 3 2 3"]
 
 /** Each router's cost to the destination over time, as step series. */
 function distanceSeries(run: RoutingRun, p: RoutingParams, dest: number, end: number) {
@@ -85,7 +87,8 @@ function distanceSeries(run: RoutingRun, p: RoutingParams, dest: number, end: nu
       color: COLORS[series.length % COLORS.length],
       kind: "step",
       points: toEnd(pts, end),
-      dashed: series.length >= COLORS.length,
+      dash: DASHES[series.length % DASHES.length],
+      dashed: DASHES[series.length % DASHES.length] !== undefined,
     })
   })
   return { series, cap }
@@ -317,10 +320,10 @@ function RoutingLoaded({ sim }: { sim: Netsim }) {
           {!started && <strong className="font-semibold">Nothing has been exchanged yet: this is the start.</strong>}
           <span className="inline-flex items-center gap-1.5 text-muted-foreground">
             <svg width="28" height="10" aria-hidden="true" className="shrink-0">
-              <line x1="1" y1="5" x2="20" y2="5" className="stroke-chart-1" strokeWidth="3" />
-              <path d="M19,0 L28,5 L19,10 z" className="fill-chart-1" />
+              <line x1="1" y1="5" x2="20" y2="5" className="stroke-busy" strokeWidth="3" />
+              <path d="M19,0 L28,5 L19,10 z" className="fill-busy" />
             </svg>
-            blue arrow: the next router on the way to {D}
+            purple arrow: the next router on the way to {D}
           </span>
         </p>
         <Graph
@@ -405,7 +408,7 @@ function RoutingLoaded({ sim }: { sim: Netsim }) {
           <span className="block">
             Circles are routers and lines are links. The number on a link is its cost, the price of sending over it; routers look for the
             cheapest total. Next to each router, as &quot;cost 5&quot;, is its cost to reach {D} as far as it knows now (&quot;cost ∞&quot;:
-            it knows no route yet). A thick blue arrow running beside a link shows where a router sends traffic for {D}
+            it knows no route yet). A thick purple arrow running beside a link shows where a router sends traffic for {D}
             {loops.cycles.length > 0 ? "; red arrows go round in a loop" : ""}; routers with no arrow have no route yet.
             {fig.links.some((l) => l.cost === null)
               ? " A dashed link marked × has failed; a faded box marked × is a message lost on it."
@@ -421,7 +424,7 @@ function RoutingLoaded({ sim }: { sim: Netsim }) {
               ? ` Each message takes one round, ${Number((p.delay_us / 1000).toFixed(2))} millisecond${p.delay_us === 1000 ? "" : "s"}, to cross a link.`
               : ""}{" "}
             Select a router to see its working under Go deeper, further down the page, or a link to change it.
-            {picked ? ` The router you selected, ${p.nodes[x]}, has a blue outline.` : ""}
+            {picked ? ` The router you selected, ${p.nodes[x]}, has a thick outline.` : ""}
           </span>
         </figcaption>
       </figure>
@@ -542,16 +545,8 @@ function RoutingLoaded({ sim }: { sim: Netsim }) {
             {(s) => (
               // Unreachable is drawn on the top line of the chart, which stands for infinity.
               <g pointerEvents="none">
-                <line
-                  x1={s.left}
-                  x2={s.right}
-                  y1={s.sy(chart.cap)}
-                  y2={s.sy(chart.cap)}
-                  stroke="var(--chart-ink)"
-                  strokeOpacity={0.4}
-                  strokeDasharray="2 3"
-                />
-                <text x={s.right} y={s.sy(chart.cap) - 4} textAnchor="end" fontSize="12" fill="var(--chart-ink)">
+                <line x1={s.left} x2={s.right} y1={s.sy(chart.cap)} y2={s.sy(chart.cap)} stroke="var(--chart-ink)" strokeDasharray="2 3" />
+                <text x={s.right} y={s.sy(chart.cap) - 4} textAnchor="end" fontSize="17" fill="var(--chart-ink)">
                   ∞, unreachable
                 </text>
               </g>

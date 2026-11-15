@@ -430,6 +430,18 @@ recorded per tool below.
   their own box on a phone. Early key wraps to the chart width; a chart
   with an early key is tall enough for all of it. No colour words changed.
 
+- routing: next-hop arrows purple (the route being followed), loop
+  arrows red, failed link dashed with a red ×, no fading; messages ink
+  boxes, a poisoned one amber and dashed, a lost one grey and dashed
+  (still "faded"); changed-table ring and changed table cells on the
+  highlighter; the selected router has a thick ink outline (was the
+  accent), the link editor is between two rules (was a tinted box). Cost
+  chart routers in ink and muted, told apart by dash and name. Network
+  text is at least 17px rendered: the drawing's margins grow with the
+  labels, so at 390 the network itself draws smaller. Colour words
+  changed: "blue arrow" and "thick blue arrow" to purple, "a blue
+  outline" to "a thick outline".
+
 ## Next
 
 Only known gaps remain; all six tools are built.

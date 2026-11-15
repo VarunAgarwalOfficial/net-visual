@@ -107,7 +107,7 @@ test("the routing graph export marks loops and failed links", () => {
   const svg = graphSvg(graph)
   assert.ok(svg.includes("∞ &amp; 50%"))
   assert.ok(!svg.includes("var(--"))
-  assert.ok(svg.includes("#b42318"))
+  assert.ok(svg.includes("#9b3f36"))
 })
 
 test("the routing graph TikZ export compiles with pdflatex", { skip: !hasLatex && "pdflatex is not installed" }, () => {

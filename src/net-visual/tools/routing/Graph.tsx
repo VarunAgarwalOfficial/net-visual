@@ -69,7 +69,26 @@ export function Graph({
   // On a narrow screen the drawing shrinks, so routers, labels and messages grow in drawing units to stay legible.
   const [box, width] = useWidth<HTMLDivElement>()
   const k = Math.min(2.3, Math.max(1, 760 / width))
-  const r = R * k
+  // The drawing's scale on screen (it is capped in height), and the drawing units that give 17px text at that scale.
+  // The margins grow with the labels, which changes the scale, so this settles in a few rounds.
+  const vh = typeof window === "undefined" ? 800 : window.innerHeight
+  let padX = 24
+  let padY = 36
+  let min = 17
+  for (let round = 0; round < 4; round++) {
+    const scale = Math.min(width || W + 2 * padX, Math.min(0.55 * vh, 416) * ((W + 2 * padX) / (H + 2 * padY))) / (W + 2 * padX)
+    min = 17 / Math.max(scale, 0.1)
+    const f = Math.max(12 * k, min)
+    const rr = Math.max(R * k, Math.max(16 * k, min) * 0.95)
+    padY = Math.max(36, rr + (14 + 18) * (f / 12) + 0.35 * f + 4)
+    padX = Math.max(24, 2.7 * f - rr)
+  }
+  const fCost = Math.max(14 * k, min)
+  const fMsg = Math.max(11 * k, min)
+  const fName = Math.max(16 * k, min)
+  const fLabel = Math.max(12 * k, min)
+  const lk = fLabel / 12
+  const r = Math.max(R * k, fName * 0.95)
   const P = fig.pos.map(px)
   const dTree: { from: number; to: number }[] = dijkstra
     ? dijkstra.p.flatMap((u, v) => (u >= 0 && v !== dijkstra.source ? [{ from: u, to: v }] : []))
@@ -77,7 +96,7 @@ export function Graph({
   return (
     <div ref={box}>
       <svg
-        viewBox={`-24 -36 ${W + 48} ${H + 72}`}
+        viewBox={`${-padX} ${-padY} ${W + 2 * padX} ${H + 2 * padY}`}
         className="max-h-[min(55vh,26rem)] w-full touch-manipulation font-sans select-none"
         role="group"
         aria-label="The network: routers, links and their costs"
@@ -93,7 +112,7 @@ export function Graph({
               markerWidth="5"
               markerHeight="5"
               orient="auto-start-reverse"
-              className={k === "loop" ? "fill-destructive" : k === "tree" ? "fill-chart-1" : "fill-foreground"}
+              className={k === "loop" ? "fill-bad" : k === "tree" ? "fill-busy" : "fill-foreground"}
             >
               <path d="M0,0 L10,5 L0,10 z" />
             </marker>
@@ -121,7 +140,7 @@ export function Graph({
                 y1={s.y1}
                 x2={s.x2}
                 y2={s.y2}
-                className={cn(on ? "stroke-link" : "stroke-muted-foreground", l.cost === null && "opacity-60")}
+                className={on ? "stroke-foreground" : "stroke-muted-foreground"}
                 strokeWidth={on ? 3.5 : inTree ? 3 : 1.5}
                 strokeDasharray={l.cost === null ? "6 5" : undefined}
               />
@@ -139,7 +158,7 @@ export function Graph({
                 y1={s.y1}
                 x2={s.x2}
                 y2={s.y2}
-                className={t.loop ? "stroke-destructive" : "stroke-chart-1"}
+                className={t.loop ? "stroke-bad" : "stroke-busy"}
                 strokeWidth={3}
                 markerEnd={`url(#${marker}-${t.loop ? "loop" : "tree"})`}
                 pointerEvents="none"
@@ -175,11 +194,8 @@ export function Graph({
               y={(ay + by) / 2}
               dy="0.35em"
               textAnchor="middle"
-              fontSize={14 * k}
-              className={cn(
-                "pointer-events-none stroke-background tabular-nums lining",
-                l.cost === null ? "fill-destructive" : "fill-foreground",
-              )}
+              fontSize={fCost}
+              className={cn("pointer-events-none stroke-background tabular-nums lining", l.cost === null ? "fill-bad" : "fill-foreground")}
               strokeWidth={5}
               paintOrder="stroke"
             >
@@ -189,24 +205,30 @@ export function Graph({
         })}
 
         {messages.map((m) => {
-          const s = segment(P[m.from], P[m.to], r + 2, -9 * k)
+          const s = segment(P[m.from], P[m.to], r + 2, -0.75 * fMsg)
           // Drawn over the middle of the link, so that a vector just sent or about to arrive clears the routers and their labels.
           const f = 0.2 + 0.6 * (m.lost ? Math.min(m.frac, 0.5) : m.frac)
           const x = s.x1 + (s.x2 - s.x1) * f
           const y = s.y1 + (s.y2 - s.y1) * f
           return (
-            <g key={`m${m.id}`} transform={`translate(${x} ${y})`} pointerEvents="none" className={cn(m.lost && "opacity-50")}>
+            <g key={`m${m.id}`} transform={`translate(${x} ${y})`} pointerEvents="none">
               <rect
-                x={-Math.max(15, 3.4 * m.label.length + 5) * k}
-                y={-9 * k}
-                width={2 * Math.max(15, 3.4 * m.label.length + 5) * k}
-                height={18 * k}
+                x={-Math.max(0.9, 0.31 * m.label.length + 0.45) * fMsg}
+                y={-0.7 * fMsg}
+                width={2 * Math.max(0.9, 0.31 * m.label.length + 0.45) * fMsg}
+                height={1.4 * fMsg}
                 rx={4}
-                className={cn("fill-background", m.poisoned ? "stroke-chart-4" : "stroke-chart-2")}
-                strokeWidth={2}
-                strokeDasharray={m.poisoned ? "4 2" : undefined}
+                className={cn("fill-background", m.lost ? "stroke-muted-foreground" : m.poisoned ? "stroke-again" : "stroke-foreground")}
+                strokeWidth={m.poisoned ? 2 : 1.25}
+                strokeDasharray={m.poisoned || m.lost ? "4 2" : undefined}
               />
-              <text dy="0.35em" textAnchor="middle" fontSize={11 * k} className="fill-foreground tabular-nums lining" fontWeight={600}>
+              <text
+                dy="0.35em"
+                textAnchor="middle"
+                fontSize={fMsg}
+                className={cn(m.lost ? "fill-muted-foreground" : "fill-foreground", "tabular-nums lining")}
+                fontWeight={600}
+              >
                 {m.lost ? "×" : m.label}
               </text>
             </g>
@@ -235,25 +257,25 @@ export function Graph({
             >
               {/* The destination's word sits a little right of centre and further out, clear of the arrows coming in. */}
               {(changed.has(i) || actor === i) && !dijkstra && (
-                <circle cx={x} cy={y} r={r + 7 * k} className={changed.has(i) ? "fill-chart-4/35" : "fill-muted"} />
+                <circle cx={x} cy={y} r={r + 7 * k} className={changed.has(i) ? "fill-mark" : "fill-muted"} />
               )}
-              {dijkstra && dijkstra.added === i && <circle cx={x} cy={y} r={r + 7 * k} className="fill-chart-4/35" />}
+              {dijkstra && dijkstra.added === i && <circle cx={x} cy={y} r={r + 7 * k} className="fill-mark" />}
               <circle
                 cx={x}
                 cy={y}
                 r={r}
-                className={cn(inN ? "fill-foreground" : "fill-background", selected === i ? "stroke-link" : "stroke-foreground")}
-                strokeWidth={selected === i ? 3.5 : isDest && !dijkstra ? 3 : 1.5}
+                className={cn(inN ? "fill-foreground" : "fill-background", "stroke-foreground")}
+                strokeWidth={selected === i ? 4.5 : isDest && !dijkstra ? 3 : 1.5}
               />
               {isDest && !dijkstra && <circle cx={x} cy={y} r={r - 4 * k} className="fill-none stroke-foreground" strokeWidth={1} />}
-              <text x={x} y={y} dy="0.35em" textAnchor="middle" fontSize={16 * k} className={inN ? "fill-background" : "fill-foreground"}>
+              <text x={x} y={y} dy="0.35em" textAnchor="middle" fontSize={fName} className={inN ? "fill-background" : "fill-foreground"}>
                 {name}
               </text>
               <text
-                x={isDest && !dijkstra ? x + Math.max(0, Math.min(12 * k, W + 20 - x - 28 * k)) : x}
-                y={labelY(fig, i, y, r, k) + (isDest && !dijkstra ? (labelY(fig, i, y, r, k) > y ? 12 : -12) * k : 0)}
+                x={isDest && !dijkstra ? x + Math.max(0, Math.min(12 * lk, W + padX - 4 - x - 2.7 * fLabel)) : x}
+                y={labelY(fig, i, y, r, lk) + (isDest && !dijkstra ? (labelY(fig, i, y, r, lk) > y ? 18 : -18) * lk : 0)}
                 textAnchor="middle"
-                fontSize={12 * k}
+                fontSize={fLabel}
                 className="fill-muted-foreground stroke-background tabular-nums lining"
                 strokeWidth={4}
                 paintOrder="stroke"

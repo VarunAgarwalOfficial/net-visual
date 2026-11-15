@@ -75,7 +75,7 @@ export const VectorMatrix = memo(function VectorMatrix({
                         onClick={() => onPick(x, y)}
                         className={cn(
                           "block w-full min-w-11 rounded-xs px-1.5 py-1 text-center",
-                          changed.has(`${x}-${y}`) && "bg-chart-4/30",
+                          changed.has(`${x}-${y}`) && "bg-mark",
                           picked && x === router && y === dest && "ring-2 ring-link",
                           off && "text-destructive",
                         )}
@@ -288,7 +288,7 @@ export function DijkstraTable({
             {steps.slice(0, k + 1).map((st, j) => {
               const inN = new Set(steps.slice(0, j + 1).map((x) => x.added))
               return (
-                <tr key={j} className={cn("border-t border-border", j === k && "bg-chart-4/20")}>
+                <tr key={j} className={cn("border-t border-border", j === k && "bg-mark")}>
                   <td className="px-1.5 py-1">{j}</td>
                   <td className="px-1.5 py-1 whitespace-nowrap">
                     {steps
@@ -349,7 +349,7 @@ export function LinkEditor({
   const label = `${name(p, a)} to ${name(p, b)}`
   const script = (c: number | null) => set({ ...p, changes: [...p.changes, { at_us: at, a, b, cost: c }] })
   return (
-    <div className="space-y-2 rounded-sm border border-link/50 p-3 font-sans text-sm">
+    <div className="space-y-2 border-y border-border py-3 font-sans text-sm">
       <div className="flex items-center justify-between gap-2">
         <p>
           The link from <b>{label}</b>: {costNow === null ? "failed now" : `cost ${costNow} now`}
