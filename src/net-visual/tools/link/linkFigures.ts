@@ -38,7 +38,7 @@ const text = (x: number, y: number, s: string, o: Partial<Extract<Shape, { kind:
   x,
   y,
   text: s,
-  size: 10,
+  size: 11.5,
   anchor: "start",
   fill: "muted",
   ...o,
@@ -122,7 +122,7 @@ export function alohaFigure(p: AlohaParams, run: AlohaRun, t: number, w: number)
       opacity: lost ? 0.75 : done ? 0.9 : 0.5,
       stroke: lost ? "alarm" : station(f.station),
     })
-    if (wd > 28 && rowH >= 14) shapes.push(text(x + 4, y + rowH / 2 + 1.5, `#${f.id}`, { fill: "ink", size: 9.5 }))
+    if (wd > 28 && rowH >= 14) shapes.push(text(x + 4, y + rowH / 2 + 1.5, `#${f.id}`, { fill: "ink", size: 11 }))
     // The receiver's view: everything on one channel, overlaps in red.
     shapes.push({ kind: "rect", x, y: chanY, w: wd, h: chanH, fill: lost ? "alarm" : station(f.station), opacity: lost ? 0.45 : 0.85 })
   }
@@ -131,7 +131,7 @@ export function alohaFigure(p: AlohaParams, run: AlohaRun, t: number, w: number)
 
   const every = (right - left) / (span / F) < 34 ? 2 : 1
   for (let k = Math.ceil(t0 / F); k * F <= t1; k++)
-    if (k % every === 0) shapes.push(text(X(k * F), h - 4, fmtTime(k * F, "aloha"), { anchor: "middle", size: 9.5 }))
+    if (k % every === 0) shapes.push(text(X(k * F), h - 4, fmtTime(k * F, "aloha"), { anchor: "middle", size: 11 }))
   if (t >= t0 && t <= t1) shapes.push({ kind: "line", x1: X(t), y1: top - 2, x2: X(t), y2: chanY + chanH + 2, stroke: "ink", width: 1.5 })
 
   return { w, h, shapes, caption: "", onAir, delivered, garbled }
@@ -151,13 +151,23 @@ export interface CdFigure extends ShapeFigure {
 export function cdFigure(p: CdParams, run: CdRun, t: number, w: number): CdFigure {
   const L = Math.max(1, ...p.stations.map((s) => s.pos_m))
   const tau = run.stats.tau_ns
-  const span = Math.max(40_000, run.stats.frame_ns + 6 * tau)
-  const [t0, t1] = windowAt(t, span, p.duration_ns)
+  // Five one-way delays fit a collision, its jam and the backoff that follows; long frames scroll past.
+  const base = Math.max(40_000, 5 * tau)
+  // Keep the latest transmission in view through an idle gap, such as a
+  // backoff, by stretching the window (up to four times) rather than letting it scroll away.
+  const last = run.txs.reduce((m, tx) => (tx.start_ns <= t ? Math.max(m, tx.start_ns) : m), -Infinity)
+  let [t0, t1] = windowAt(t, base, p.duration_ns)
+  if (last > -Infinity && last < t0 + 0.05 * base && t - last < 3.5 * base) {
+    t0 = Math.max(0, last - 0.1 * base)
+    t1 = t0 + Math.max(base, (t - t0) / 0.75)
+  }
+  const span = t1 - t0
   const tEnd = Math.min(t, t1)
   const left = 58
   const right = w - 18
   const top = 34
-  const H = w < 520 ? 300 : 330
+  const narrow = w < 520
+  const H = narrow ? 300 : 330
   const h = top + H + 22
   const X = (m: number) => left + (m / L) * (right - left)
   const Y = (ns: number) => top + ((ns - t0) / span) * H
@@ -167,17 +177,17 @@ export function cdFigure(p: CdParams, run: CdRun, t: number, w: number): CdFigur
   for (const v of ticks(t0 / 1000, t1 / 1000, 6)) {
     const y = Y(v * 1000)
     shapes.push({ kind: "line", x1: left - 4, y1: y, x2: right, y2: y, stroke: "muted", width: 0.3 })
-    shapes.push(text(left - 6, y + 3.5, `${v} µs`, { anchor: "end", size: 9.5 }))
+    shapes.push(text(left - 6, y + 3.5, `${v} µs`, { anchor: "end", size: 11 }))
   }
-  shapes.push(text(4, top - 8, "time ↓", { size: 10 }))
+  shapes.push(text(4, top - 8, "time ↓", { size: 11.5 }))
   p.stations.forEach((s, i) => {
     const x = X(s.pos_m)
     shapes.push({ kind: "line", x1: x, y1: top, x2: x, y2: top + H, stroke: "muted", width: 0.8, dashed: true })
     shapes.push({ kind: "circle", cx: x, cy: top - 14, r: 4, fill: station(i) })
     shapes.push(text(x + 7, top - 10, s.name, { fill: "ink", size: 11, bold: true }))
   })
-  shapes.push(text(left, h - 4, "0 m", { size: 9.5 }))
-  shapes.push(text(right, h - 4, `${L} m along the cable`, { anchor: "end", size: 9.5 }))
+  shapes.push(text(left, h - 4, "0 m", { size: 11 }))
+  shapes.push(text(right, h - 4, `${L} m along the cable`, { anchor: "end", size: 11 }))
 
   const band = (xi: number, s: number, e: number): [number, number][] => {
     const pts: [number, number][] = [
@@ -226,7 +236,7 @@ export function cdFigure(p: CdParams, run: CdRun, t: number, w: number): CdFigur
     shapes.push({ kind: "line", x1: bx, y1: ya, x2: bx, y2: yb, stroke: "ink", width: 1 })
     shapes.push({ kind: "line", x1: bx - 3, y1: ya, x2: bx + 3, y2: ya, stroke: "ink", width: 1 })
     shapes.push({ kind: "line", x1: bx - 3, y1: yb, x2: bx + 3, y2: yb, stroke: "ink", width: 1 })
-    shapes.push(text(bx + dx / 2, (ya + yb) / 2, `2τ = ${fmtTime(2 * tau, "csmacd")}`, { anchor, fill: "ink", size: 10 }))
+    shapes.push(text(bx + dx / 2, yb - 4, `2τ = ${fmtTime(2 * tau, "csmacd")}`, { anchor, fill: "ink", size: 11.5 }))
   }
   for (const tx of run.txs) {
     if (tx.start_ns > tEnd || tx.end_ns < t0) continue
@@ -237,14 +247,30 @@ export function cdFigure(p: CdParams, run: CdRun, t: number, w: number): CdFigur
       shapes.push({ kind: "line", x1: x - 5, y1: y - 5, x2: x + 5, y2: y + 5, stroke: "alarm", width: 2 })
       shapes.push({ kind: "line", x1: x - 5, y1: y + 5, x2: x + 5, y2: y - 5, stroke: "alarm", width: 2 })
       shapes.push(
-        text(x + dx, y + 3.5, `hears it after ${fmtTime(tx.detect_ns - tx.start_ns, "csmacd")}; jams`, { anchor, fill: "alarm", size: 10 }),
+        text(
+          x + dx,
+          y + 16,
+          `${narrow ? "heard after" : "hears it after"} ${fmtTime(tx.detect_ns - tx.start_ns, "csmacd")}${narrow ? "" : "; jams"}`,
+          {
+            anchor,
+            fill: "alarm",
+            size: 11.5,
+          },
+        ),
       )
     }
     if (tx.end_ns <= tEnd && tx.end_ns >= t0) {
       const y = Y(tx.end_ns) + 12
-      if (tx.outcome === "delivered") shapes.push(text(x + dx, y, "✓ delivered", { anchor, fill: "ink", size: 10 }))
+      if (tx.outcome === "delivered") shapes.push(text(x + dx, y, "✓ delivered", { anchor, fill: "ink", size: 11.5 }))
       if (tx.outcome === "undetected")
-        shapes.push(text(x + dx, y, "finished before the collision reached it", { anchor, fill: "alarm", size: 10, bold: true }))
+        shapes.push(
+          text(x + dx, y, narrow ? "ended before the collision came" : "finished before the collision reached it", {
+            anchor,
+            fill: "alarm",
+            size: 11.5,
+            bold: true,
+          }),
+        )
     }
   }
   for (const b of run.backoffs) {
@@ -252,11 +278,18 @@ export function cdFigure(p: CdParams, run: CdRun, t: number, w: number): CdFigur
     const x = X(p.stations[b.station].pos_m)
     const { dx, anchor } = side(x)
     shapes.push(
-      text(x + dx, Y(b.t_ns) + 16, `K = ${b.k} from 0…${b.max}: wait ${fmtTime(b.k * run.stats.slot_ns, "csmacd")}`, {
-        anchor,
-        fill: "ink",
-        size: 10,
-      }),
+      text(
+        x + dx,
+        Y(b.t_ns) + 16,
+        narrow
+          ? `K = ${b.k} (0…${b.max}): ${fmtTime(b.k * run.stats.slot_ns, "csmacd")}`
+          : `K = ${b.k} from 0…${b.max}: wait ${fmtTime(b.k * run.stats.slot_ns, "csmacd")}`,
+        {
+          anchor,
+          fill: "ink",
+          size: 11.5,
+        },
+      ),
     )
   }
   if (t >= t0 && t <= t1) shapes.push({ kind: "line", x1: left - 4, y1: Y(t), x2: right, y2: Y(t), stroke: "ink", width: 1.5 })
@@ -280,28 +313,35 @@ export function caFigure(p: CaParams, run: CaRun, t: number, w: number): CaFigur
   const r = p.range_m
   const xs = p.nodes.map((v) => v.x_m)
   const ys = p.nodes.map((v) => v.y_m)
-  const [minX, maxX] = [Math.min(...xs) - r, Math.max(...xs) + r]
-  const [minY, maxY] = [Math.min(...ys) - r, Math.max(...ys) + r]
-  const mapH = w < 520 ? 150 : 170
+  // Room for most of each range circle; the rest is clipped to the map's band.
+  const pad = 0.6 * r
+  const [minX, maxX] = [Math.min(...xs) - pad, Math.max(...xs) + pad]
+  const [minY, maxY] = [Math.min(...ys) - pad, Math.max(...ys) + pad]
+  const mapH = w < 520 ? 190 : 230
   const s = Math.min((w - 16) / (maxX - minX), (mapH - 8) / (maxY - minY))
   const ox = (w - s * (maxX - minX)) / 2
+  const oy = (mapH - s * (maxY - minY)) / 2
   const MX = (m: number) => ox + (m - minX) * s
-  const MY = (m: number) => 4 + (m - minY) * s
+  const MY = (m: number) => oy + (m - minY) * s
   const now = caAt(run, t)
   const back = backoffsAt(run, n, t)
   const senders = new Set(p.flows.map((f) => f.from))
 
-  for (const a of now.onAir)
+  for (const a of now.onAir) {
+    const [cx, cy] = [MX(p.nodes[a.from].x_m), MY(p.nodes[a.from].y_m)]
+    const ring = Array.from({ length: 72 }, (_, k): [number, number] => [
+      cx + r * s * Math.cos((k * Math.PI) / 36),
+      cy + r * s * Math.sin((k * Math.PI) / 36),
+    ])
     shapes.push({
-      kind: "circle",
-      cx: MX(p.nodes[a.from].x_m),
-      cy: MY(p.nodes[a.from].y_m),
-      r: r * s,
+      kind: "poly",
+      points: clipY(ring, 0, mapH),
       fill: station(a.from),
       opacity: 0.1,
       stroke: station(a.from),
       dashed: true,
     })
+  }
   for (let i = 0; i < n; i++)
     for (let j = i + 1; j < n; j++)
       if (caNear(p, i, j))
@@ -329,7 +369,7 @@ export function caFigure(p: CaParams, run: CaRun, t: number, w: number): CaFigur
       width: 2.2,
       arrow: true,
     })
-    shapes.push(text((x1 + x2) / 2, (y1 + y2) / 2 - 6, KIND_LABEL[a.kind], { anchor: "middle", fill: "ink", size: 10, bold: true }))
+    shapes.push(text((x1 + x2) / 2, (y1 + y2) / 2 - 6, KIND_LABEL[a.kind], { anchor: "middle", fill: "ink", size: 11.5, bold: true }))
   }
   p.nodes.forEach((v, i) => {
     const [x, y] = [MX(v.x_m), MY(v.y_m)]
@@ -345,7 +385,7 @@ export function caFigure(p: CaParams, run: CaRun, t: number, w: number): CaFigur
       : senders.has(i) && !sending && back[i] !== null
         ? `backoff ${back[i]}`
         : ""
-    if (status) shapes.push(text(x, y + 19, status, { anchor: "middle", fill: nav ? "ink" : "muted", size: 9.5 }))
+    if (status) shapes.push(text(x, y + 19, status, { anchor: "middle", fill: nav ? "ink" : "muted", size: 11 }))
   })
 
   // The lanes: every frame on the air, coloured by sender, red once lost, and each NAV as a dashed bar.
@@ -371,7 +411,7 @@ export function caFigure(p: CaParams, run: CaRun, t: number, w: number): CaFigur
     const wd = X(Math.min(q.until_us, tEnd)) - x
     const y = top + q.node * rowH + 5
     shapes.push({ kind: "rect", x, y, w: wd, h: rowH - 10, fill: "muted", opacity: 0.18, stroke: "ink", dashed: true })
-    if (wd > 30) shapes.push(text(x + 4, y + rowH / 2 - 1.5, "NAV", { fill: "ink", size: 9 }))
+    if (wd > 30) shapes.push(text(x + 4, y + rowH / 2 - 1.5, "NAV", { fill: "ink", size: 10.5 }))
   }
   for (const a of run.airs) {
     if (a.start_us > tEnd || a.end_us < t0) continue
@@ -389,9 +429,9 @@ export function caFigure(p: CaParams, run: CaRun, t: number, w: number): CaFigur
       opacity: lost ? 0.7 : 0.55,
       stroke: lost ? "alarm" : station(a.from),
     })
-    if (wd > 26) shapes.push(text(x + 3, y + rowH / 2 + 0.5, KIND_LABEL[a.kind], { fill: "ink", size: 9 }))
+    if (wd > 26) shapes.push(text(x + 3, y + rowH / 2 + 0.5, KIND_LABEL[a.kind], { fill: "ink", size: 10.5 }))
   }
-  for (const v of ticks(t0, t1, w < 520 ? 4 : 7)) shapes.push(text(X(v), h - 4, fmtTime(v, "csmaca"), { anchor: "middle", size: 9.5 }))
+  for (const v of ticks(t0, t1, w < 520 ? 4 : 7)) shapes.push(text(X(v), h - 4, fmtTime(v, "csmaca"), { anchor: "middle", size: 11 }))
   if (t >= t0 && t <= t1) shapes.push({ kind: "line", x1: X(t), y1: top - 4, x2: X(t), y2: top + n * rowH + 2, stroke: "ink", width: 1.5 })
 
   return {

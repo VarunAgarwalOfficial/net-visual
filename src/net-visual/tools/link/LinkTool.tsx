@@ -151,10 +151,7 @@ function LinkLoaded({ sim }: { sim: Netsim }) {
   const { fig, label } = useMemo(() => figureFor(p, run, tl.t, Math.max(320, Math.round(width))), [p, run, tl.t, width])
   const chart = useMemo(() => modeChart(sim, p, run), [sim, p, run])
 
-  const trace = useMemo(
-    () => run.run.events.map((e, i) => ({ t: e.t, step: e.step, text: `${eventWho(p, run, i)}: ${eventText(p, run, i)}` })),
-    [p, run],
-  )
+  const trace = useMemo(() => run.run.events.map((e, i) => ({ t: e.t, step: e.step, text: eventText(p, run, i) })), [p, run])
   const offset = Math.max(0, Math.floor(index / SLICE) * SLICE - SLICE)
   const traceSlice = useMemo(() => trace.slice(offset, offset + 3 * SLICE), [trace, offset])
 
@@ -310,7 +307,6 @@ function LinkLoaded({ sim }: { sim: Netsim }) {
             yFormat={chart.yFormat}
             xDomain={chart.xDomain}
             yDomain={chart.yDomain}
-            log={chart.log}
             height={220}
             cursor={chart.timed ? tl.t : undefined}
             onSeek={chart.timed ? (t) => tl.seek(t) : undefined}

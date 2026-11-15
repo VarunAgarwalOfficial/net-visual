@@ -319,7 +319,7 @@ function AlohaEquations({ p, run, t }: { p: AlohaParams; run: AlohaRun; t: numbe
       </Tex>
       <Tex
         display
-      >{`S_{\\text{so far}} = \\frac{\\text{delivered}}{\\text{frame times}} = \\frac{${ok}}{${texNum(elapsed, 1)}} = ${elapsed > 0 ? n3(ok / elapsed) : "\\text{–}"}`}</Tex>
+      >{`S_{\\text{so far}} = \\frac{\\text{delivered}}{\\text{frame times}} ${elapsed > 0 ? ` = \\frac{${ok}}{${texNum(elapsed, 1)}} = ${n3(ok / elapsed)}` : ""}`}</Tex>
       <p className="font-sans text-xs text-muted-foreground">
         With {n} stations S peaks at {peak.s.toFixed(3)} when G = {peak.g.toFixed(3)}; with very many, at{" "}
         {slotted ? "1/e ≈ 0.368 when G = 1" : "1/(2e) ≈ 0.184 when G = 0.5"}. The exact form counts only the other n − 1 stations, each
@@ -352,7 +352,7 @@ function CdEquations({ p, run, t }: { p: CdParams; run: CdRun; t: number }) {
       {b && (
         <Tex
           display
-        >{`n = ${b.collisions}:\\ K \\in \\{0,\\dots,2^{\\min(n,10)}-1\\} = \\{0,\\dots,${b.max}\\},\\ K = ${b.k} \\Rightarrow ${b.k} \\times ${usT(s.slot_ns)} = ${usT(b.k * s.slot_ns)}\\ \\mu\\text{s}`}</Tex>
+        >{`\\begin{aligned} n = ${b.collisions}:\\ K &\\in \\{0,\\dots,2^{\\min(n,10)}-1\\} = \\{0,\\dots,${b.max}\\} \\\\ K = ${b.k} \\Rightarrow \\text{wait} &= ${b.k} \\times ${usT(s.slot_ns)}\\ \\mu\\text{s} = ${usT(b.k * s.slot_ns)}\\ \\mu\\text{s} \\end{aligned}`}</Tex>
       )}
       <Tex
         display
@@ -376,7 +376,7 @@ function CaEquations({ p, run, t }: { p: CaParams; run: CaRun; t: number }) {
   const sent = run.airs.filter((a) => a.kind === "data" && a.end_us <= t)
   const lost = sent.filter((a) => !a.ok).length
   const cws: number[] = []
-  for (let c = p.cw_min; cws.length < 5; c = Math.min(2 * c + 1, p.cw_max)) cws.push(c)
+  for (let c = p.cw_min; cws.length < 4; c = Math.min(2 * c + 1, p.cw_max)) cws.push(c)
   return (
     <Card title="802.11 DCF: wait for silence, count down, expect an answer">
       <Tex
@@ -389,7 +389,7 @@ function CaEquations({ p, run, t }: { p: CaParams; run: CaRun; t: number }) {
         <>
           <Tex
             display
-          >{`\\text{NAV}_{\\text{RTS}} = 3\\,\\text{SIFS} + T_{\\text{CTS}} + T_{\\text{data}} + T_{\\text{ACK}} = ${3 * p.sifs_us} + ${cts} + ${data} + ${ack} = ${f.rts}\\ \\mu\\text{s}`}</Tex>
+          >{`\\begin{aligned}\\text{NAV}_{\\text{RTS}} &= 3\\,\\text{SIFS} + T_{\\text{CTS}} + T_{\\text{data}} + T_{\\text{ACK}} \\\\ &= ${3 * p.sifs_us} + ${cts} + ${data} + ${ack} = ${f.rts}\\ \\mu\\text{s}\\end{aligned}`}</Tex>
           <Tex
             display
           >{`\\text{NAV}_{\\text{CTS}} = \\text{NAV}_{\\text{RTS}} - \\text{SIFS} - T_{\\text{CTS}} = ${f.cts}\\ \\mu\\text{s}`}</Tex>
@@ -422,7 +422,6 @@ export interface LinkChart {
   yFormat(y: number): string
   xDomain: [number, number]
   yDomain: [number, number]
-  log?: { x?: boolean }
   refs: { y: number; label: string }[]
   /** Whether the x axis is the run's clock. */
   timed: boolean
@@ -489,16 +488,22 @@ export function modeChart(sim: Netsim, p: LinkParams, r: LinkRun): LinkChart {
         label: "simulated: 10 busy stations",
         color: "var(--chart-1)",
         kind: "dots",
-        points: sw.map((x) => [x.a, x.efficiency]),
+        points: sw.map((x) => [Math.log10(x.a), x.efficiency]),
       },
-      { id: "approx", label: "1/(1 + 5a)", color: "var(--chart-2)", kind: "line", points: curve.map((f) => [tau / f, cdApprox(tau / f)]) },
+      {
+        id: "approx",
+        label: "1/(1 + 5a)",
+        color: "var(--chart-2)",
+        kind: "line",
+        points: curve.map((f) => [Math.log10(tau / f), cdApprox(tau / f)]),
+      },
       {
         id: "mb",
         label: "Metcalfe and Boggs, N = 10",
         color: "var(--chart-4)",
         kind: "line",
         dashed: true,
-        points: curve.map((f) => [tau / f, metcalfeBoggs(10, f, slot)]),
+        points: curve.map((f) => [Math.log10(tau / f), metcalfeBoggs(10, f, slot)]),
       },
     ]
     if (p.cd.stations.every((x) => x.frames === 0))
@@ -507,18 +512,18 @@ export function modeChart(sim: Netsim, p: LinkParams, r: LinkRun): LinkChart {
         label: "this run",
         color: "var(--chart-3)",
         kind: "dots",
-        points: [[r.run.stats.a, r.run.stats.efficiency]],
+        points: [[Math.log10(r.run.stats.a), r.run.stats.efficiency]],
       })
     return {
       title: "Efficiency against a = τ / frame time",
       series,
       xLabel: "a (log scale)",
       yLabel: "efficiency",
-      xFormat: (v) => String(Number(v.toPrecision(2))),
+      // The x values are log10(a), so the axis is logarithmic in a.
+      xFormat: (v) => String(Number((10 ** v).toPrecision(2))),
       yFormat: (v) => v.toFixed(1),
-      xDomain: [0.008, 0.5],
+      xDomain: [Math.log10(0.008), Math.log10(0.7)],
       yDomain: [0, 1],
-      log: { x: true },
       refs: [],
       timed: false,
     }
