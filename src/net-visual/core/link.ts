@@ -1,6 +1,35 @@
-// Types and helpers for the link-layer models (crates/netsim/src/link.rs):
-// ALOHA, CSMA/CD and 802.11 CSMA/CA. Erasable TypeScript only, so Node can
-// run it in tests.
+// Types and helpers for the link-layer models: ALOHA, CSMA/CD and 802.11
+// CSMA/CA (crates/netsim/src/link.rs), with learning switches, the spanning
+// tree, CRCs and Hamming codes from lan.ts and coding.ts. Erasable
+// TypeScript only, so Node can run it in tests.
+import {
+  GENERATORS,
+  asciiBits,
+  burst,
+  runCrc,
+  runHamming,
+  type CrcParams,
+  type CrcRun,
+  type HammingParams,
+  type HammingRun,
+} from "./coding.ts"
+import {
+  SW_AGING,
+  SW_FILTER,
+  SW_LEARN,
+  SW_STORM,
+  SW_STORM_STP,
+  STP_FAIL,
+  STP_FIVE,
+  STP_SILENT,
+  STP_TIES,
+  runStp,
+  runSwitch,
+  type StpParams,
+  type StpRun,
+  type SwitchParams,
+  type SwitchRun,
+} from "./lan.ts"
 import type { Netsim } from "./netsim.ts"
 
 // --- ALOHA ---------------------------------------------------------------
@@ -232,19 +261,48 @@ export interface CaRun {
   stats: CaStats
 }
 
-// --- One page, three models ---------------------------------------------
+// --- One page, seven models ---------------------------------------------
 
-export type Mode = "aloha" | "csmacd" | "csmaca"
+export type Mode = "aloha" | "csmacd" | "csmaca" | "switch" | "stp" | "crc" | "hamming"
 
-export const MODES: { id: Mode; title: string }[] = [
-  { id: "aloha", title: "ALOHA" },
-  { id: "csmacd", title: "CSMA/CD" },
-  { id: "csmaca", title: "CSMA/CA" },
+export const MODES: { id: Mode; title: string; group: "access" | "lan" | "errors" }[] = [
+  { id: "aloha", title: "ALOHA", group: "access" },
+  { id: "csmacd", title: "CSMA/CD", group: "access" },
+  { id: "csmaca", title: "CSMA/CA", group: "access" },
+  { id: "switch", title: "Switch learning", group: "lan" },
+  { id: "stp", title: "Spanning tree", group: "lan" },
+  { id: "crc", title: "CRC", group: "errors" },
+  { id: "hamming", title: "Hamming", group: "errors" },
 ]
 
-export type LinkParams = { mode: "aloha"; aloha: AlohaParams } | { mode: "csmacd"; cd: CdParams } | { mode: "csmaca"; ca: CaParams }
+export type LinkParams =
+  | { mode: "aloha"; aloha: AlohaParams }
+  | { mode: "csmacd"; cd: CdParams }
+  | { mode: "csmaca"; ca: CaParams }
+  | { mode: "switch"; sw: SwitchParams }
+  | { mode: "stp"; stp: StpParams }
+  | { mode: "crc"; crc: CrcParams }
+  | { mode: "hamming"; ham: HammingParams }
 
-export type LinkRun = { mode: "aloha"; run: AlohaRun } | { mode: "csmacd"; run: CdRun } | { mode: "csmaca"; run: CaRun }
+export type LinkRun =
+  | { mode: "aloha"; run: AlohaRun }
+  | { mode: "csmacd"; run: CdRun }
+  | { mode: "csmaca"; run: CaRun }
+  | { mode: "switch"; run: SwitchRun }
+  | { mode: "stp"; run: StpRun }
+  | { mode: "crc"; run: CrcRun }
+  | { mode: "hamming"; run: HammingRun }
+
+/** The Rust file behind each mode, by the name the wasm module's source op knows it by. */
+export const SOURCE: Record<Mode, { tool: string; file: string }> = {
+  aloha: { tool: "link", file: "link.rs" },
+  csmacd: { tool: "link", file: "link.rs" },
+  csmaca: { tool: "link", file: "link.rs" },
+  switch: { tool: "lan", file: "lan.rs" },
+  stp: { tool: "stp", file: "stp.rs" },
+  crc: { tool: "coding", file: "coding.rs" },
+  hamming: { tool: "coding", file: "coding.rs" },
+}
 
 export const runAloha = (sim: Netsim, p: AlohaParams) => sim.call<AlohaRun>("link", "aloha", p)
 export const sweepAloha = (sim: Netsim, base: AlohaParams, gs: number[]) => sim.call<AlohaPoint[]>("link", "aloha_sweep", { base, gs })
@@ -261,11 +319,22 @@ export function runLink(sim: Netsim, p: LinkParams): LinkRun {
       return { mode: "csmacd", run: runCd(sim, p.cd) }
     case "csmaca":
       return { mode: "csmaca", run: runCa(sim, p.ca) }
+    case "switch":
+      return { mode: "switch", run: runSwitch(sim, p.sw) }
+    case "stp":
+      return { mode: "stp", run: runStp(sim, p.stp) }
+    case "crc":
+      return { mode: "crc", run: runCrc(sim, p.crc) }
+    case "hamming":
+      return { mode: "hamming", run: runHamming(sim, p.ham) }
   }
 }
 
-/** The run's length, in the model's own unit (µs for ALOHA and CSMA/CA, ns for CSMA/CD). */
-export function linkDuration(p: LinkParams): number {
+/**
+ * The run's length, in the model's own unit: µs for ALOHA, CSMA/CA and
+ * switches, ns for CSMA/CD, ms for the spanning tree, and steps for the codes.
+ */
+export function linkDuration(p: LinkParams, r: LinkRun): number {
   switch (p.mode) {
     case "aloha":
       return p.aloha.length * p.aloha.frame_us
@@ -273,6 +342,13 @@ export function linkDuration(p: LinkParams): number {
       return p.cd.duration_ns
     case "csmaca":
       return p.ca.duration_us
+    case "switch":
+      return Math.max(1, ...r.run.events.map((e) => e.t))
+    case "stp":
+      return p.stp.until_ms
+    case "crc":
+    case "hamming":
+      return Math.max(1, r.run.events.length - 1)
   }
 }
 
@@ -281,9 +357,10 @@ export function eventTimes(r: LinkRun): number[] {
   return r.run.events.map((e) => e.t)
 }
 
-/** Formats a time in the model's unit: CSMA/CD counts nanoseconds, the others microseconds. */
+/** Formats a time in the model's unit: nanoseconds for CSMA/CD, milliseconds for STP, steps for the codes, microseconds otherwise. */
 export function fmtTime(t: number, mode: Mode): string {
-  const u = mode === "csmacd" ? t / 1000 : t
+  if (mode === "crc" || mode === "hamming") return `step ${Math.round(t) + 1}`
+  const u = mode === "csmacd" ? t / 1000 : mode === "stp" ? t * 1000 : t
   if (!Number.isFinite(u)) return "∞"
   const a = Math.abs(u)
   if (a >= 1e6) return `${Number((u / 1e6).toPrecision(4))} s`
@@ -527,6 +604,15 @@ export interface Preset {
 const aloha = (p: Partial<AlohaParams>): LinkParams => ({ mode: "aloha", aloha: { ...ALOHA_BASE, ...p } })
 const cd = (p: CdParams): LinkParams => ({ mode: "csmacd", cd: p })
 const ca = (p: CaParams): LinkParams => ({ mode: "csmaca", ca: p })
+const swl = (p: SwitchParams): LinkParams => ({ mode: "switch", sw: p })
+const stp = (p: StpParams): LinkParams => ({ mode: "stp", stp: p })
+const crc = (p: Partial<CrcParams>): LinkParams => ({ mode: "crc", crc: { ...CRC_BASE, ...p } })
+const ham = (p: Partial<HammingParams>): LinkParams => ({ mode: "hamming", ham: { ...HAM_BASE, ...p } })
+
+const gen = (id: string) => GENERATORS.find((g) => g.id === id)!.bits
+
+export const CRC_BASE: CrcParams = { message: "1101011011", generator: gen("x4"), flips: [], text: "123456789" }
+export const HAM_BASE: HammingParams = { r: 3, secded: false, data: "1011", flips: [] }
 
 export const PRESETS: Preset[] = [
   {
@@ -625,6 +711,142 @@ export const PRESETS: Preset[] = [
     note: "A sends two frames to B with RTS/CTS. D hears only A; C hears only B. Each frame carries a duration field: how much longer the exchange will hold the medium. D sets its NAV from A's RTS, C from B's CTS, and both NAVs end exactly as the ACK does, although neither can hear the whole exchange.",
     params: ca(CA_NAV),
   },
+  {
+    id: "learn",
+    mode: "switch",
+    title: "Two switches learn where four hosts are",
+    source: "IEEE 802.1D-2004, Clauses 7.7 and 7.8; Perlman, Interconnections, Chapter 3",
+    note: "Both tables start empty. A sends to C: S1 learns A on port 2 and, not knowing C, floods; S2 learns A behind its port 1 and floods too, so B and D see a frame that is not theirs. C's reply is forwarded, not flooded, because both switches now know A, and it teaches them where C is. Each entry is refreshed whenever its host sends and dropped 1 ms after it last did, so by the end both tables are empty again. A's last frame, to D, is flooded: nobody has heard from D yet.",
+    params: swl(SW_LEARN),
+  },
+  {
+    id: "filter",
+    mode: "switch",
+    title: "Filtering: the destination is on the arrival port",
+    source: "IEEE 802.1D-2004, Clause 7.7.1; Kurose and Ross, Section 6.4.3",
+    note: "A and B share one switch port through a hub, which repeats every frame out of all its other ports. Once S has heard from both, a frame from A to B reaches S on port 1, and S's table puts B on port 1 as well: B already has the frame from the hub, so S discards it. A frame sent back on its arrival port would only reach the same segment twice.",
+    params: swl(SW_FILTER),
+  },
+  {
+    id: "aging",
+    mode: "switch",
+    title: "Entries age out and flooding returns",
+    source: "IEEE 802.1D-2004, Clause 7.9.2 (Ageing Time, default 300 s)",
+    note: "The learning scenario with an ageing time of 250 µs, scaled down from the standard's default of five minutes so that it fits on screen. C's reply at 100 µs is forwarded. Its second reply, at 600 µs, finds every table empty and is flooded again, so B and D see it. Ageing is what lets a host move: without it a switch would keep sending to the port the host has left.",
+    params: swl(SW_AGING),
+  },
+  {
+    id: "storm",
+    mode: "switch",
+    title: "A broadcast storm in a loop",
+    source: "Perlman 1985; IEEE 802.1D-2004, Clause 7.3",
+    note: "Four switches, each joined to every other, with no spanning tree. A broadcasts one frame. Every switch floods it out of every port except the one it came in on, so each copy that arrives makes two more, and Ethernet frames have no hop count to stop them. The run stops itself at 600 link transmissions, after 80 µs of one frame. A sees its own frame come back again and again, and the switches' tables jump between ports as A's address arrives from every side.",
+    params: swl(SW_STORM),
+  },
+  {
+    id: "storm-stp",
+    mode: "switch",
+    title: "The same loops with the spanning tree",
+    source: "IEEE 802.1D-2004, Clause 17; Perlman 1985",
+    note: "The same switches with the ports the spanning tree blocks: the switch with the lowest ID, S1, is the root and three ports are blocked, leaving a tree. The broadcast reaches B, C and D once each: 13 link transmissions in all, including copies sent towards a blocked port, which drops them. C's reply to A then travels only along the tree. The tree comes from the direct computation of the spanning-tree page; the protocol that finds it is the next mode.",
+    params: swl(SW_STORM_STP),
+  },
+  {
+    id: "stp-converge",
+    mode: "stp",
+    title: "Five bridges agree on a tree",
+    source: "Perlman 1985; IEEE 802.1D-1998, Clause 8; IEEE 802.1D-2004, Clause 17",
+    note: "Every bridge starts by believing it is the root and sends that claim on every port. A bridge that hears a better claim, a lower root ID or the same root more cheaply, adopts it, adds the port's cost and passes it on. Within 60 ms every bridge agrees that B1 is the root and the roles are final, but every port must sit 15 s in listening and 15 s in learning before it forwards, so the tree carries traffic only at 30 s. Port costs are 802.1D-1998's: 4 for 1 Gb/s, 2 for 10 Gb/s, 19 for 100 Mb/s.",
+    params: stp(STP_FIVE),
+  },
+  {
+    id: "stp-fail",
+    mode: "stp",
+    title: "A link fails and both ends notice",
+    source: "IEEE 802.1D-1998, Clauses 8.5 and 8.6",
+    note: "At 40 s the link between B2 and B3, B3's root port, is cut, and both bridges see the carrier drop. B3 discards what it learned on that port and takes its next best path, through B4 at cost 12. Its old alternate port must still pass through listening and learning, so the LAN is cut off from B3 for 30 s.",
+    params: stp(STP_FAIL),
+  },
+  {
+    id: "stp-silent",
+    mode: "stp",
+    title: "The same failure, unnoticed",
+    source: "IEEE 802.1D-1998, Clause 8.6.1 (message age timer)",
+    note: "The same cut, but B3 keeps its carrier, as it might behind a media converter. B3 hears nothing and keeps the information it stored until its message age reaches Max Age: 20 s less the 2 s it was already old on arrival, counted from the last hello. Only then does it look for another path and start listening, so recovery takes about 46 s.",
+    params: stp(STP_SILENT),
+  },
+  {
+    id: "stp-ties",
+    mode: "stp",
+    title: "Tie-breaks: bridge ID, then port ID",
+    source: "IEEE 802.1D-2004, Clause 17.6 (priority vector comparison)",
+    note: "R is the root because its priority, 4096, beats the default 32768, although its MAC address is the highest. Z's paths through X and through Y both cost 8, so Z prefers the sender with the lower bridge ID: Y, 32768.0020. Y reaches Z over two links, and between those Z prefers the one on which Y sends from its lower port. Z's port to X and its second port to Y are blocked.",
+    params: stp(STP_TIES),
+  },
+  {
+    id: "crc-division",
+    mode: "crc",
+    title: "A CRC by long division",
+    source: "Peterson and Brown 1961; Tanenbaum and Wetherall, Section 3.2.2",
+    note: "The message 1101011011 with generator x⁴ + x + 1 (10011). Append four zeros, one per power of the generator, and divide in GF(2), where subtraction is exclusive or: at each step where the leading bit is 1, exclusive-or the generator in beneath it. The remainder, 1110, replaces the zeros. The receiver divides the whole codeword by the same generator and gets zero.",
+    params: crc({}),
+  },
+  {
+    id: "crc-missed",
+    mode: "crc",
+    title: "An error the CRC cannot see",
+    source: "Peterson and Brown 1961; Koopman and Chakravarty 2004",
+    note: "The same codeword with bits 3, 6 and 7 flipped. Counting x¹³ at the left, the error polynomial is E(x) = x¹⁰ + x⁷ + x⁶ = x⁶ G(x): a multiple of the generator. The receiver divides T(x) + E(x) by G(x), the T part leaves no remainder by construction and neither does E, so the codeword is accepted. Every undetected error is a multiple of G; a good generator makes the likely errors not multiples.",
+    params: crc({ flips: [3, 6, 7] }),
+  },
+  {
+    id: "crc-burst",
+    mode: "crc",
+    title: "A burst no longer than r is always caught",
+    source: "Peterson and Brown 1961, Theorem 4",
+    note: "Four adjacent bits flipped. A burst of length b is x^i B(x) with B of degree b − 1 and a constant term. G(x) has a constant term too, so it shares no factor with x^i, and it cannot divide B(x), whose degree is lower than G's. So every burst of length r or less leaves a remainder. The Properties tab counts every burst for this generator.",
+    params: crc({ flips: burst(5, 4) }),
+  },
+  {
+    id: "crc-8",
+    mode: "crc",
+    title: 'CRC-8 of "123456789"',
+    source: "Williams 1993; ITU-T I.432.1",
+    note: "The nine ASCII characters 123456789, 72 bits, divided by x⁸ + x² + x + 1. This CRC starts from zero and is neither reflected nor complemented, so plain long division gives the published check value 0xF4 directly. CRC-32 starts its register at all ones, reflects each byte and complements the result; the table beneath lists all three standard CRCs of the same text.",
+    params: crc({ message: asciiBits("123456789"), generator: gen("crc8") }),
+  },
+  {
+    id: "hamming-74",
+    mode: "hamming",
+    title: "Hamming (7,4) corrects one flipped bit",
+    source: "Hamming 1950; MacKay, Information Theory, Inference, and Learning Algorithms, Section 1.2",
+    note: "Parity bits sit at positions 1, 2 and 4; the data at 3, 5, 6 and 7. Parity bit p checks every position whose number, written in binary, has p's bit set, and makes their sum even. Bit 5 is flipped in transit. The checks that now fail are 1 and 4, and 1 + 4 = 5: the syndrome is the binary number of the flipped position.",
+    params: ham({ flips: [5] }),
+  },
+  {
+    id: "hamming-double",
+    mode: "hamming",
+    title: "Two errors: the syndrome points at an innocent bit",
+    source: "Hamming 1950",
+    note: "Bits 3 and 5 flipped. The syndrome is 3 ⊕ 5 = 6, a position that was received correctly. The decoder cannot tell two errors from one and flips bit 6 as well, so three data bits come out wrong and nothing warns the receiver. Minimum distance 3 can correct one error or detect two, not both.",
+    params: ham({ flips: [3, 5] }),
+  },
+  {
+    id: "secded",
+    mode: "hamming",
+    title: "SECDED: one more parity bit tells one error from two",
+    source: "Hamming 1950; Hsiao 1970",
+    note: "The (8,4) extended code adds bit 0, the parity of all seven others. The same two flips give syndrome 6, but the overall parity is even, which one error could not cause, so the decoder reports the block instead of miscorrecting it. Minimum distance 4: correct one error and detect two. ECC memory uses codes of this kind, such as (72,64).",
+    params: ham({ secded: true, flips: [3, 5] }),
+  },
+  {
+    id: "hamming-15",
+    mode: "hamming",
+    title: "Hamming (15,11)",
+    source: "Hamming 1950",
+    note: "Four parity bits at 1, 2, 4 and 8 protect eleven data bits, so overhead falls from 3/7 to 4/15. The syndrome still names the flipped position, here 11 = 8 + 2 + 1. The price: one error in 15 bits is corrected, against one in 7.",
+    params: ham({ r: 4, data: "10110011101", flips: [11] }),
+  },
 ]
 
 export interface TourStep {
@@ -679,6 +901,46 @@ export const TOUR: TourStep[] = [
     preset: "ca-exposed",
     at: 3_000,
     text: "Exposed terminals: C defers to B although C's receiver, D, cannot hear B at all. The fix for hidden terminals, listen harder, makes this worse.",
+  },
+  {
+    preset: "learn",
+    at: 20,
+    text: "A learning switch: S1 has learned A's port from the frame's source address, but does not know C, so it floods. The tables beside the figure fill as frames pass; nobody configured them.",
+  },
+  {
+    preset: "learn",
+    at: 120,
+    text: "C's reply is forwarded on one port only, because both switches learned A from its first frame. B and D never see it.",
+  },
+  {
+    preset: "storm",
+    at: 60,
+    text: "Four switches in a loop, no spanning tree, one broadcast. Every copy that arrives is flooded again, and nothing in an Ethernet frame counts hops. The transmissions chart climbs until the run's cap stops it.",
+  },
+  {
+    preset: "storm-stp",
+    at: 30,
+    text: "The same switches with three ports blocked by the spanning tree. The broadcast reaches every host exactly once.",
+  },
+  {
+    preset: "stp-converge",
+    at: 40,
+    text: "Spanning tree: each bridge advertises the best root it knows and its cost to reach it. Claims that lose are dropped, and in a few hops every bridge agrees on B1, the lowest bridge ID.",
+  },
+  {
+    preset: "stp-converge",
+    at: 20_000,
+    text: "The roles were settled within 60 ms, but each port must wait two forward delays, listening and then learning, before it forwards. Blocked ports, marked with a bar, stay that way while the root's hellos keep arriving.",
+  },
+  {
+    preset: "crc-division",
+    at: 3,
+    text: "A CRC is the remainder of polynomial division over GF(2): subtraction is exclusive or, so there are no borrows. Wherever the leading bit is 1, the generator is xored in beneath it.",
+  },
+  {
+    preset: "hamming-74",
+    at: 8,
+    text: "Hamming (7,4): each parity check covers the positions whose binary number contains its bit. The failed checks spell out the position of the flipped bit.",
   },
 ]
 
@@ -777,6 +1039,91 @@ export const LABS: LabTask[] = [
       return {
         ok: true,
         message: `Delivered ${fl.map((f) => f.delivered).join(" and ")} frames. With B and C out of each other's range both send at once, and neither receiver hears the other sender, so nothing collides.`,
+      }
+    },
+  },
+  {
+    id: "stop-the-storm",
+    difficulty: 1,
+    title: "Stop the storm",
+    task: "One broadcast from A melts this LAN. Without touching the hosts or their links, make the broadcast reach B, C and D exactly once each.",
+    hint: "A frame loops because there is more than one path between some pair of switches. How many inter-switch links can a LAN of four switches keep without a loop? Or let a protocol choose for you.",
+    start: swl(SW_STORM),
+    check(p, run) {
+      if (p.mode !== "switch" || run.mode !== "switch") return { ok: false, message: "Stay with the switches." }
+      const hosts = (s: SwitchParams) => s.links.filter((k) => s.nodes[k.a].kind === "host" || s.nodes[k.b].kind === "host")
+      const keep = (s: SwitchParams) => ({ ...s, links: hosts(s), stp: false })
+      if (!same(keep(p.sw), keep(SW_STORM)))
+        return {
+          ok: false,
+          message: "Keep the hosts, their links and the frame; change only the links between switches, or turn on the spanning tree.",
+        }
+      if (run.run.capped) return { ok: false, message: `Still a storm: ${run.run.sent} transmissions and counting.` }
+      const got = run.run.delivered[0]
+      if (got !== 3)
+        return { ok: false, message: `The broadcast was delivered ${got} times; it should reach each of the three other hosts once.` }
+      return {
+        ok: true,
+        message: `${run.run.sent} transmissions, one copy for each host. ${p.sw.stp ? "The spanning tree blocked " + run.run.blocked.length + " ports." : "You removed links by hand: the LAN now has no redundancy, and one more cable failure partitions it."} The spanning tree keeps the spare links and turns one on when another fails.`,
+      }
+    },
+  },
+  {
+    id: "choose-the-root",
+    difficulty: 2,
+    title: "Choose the root",
+    task: "Five bridges elect B1, the lowest MAC address, as root. Changing only priorities, make B4 the root.",
+    hint: "The bridge ID compares priority first and MAC address second. Priorities are multiples of 4096 in 802.1D-2004; the default is 32768.",
+    start: stp(STP_FIVE),
+    check(p, run) {
+      if (p.mode !== "stp" || run.mode !== "stp") return { ok: false, message: "Stay with the spanning tree." }
+      const keep = (s: StpParams) => ({ ...s, bridges: s.bridges.map((b) => ({ ...b, id: b.id % 65536 })) })
+      if (!same(keep(p.stp), keep(STP_FIVE))) return { ok: false, message: "Change only bridge priorities." }
+      if (run.run.direct.root !== 3) return { ok: false, message: `${p.stp.bridges[run.run.direct.root].name} is still the root.` }
+      const agree = run.run.end.every((v) => v.root === p.stp.bridges[3].id)
+      if (!agree) return { ok: false, message: "B4 should be root, but not every bridge agrees by the end of the run." }
+      const changed = p.stp.bridges.filter((b, i) => b.id !== STP_FIVE.bridges[i].id).length
+      return {
+        ok: true,
+        message: `B4 is root, and every other bridge's root port now leads towards it. You changed ${changed} ${changed === 1 ? "priority" : "priorities"}. Administrators set the root by hand like this so that it sits at the core of the LAN, not wherever the oldest MAC address happens to be.`,
+      }
+    },
+  },
+  {
+    id: "fool-the-crc",
+    difficulty: 2,
+    title: "Find an error the CRC misses",
+    task: "With the generator 10011, flip some bits of the codeword (click them) so that the receiver accepts it.",
+    hint: "The receiver checks whether the received polynomial is divisible by G(x). The codeword already is, so the error polynomial E(x) must be too. What is the simplest multiple of G?",
+    start: crc({}),
+    check(p, run) {
+      if (p.mode !== "crc" || run.mode !== "crc") return { ok: false, message: "Stay with the CRC." }
+      if (!same({ ...p.crc, flips: [] }, CRC_BASE)) return { ok: false, message: "Keep the message and generator; only flip bits." }
+      if (p.crc.flips.length === 0) return { ok: false, message: "Flip at least one bit." }
+      if (run.run.detected) return { ok: false, message: `Remainder ${run.run.syndrome}: caught. Try a different pattern.` }
+      return {
+        ok: true,
+        message: `Accepted with ${p.crc.flips.length} bits wrong: the error ${run.run.error} is a multiple of 10011. Of the 16,383 non-zero error patterns on these 14 bits, 1,023 are multiples of G, about one in 16. A generator is chosen so that the likely ones, single bits and short bursts, are not among them.`,
+      }
+    },
+  },
+  {
+    id: "fool-secded",
+    difficulty: 3,
+    title: "Fool SECDED",
+    task: "The (8,4) code corrects one error and detects two. Flip bits so that the decoder reports a clean block but hands over the wrong data.",
+    hint: "The decoder accepts any word that is a codeword. Flipping the bits of a non-zero codeword turns one codeword into another. What is the least weight a non-zero codeword of the extended code can have?",
+    start: ham({ secded: true }),
+    check(p, run) {
+      if (p.mode !== "hamming" || run.mode !== "hamming") return { ok: false, message: "Stay with Hamming codes." }
+      if (!same({ ...p.ham, flips: [] }, { ...HAM_BASE, secded: true }))
+        return { ok: false, message: "Keep the (8,4) code and data; only flip bits." }
+      const r = run.run
+      if (r.data_ok) return { ok: false, message: `Verdict ${r.verdict}, and the data came through right.` }
+      if (r.verdict !== "clean") return { ok: false, message: `The data is wrong, but the decoder noticed: verdict ${r.verdict}.` }
+      return {
+        ok: true,
+        message: `Flipping positions ${p.ham.flips.join(", ")} adds a codeword of weight ${p.ham.flips.length}: syndrome 0, overall parity even, and the decoder sees nothing wrong. No non-zero codeword weighs less than 4, the minimum distance, which is why SECDED promises nothing about four errors.`,
       }
     },
   },

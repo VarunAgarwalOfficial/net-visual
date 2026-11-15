@@ -24,7 +24,9 @@ import {
   alohaPeak,
   bebMax,
   cdApprox,
+  SOURCE,
   eventTimes,
+  fmtTime,
   linkDuration,
   minFrameBytes,
   navFields,
@@ -36,6 +38,8 @@ import {
   tauNs,
   type LinkParams,
 } from "../src/net-visual/core/link.ts"
+import { asciiBits, blockOdds, polyText } from "../src/net-visual/core/coding.ts"
+import { bid, bridgeId, lanPorts, recoveryMs, type SwitchParams } from "../src/net-visual/core/lan.ts"
 import { createNetsim } from "../src/net-visual/core/netsim.ts"
 
 const sim = await createNetsim(await readFile(new URL("../src/net-visual/core/netsim.wasm", import.meta.url)))
@@ -49,7 +53,7 @@ test("every scenario runs, has a known mode and a unique id", () => {
     // An ALOHA frame begun before the end may finish up to a frame later.
     const slack = pr.params.mode === "aloha" ? pr.params.aloha.frame_us : 0
     assert.ok(
-      eventTimes(r).every((t) => t <= linkDuration(pr.params) + slack),
+      eventTimes(r).every((t) => t <= linkDuration(pr.params, r) + slack),
       pr.id,
     )
   }
@@ -164,7 +168,7 @@ test("tour steps point at real scenarios and moments inside them", () => {
   for (const step of TOUR) {
     const pr = PRESETS.find((p) => p.id === step.preset)
     assert.ok(pr, step.preset)
-    assert.ok(step.at > 0 && step.at <= linkDuration(pr.params), step.preset)
+    assert.ok(step.at > 0 && step.at <= linkDuration(pr.params, runLink(sim, pr.params)), step.preset)
   }
 })
 
@@ -201,4 +205,237 @@ test("no lab is solved by its starting point, and each has a solution", () => {
   })
   const r = solve("unexpose", spread)
   assert.ok(r.ok, r.message)
+
+  // The storm: turn on the spanning tree, or cut the ring down to a path.
+  const sw = (f: (s: SwitchParams) => SwitchParams) => (p: LinkParams) => (p.mode === "switch" ? { ...p, sw: f(p.sw) } : p)
+  assert.ok(
+    solve(
+      "stop-the-storm",
+      sw((s) => ({ ...s, stp: true })),
+    ).ok,
+  )
+  const path = solve(
+    "stop-the-storm",
+    sw((s) => ({ ...s, links: s.links.filter((_, i) => i !== 3 && i !== 4 && i !== 5) })),
+  )
+  assert.ok(path.ok, path.message)
+  assert.equal(
+    solve(
+      "stop-the-storm",
+      sw((s) => ({ ...s, links: s.links.filter((_, i) => i !== 4) })),
+    ).ok,
+    false,
+  )
+  assert.equal(
+    solve(
+      "stop-the-storm",
+      sw((s) => ({ ...s, stp: true, links: s.links.slice(0, 9) })),
+    ).ok,
+    false,
+  )
+
+  const prio = (i: number, pr: number) => (p: LinkParams) =>
+    p.mode === "stp"
+      ? { ...p, stp: { ...p.stp, bridges: p.stp.bridges.map((b, j) => (j === i ? { ...b, id: bid(pr, b.id % 65536) } : b)) } }
+      : p
+  assert.ok(solve("choose-the-root", prio(3, 4096)).ok)
+  assert.equal(solve("choose-the-root", prio(2, 4096)).ok, false)
+  assert.equal(solve("choose-the-root", (p) => (p.mode === "stp" ? { ...p, stp: { ...p.stp, hello_ms: 1000 } } : p)).ok, false)
+
+  const flips = (f: number[]) => (p: LinkParams) =>
+    p.mode === "crc" ? { ...p, crc: { ...p.crc, flips: f } } : p.mode === "hamming" ? { ...p, ham: { ...p.ham, flips: f } } : p
+  assert.ok(solve("fool-the-crc", flips([3, 6, 7])).ok)
+  assert.ok(solve("fool-the-crc", flips([9, 12, 13])).ok)
+  assert.equal(solve("fool-the-crc", flips([2, 3])).ok, false)
+
+  assert.ok(solve("fool-secded", flips([0, 1, 2, 3])).ok)
+  assert.equal(solve("fool-secded", flips([1, 2])).ok, false, "two errors are detected")
+  assert.equal(solve("fool-secded", flips([1, 2, 3])).ok, false, "three errors give a wrong correction, not a clean verdict")
+})
+
+const preset = (id: string) => {
+  const pr = PRESETS.find((p) => p.id === id)!
+  return { p: pr.params, r: runLink(sim, pr.params) }
+}
+
+test("switch scenarios flood, forward, filter and age as their notes say", () => {
+  const learn = preset("learn")
+  assert.ok(learn.r.mode === "switch" && learn.p.mode === "switch")
+  const ev = learn.r.run.events
+  const s1 = (f: number) => ev.find((e) => e.node === 0 && e.frame === f && ["flood", "forward", "filter"].includes(e.what))!
+  // A to C: S1 knows nobody yet and floods on every port but A's.
+  assert.equal(s1(0).what, "flood")
+  assert.deepEqual(s1(0).out, [1, 3])
+  // C to A: forwarded only on the port A was learned on.
+  assert.equal(s1(1).what, "forward")
+  assert.deepEqual(s1(1).out, [2])
+  // A to D: nobody has heard from D.
+  assert.equal(s1(3).what, "flood")
+  assert.deepEqual(learn.r.run.delivered, [1, 1, 1, 1])
+
+  const filter = preset("filter")
+  assert.ok(filter.r.mode === "switch")
+  const f = filter.r.run.events.find((e) => e.frame === 1 && e.node === 0 && e.what !== "learn")!
+  assert.equal(f.what, "filter")
+
+  const aging = preset("aging")
+  assert.ok(aging.r.mode === "switch")
+  const replies = aging.r.run.events.filter((e) => e.node === 1 && (e.what === "forward" || e.what === "flood"))
+  assert.deepEqual(
+    replies.map((e) => [e.frame, e.what]),
+    [
+      [0, "flood"],
+      [1, "forward"],
+      [2, "flood"],
+    ],
+  )
+  assert.ok(aging.r.run.events.some((e) => e.what === "age" && e.t < 600))
+})
+
+test("a loop without the spanning tree storms; with it each host hears the broadcast once", () => {
+  const storm = preset("storm")
+  const tree = preset("storm-stp")
+  assert.ok(storm.r.mode === "switch" && tree.r.mode === "switch")
+  assert.equal(storm.r.run.capped, true)
+  // Sends grow: each hop roughly doubles the copies in flight.
+  const by = (t: number) => storm.r.run.events.filter((e) => e.t <= t).at(-1)!.sent
+  assert.ok(by(20) < by(40) && by(40) < by(60) && by(60) < by(80))
+  assert.ok(by(60) - by(40) > by(40) - by(20), "the storm accelerates")
+  assert.ok(storm.r.run.delivered[0] > 3)
+  assert.equal(tree.r.run.capped, false)
+  assert.deepEqual(tree.r.run.delivered, [3, 1])
+  assert.equal(tree.r.run.blocked.length, 3)
+  assert.equal(tree.r.run.sent, 13)
+})
+
+test("spanning-tree scenarios converge to the directly computed tree", () => {
+  for (const id of ["stp-converge", "stp-fail", "stp-silent", "stp-ties"]) {
+    const { p, r } = preset(id)
+    assert.ok(p.mode === "stp" && r.mode === "stp")
+    const d = r.run.direct
+    // A silent failure leaves both ends of the dead link up: each hears nothing and calls itself designated.
+    const silent = p.stp.failure && !p.stp.failure.detected
+    r.run.end.forEach((v, i) => {
+      assert.equal(v.root, p.stp.bridges[d.root].id, `${id} ${i}`)
+      assert.equal(v.root_port, d.root_port[i], `${id} ${i}`)
+      assert.deepEqual(
+        v.ports.map((x) => x.role),
+        d.roles[i].map((role) => (silent && role === "disabled" ? "designated" : role)),
+        `${id} ${i}`,
+      )
+      for (const x of v.ports)
+        assert.equal(
+          x.state,
+          x.role === "disabled" ? "disabled" : x.role === "alternate" ? "blocking" : "forwarding",
+          `${id} ${i} ${x.port}`,
+        )
+    })
+    // One designated port per working link, and the forwarding links form a spanning tree.
+    const up = p.stp.links.map((_, k) => !(p.stp.failure && p.stp.failure.link === k))
+    const ports = lanPorts(p.stp.bridges.length, p.stp.links)
+    const designated = p.stp.links.map(() => 0)
+    const forwarding = p.stp.links.map(() => 0)
+    d.roles.forEach((rs, i) =>
+      rs.forEach((role, k) => {
+        if (role === "designated") designated[ports[i][k].link]++
+        if (role === "designated" || role === "root") forwarding[ports[i][k].link]++
+      }),
+    )
+    up.forEach((u, k) => assert.equal(designated[k], u ? 1 : 0, `${id} link ${k}`))
+    const tree = forwarding.map((n, k) => (n === 2 ? k : -1)).filter((k) => k >= 0)
+    assert.equal(tree.length, p.stp.bridges.length - 1, id)
+    const seen = new Set([d.root])
+    for (let grow = true; grow;) {
+      grow = false
+      for (const k of tree) {
+        const { a, b } = p.stp.links[k]
+        if (seen.has(a) !== seen.has(b)) {
+          seen.add(a)
+          seen.add(b)
+          grow = true
+        }
+      }
+    }
+    assert.equal(seen.size, p.stp.bridges.length, `${id}: the tree reaches every bridge`)
+  }
+  const five = preset("stp-converge").r
+  assert.ok(five.mode === "stp")
+  assert.equal(five.run.phases[0].settled_ms, 30_000)
+  assert.ok(five.run.phases[0].roles_ms <= 60)
+  const ties = preset("stp-ties").r
+  assert.ok(ties.mode === "stp")
+  assert.equal(ties.run.direct.root, 0)
+  assert.equal(ties.run.direct.root_port[3], 2, "Z prefers Y's lower port")
+})
+
+test("a sensed failure recovers in two forward delays, a silent one after Max Age as well", () => {
+  for (const [id, lo, hi] of [
+    ["stp-fail", 30_000, 30_100],
+    ["stp-silent", 44_000, 50_000],
+  ] as const) {
+    const { p, r } = preset(id)
+    assert.ok(p.mode === "stp" && r.mode === "stp")
+    const ph = r.run.phases[1]
+    const took = ph.settled_ms - ph.from_ms
+    assert.ok(took >= lo && took <= hi, `${id} took ${took}`)
+    assert.ok(took <= recoveryMs(p.stp, p.stp.failure!.detected) + 100, id)
+  }
+})
+
+test("CRC scenarios: the textbook remainder, a missed error, a caught burst, the check values", () => {
+  const div = preset("crc-division").r
+  assert.ok(div.mode === "crc")
+  assert.equal(div.run.remainder, "1110")
+  assert.equal(div.run.codeword, "11010110111110")
+  assert.equal(div.run.detected, false)
+  const missed = preset("crc-missed").r
+  assert.ok(missed.mode === "crc")
+  assert.notEqual(missed.run.received, missed.run.codeword)
+  assert.equal(missed.run.detected, false)
+  const b = preset("crc-burst").r
+  assert.ok(b.mode === "crc")
+  assert.equal(b.run.detected, true)
+  // Every burst up to r is caught; a burst of r + 1 slips through with odds 2^-(r-1), longer ones 2^-r.
+  const bs = b.run.props.bursts
+  for (const s of bs.filter((s) => s.len <= 4)) assert.equal(s.undetected, 0)
+  assert.equal(bs.find((s) => s.len === 5)!.undetected / bs.find((s) => s.len === 5)!.patterns, 1 / 8)
+  assert.equal(bs.find((s) => s.len === 6)!.undetected / bs.find((s) => s.len === 6)!.patterns, 1 / 16)
+  const c8 = preset("crc-8").r
+  assert.ok(c8.mode === "crc")
+  assert.equal(parseInt(c8.run.remainder, 2), 0xf4)
+  assert.deepEqual(
+    c8.run.standard.map((s) => s.value),
+    [0xf4, 0x29b1, 0xcbf43926],
+  )
+  assert.equal(c8.run.props.plus_one, true)
+  assert.equal(asciiBits("1"), "00110001")
+  assert.equal(polyText("10011"), "x⁴ + x + 1")
+})
+
+test("Hamming scenarios: corrected, miscorrected, detected", () => {
+  const verdict = (id: string) => {
+    const r = preset(id).r
+    assert.ok(r.mode === "hamming")
+    return [r.run.verdict, r.run.syndrome, r.run.data_ok, r.run.min_distance]
+  }
+  assert.deepEqual(verdict("hamming-74"), ["corrected", 5, true, 3])
+  assert.deepEqual(verdict("hamming-double"), ["corrected", 6, false, 3])
+  assert.deepEqual(verdict("secded"), ["detected", 6, false, 4])
+  assert.deepEqual(verdict("hamming-15"), ["corrected", 11, true, 3])
+  const h = preset("hamming-74").r
+  assert.ok(h.mode === "hamming")
+  // The block-error estimate: uncoded is 1 - (1 - q)^4; coded is O(q^2).
+  const q = 0.01
+  const odds = blockOdds(h.run, false, q)
+  assert.ok(Math.abs(odds.uncoded - (1 - 0.99 ** 4)) < 1e-12)
+  assert.ok(odds.wrong < odds.uncoded / 10)
+  assert.ok(odds.wrong > 20 * q * q * 0.9, "C(7,2) q² patterns are miscorrected")
+})
+
+test("time and duration helpers speak each mode's unit", () => {
+  assert.equal(fmtTime(2500, "stp"), "2.5 s")
+  assert.equal(fmtTime(3, "crc"), "step 4")
+  assert.equal(fmtTime(40, "switch"), "40 µs")
+  assert.equal(SOURCE.stp.tool, "stp")
+  assert.equal(bridgeId(bid(32768, 0x0a1)), "32768.00a1")
 })

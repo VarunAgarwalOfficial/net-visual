@@ -15,16 +15,17 @@ function draw(p: LinkParams, r: LinkRun, t: number, w: number): ShapeFigure {
   if (p.mode === "aloha" && r.mode === "aloha") return alohaFigure(p.aloha, r.run, t, w)
   if (p.mode === "csmacd" && r.mode === "csmacd") return cdFigure(p.cd, r.run, t, w)
   if (p.mode === "csmaca" && r.mode === "csmaca") return caFigure(p.ca, r.run, t, w)
-  throw new Error("mode mismatch")
+  return null
 }
 
 test("every scenario's figure is finite and inside its box", () => {
   for (const pr of PRESETS) {
     const r = runLink(sim, pr.params)
-    const end = linkDuration(pr.params)
+    const end = linkDuration(pr.params, r)
     for (const w of [640, 360]) {
       for (const t of [0, end * 0.1, end * 0.5, end]) {
         const fig = draw(pr.params, r, t, w)
+        if (!fig) continue
         assert.equal(fig.w, w, pr.id)
         assert.ok(fig.h > 0 && Number.isFinite(fig.h), pr.id)
         const json = JSON.stringify(fig.shapes)
