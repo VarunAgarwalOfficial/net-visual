@@ -2,6 +2,7 @@
 // clients and queries in; messages, cache entries and resolutions out. The
 // page "Naming and the web" uses it for its naming modes. Erasable TypeScript
 // only, so Node can run it in tests.
+import type { HttpMode } from "./http.ts"
 import type { Netsim } from "./netsim.ts"
 
 export type RType = "A" | "NS" | "CNAME"
@@ -154,13 +155,17 @@ export const sweepHits = (sim: Netsim, base: DnsParams, rates: number[], per_poi
 
 // --- The page's modes ----------------------------------------------------
 
-/** The page's modes. HTTP modes join this list later, in their own group. */
+/** The naming modes; the HTTP modes are in core/http.ts. */
 export type WebMode = "resolve" | "cache" | "ttl"
 
-export const MODES: { id: WebMode; title: string; group: "naming" }[] = [
+/** Every mode on the page, naming first, then HTTP. */
+export const MODES: { id: WebMode | HttpMode; title: string; group: "naming" | "http" }[] = [
   { id: "resolve", title: "Resolution", group: "naming" },
   { id: "cache", title: "Shared cache", group: "naming" },
   { id: "ttl", title: "TTLs and change", group: "naming" },
+  { id: "connections", title: "HTTP connections", group: "http" },
+  { id: "hol", title: "Head-of-line blocking", group: "http" },
+  { id: "handshake", title: "Handshakes and loss", group: "http" },
 ]
 
 export interface WebParams {

@@ -53,7 +53,7 @@ export const TOOLS: ToolInfo[] = [
     id: "web",
     title: "Naming and the web",
     summary:
-      "DNS lookups on a message ladder, iterative against a recursive chain, with caches and TTLs counting down, negative caching, the shared-cache hit ratio and stale answers after a change.",
+      "DNS lookups on a message ladder, with caches, TTLs, negative caching and stale answers; then page loads over HTTP/1.0, 1.1, 2 and 3, with handshakes, parallel connections, pipelining and head-of-line blocking in the application and the transport.",
     layers: ["intuition", "mechanics", "analysis", "frontier", "internals"],
     Component: lazy(() => import("./web/WebTool").then((m) => ({ default: m.WebTool }))),
   },
