@@ -237,7 +237,7 @@
   Head-of-line blocking, QUIC and HTTP-3, and a web section in the
   subject index.
 
-## Rework: self-explanatory, low stimulation (in progress)
+## Rework: self-explanatory, low stimulation (done)
 
 Brief: one column read top to bottom; the tool's name and one plain
 sentence; Play first; a card saying what just happened and why; live
@@ -307,7 +307,17 @@ disclosures, TourAndSharing, "Read about it".
 - The dev server must not run through /tmp/unsw-reorg/build: that wrapper
   holds a machine-wide lock for as long as the command runs. Start it with
   plain `nice npx vite --port 5391 --strictPort`.
-- [ ] impeccable detect on changed files; final captures.
+- [x] impeccable detect on the changed .tsx and .css files: one advisory,
+  the grid-line background of the optional blueprint theme (host.css,
+  older than this rework, left as is because the palette stays). Final
+  captures of all six tools on the committed code: no overflow, nothing
+  wider than 390 px, no truncation on the first screen, nothing side by
+  side at 1440, Play first focusable, no animation at load. Lint, tsc and
+  tests (Rust 84 + 3, Node 62) pass.
+- Known gaps left: the queue path figure is small at 390 px; in spanning
+  tree mode the dashed "acted last" box marks the first event's bridge at
+  load; HTTP ladder labels take two or three lines at 390 px; the DNS
+  ladder is tall and empty at load ("No lookup yet").
 
 Checks: `/tmp/nv-work/check.js` (overflow, truncation, side-by-side,
 first focusable, animations) and `/tmp/nv-work/capture.sh <tool>` write
