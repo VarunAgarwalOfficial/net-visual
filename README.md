@@ -109,3 +109,7 @@ the CM Web fonts and the `.dark` class).
    Share links use the URL hash (`#rdt?s=...`), so they work on any route.
 4. Rebuild the module after changing the Rust with `npm run wasm` here, then
    copy `netsim.wasm` again.
+
+## Licence
+
+MIT. See [LICENSE](LICENSE).
