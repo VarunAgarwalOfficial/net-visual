@@ -159,7 +159,6 @@ function DnsPanel({
   const switchedIn = useRef(!!startPreset)
   useEffect(() => {
     if (switchedIn.current) focusRoot()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const apply = (next: WebParams, id = "") => {
     setParams(next)

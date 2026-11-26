@@ -129,7 +129,6 @@ export function HttpPanel({
   const switchedIn = useRef(!!startPreset)
   useEffect(() => {
     if (switchedIn.current) focusRoot()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const apply = (next: HttpWeb, id = "") => {
     if (next.mode !== params.mode) setView(DEFAULT_VIEW[next.mode])
