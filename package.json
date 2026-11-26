@@ -11,7 +11,7 @@
     "preview": "vite preview",
     "lint": "eslint . && prettier --check \"src/**/*.{ts,tsx,css}\" && cargo clippy --all-targets -- -D warnings && cargo fmt --check",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\" && cargo fmt",
-    "test": "cargo test --release && node --test --test-concurrency=2 tests/"
+    "test": "cargo test --release && node --test --test-concurrency=2 \"tests/*.test.ts\""
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

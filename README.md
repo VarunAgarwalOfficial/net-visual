@@ -60,7 +60,7 @@ puts the tool full screen and larger, without the article.
 - `src/app` is a small stand-alone host, used for development and browser
   checks.
 
-## Run
+## Run it
 
 Requires Rust with the `wasm32-unknown-unknown` target, `wasm-opt` (Binaryen)
 and Node 22 or later.
@@ -109,6 +109,10 @@ the CM Web fonts and the `.dark` class).
    Share links use the URL hash (`#rdt?s=...`), so they work on any route.
 4. Rebuild the module after changing the Rust with `npm run wasm` here, then
    copy `netsim.wasm` again.
+
+## Status
+
+Working, as of 26 November 2026. See [STATUS.md](STATUS.md).
 
 ## Licence
 

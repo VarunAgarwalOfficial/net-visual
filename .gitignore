@@ -5,3 +5,21 @@ dist/
 .env
 *.tsbuildinfo
 PEDAGOGY.md
+
+# Shared template
+.DS_Store
+.idea/
+.vscode/
+*.swp
+.env.*
+!.env.example
+.lake/
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
+*.aux
+*.fdb_latexmk
+*.fls
+*.synctex.gz
