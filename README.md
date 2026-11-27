@@ -4,7 +4,7 @@
 
 Six explorable network simulations for teaching, from reliable data transfer to HTTP/3, tested against textbook formulas. Rust/WebAssembly and React.
 
-[MIT licence](LICENSE)
+[Live demo](https://varunagarwalofficial.github.io/net-visual/) · [MIT licence](LICENSE)
 
 Each tool runs a real,
 deterministic model written in Rust and compiled to WebAssembly, and draws it
