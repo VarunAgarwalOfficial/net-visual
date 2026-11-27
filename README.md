@@ -1,4 +1,4 @@
-<p align="center"><img src="docs/banner.png" alt="Pixel art: bees carry packets between two sunflowers in a field" width="100%"></p>
+<p align="center"><img src="docs/banner.png" alt="Pixel art: envelopes travel along the links of a small network of computers" width="100%"></p>
 
 # Networking visualisers
 
