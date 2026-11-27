@@ -1,6 +1,12 @@
-# net-visual
+<p align="center"><img src="docs/banner.png" alt="Pixel art: bees carry packets between two sunflowers in a field" width="100%"></p>
 
-Explorable simulations for teaching computer networks. Each tool runs a real,
+# Networking visualisers
+
+Six explorable network simulations for teaching, from reliable data transfer to HTTP/3, tested against textbook formulas. Rust/WebAssembly and React.
+
+[MIT licence](LICENSE)
+
+Each tool runs a real,
 deterministic model written in Rust and compiled to WebAssembly, and draws it
 with React. You can stop time, step backwards, drop or delay one packet, change
 the protocol's rules, and compare the measured result with the formula that
