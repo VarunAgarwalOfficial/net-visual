@@ -6,6 +6,22 @@ with React. You can stop time, step backwards, drop or delay one packet, change
 the protocol's rules, and compare the measured result with the formula that
 predicts it. Every state, including your edits, fits in a shareable link.
 
+![The reliable data transfer tool: a Go-Back-N run drawn as a sequence diagram](docs/screenshot.png)
+
+## Results
+
+- **Six tools**, from reliable data transfer up to DNS and HTTP, each built on a seeded
+  simulation that gives the same run for the same seed.
+- **86 model tests** check the simulations against the formulas and figures students are taught.
+  Stop-and-wait utilisation lands within 4% of its closed form, TCP utilisation within 0.02 of the
+  sawtooth formula, and slotted ALOHA on G e^(-G).
+- Distance vector agrees with Dijkstra on 40 random networks with failures. The textbook
+  count-to-infinity example counts up, and poisoned reverse stops it.
+- One lost packet stalls every HTTP/2 stream but only one HTTP/3 stream, as the theory says.
+
+**Stack:** Rust compiled to WebAssembly through a plain C interface (no wasm-bindgen), React and
+TypeScript, Vite, KaTeX for the maths.
+
 ## The idea
 
 Most protocol animations play a fixed script. A student can watch one, but
@@ -30,6 +46,11 @@ Each tool aims at five layers of understanding:
 | Tool | Model | Checked against | Layers |
 | --- | --- | --- | --- |
 | Reliable data transfer | Stop-and-wait, Go-Back-N, Selective Repeat, or any mix of their four rules, on a channel that loses, delays and reorders | The stop-and-wait closed form (within 4%); the lossless window bound (within 1%); Kurose and Ross Fig. 3.16, 3.22, 3.26 and 3.27; the sequence-number condition N ≤ 2^(k−1) | all five |
+| TCP congestion control | Up to four flows through one bottleneck: Tahoe, Reno, NewReno, CUBIC, and the retransmission timer | RFC 6298 timer values; NewReno surviving the losses that stall Reno; the sawtooth utilisation formula (within 0.02); the Mathis square-root law (within 8%); the CUBIC curve; fair sharing and round-trip unfairness | all five |
+| Routing | Distance vector (triggered updates, poisoned reverse) and link state, with cost changes and failures | Kurose and Ross Fig. 5.3 and 5.7; agreement with Dijkstra on 40 random networks; count to infinity, and poisoned reverse failing on a loop of three (RFC 2453) | all five |
+| Queueing and delay | The four delays, M/M/1, M/D/1, priority, token and leaky buckets, weighted fair queueing | Little's law; Pollaczek-Khinchine; Cobham's priority formula; the Parekh-Gallager delay bound | all five |
+| Link layer and wireless | ALOHA, Ethernet CSMA/CD, Wi-Fi CSMA/CA with RTS/CTS, learning switches, spanning tree, CRC and Hamming codes | G e^(-G) and G e^(-2G); 802.3 back-off; the hidden and exposed terminals; textbook spanning-tree recovery times; catalogue CRC check values | all five |
+| Naming and the web | DNS (iterative and recursive, caching, TTLs) and HTTP/1.0, 1.1, 2 and 3 | The textbook HTTP response-time formulas; head-of-line blocking in HTTP/2 against HTTP/3; the renewal formula for the cache hit ratio | all five |
 
 The Lab tab poses tasks and checks your answer against the simulation in the
 browser. No server is involved.
