@@ -54,7 +54,7 @@ export const PAPER: Record<Ink, string> = {
   alarm: ALARM,
   surface: "#f6f5f2",
   ok: "#3d6f48",
-  busy: "#6b5592",
+  busy: "#2f6297",
   again: "#8a6417",
   mark: "#ebe1bd",
   ground: "#ecebe6",

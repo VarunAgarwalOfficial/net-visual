@@ -24,7 +24,7 @@ export const ALARM = "#9b3f36"
 /** The site's light-scheme token values, for figures that leave the page. */
 const PALETTE: Record<string, string> = {
   "var(--nv-ok)": "#3d6f48",
-  "var(--nv-busy)": "#6b5592",
+  "var(--nv-busy)": "#2f6297",
   "var(--nv-again)": "#8a6417",
   "var(--nv-bad)": ALARM,
   "var(--nv-mark)": "#ebe1bd",
