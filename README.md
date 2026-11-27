@@ -94,10 +94,14 @@ and Node 22 or later.
 
 ```sh
 npm install
-npm run wasm      # build src/net-visual/core/netsim.wasm
+npm run wasm      # rebuild src/net-visual/core/netsim.wasm after changing the Rust
 npm run dev       # http://localhost:5173
-npm run build     # wasm, type check and production bundle in dist/
+npm run build     # type check and production bundle in dist/
 ```
+
+`netsim.wasm` is committed, built with `wasm-opt -Os`. `npm run build` uses
+the committed file, so building does not change the tree. Run `npm run wasm`
+and commit the result whenever `crates/` changes.
 
 ## Test
 
