@@ -118,7 +118,7 @@ export function graphSvg(fig: GraphFigure): string {
   const out: string[] = [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${W + 40}" height="${H + 64}" viewBox="-20 -20 ${W + 40} ${H + 64}" font-family="Newsreader, Georgia, serif">`,
     `<title>${esc(fig.caption)}</title>`,
-    `<rect x="-20" y="-20" width="100%" height="100%" fill="#f6f5f2"/>`,
+    `<rect x="-20" y="-20" width="100%" height="100%" fill="#fffbf0"/>`,
     `<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/></marker></defs>`,
   ]
   for (const l of fig.links) {
@@ -139,15 +139,15 @@ export function graphSvg(fig: GraphFigure): string {
     const [bx, by] = px(fig.pos[l.b])
     const text = l.cost === null ? "×" : String(l.cost)
     out.push(
-      `<text x="${n1((ax + bx) / 2)}" y="${n1((ay + by) / 2)}" dy="0.35em" text-anchor="middle" font-size="13" fill="${l.cost === null ? ALARM : INK}" stroke="#f6f5f2" stroke-width="4" paint-order="stroke">${text}</text>`,
+      `<text x="${n1((ax + bx) / 2)}" y="${n1((ay + by) / 2)}" dy="0.35em" text-anchor="middle" font-size="13" fill="${l.cost === null ? ALARM : INK}" stroke="#fffbf0" stroke-width="4" paint-order="stroke">${text}</text>`,
     )
   }
   fig.nodes.forEach((name, i) => {
     const [x, y] = px(fig.pos[i])
     out.push(
-      `<circle cx="${n1(x)}" cy="${n1(y)}" r="${R}" fill="#f6f5f2" stroke="${INK}" stroke-width="${i === fig.dest ? 3 : 1.5}"/>`,
+      `<circle cx="${n1(x)}" cy="${n1(y)}" r="${R}" fill="#fffbf0" stroke="${INK}" stroke-width="${i === fig.dest ? 3 : 1.5}"/>`,
       `<text x="${n1(x)}" y="${n1(y)}" dy="0.35em" text-anchor="middle" font-size="15" fill="${INK}">${esc(name)}</text>`,
-      `<text x="${n1(x)}" y="${n1(labelY(fig, i, y))}" text-anchor="middle" font-size="11" fill="${MUTED}" stroke="#f6f5f2" stroke-width="4" paint-order="stroke">${esc(fig.labels[i] ?? "")}</text>`,
+      `<text x="${n1(x)}" y="${n1(labelY(fig, i, y))}" text-anchor="middle" font-size="11" fill="${MUTED}" stroke="#fffbf0" stroke-width="4" paint-order="stroke">${esc(fig.labels[i] ?? "")}</text>`,
     )
   })
   out.push(`<text x="${W / 2}" y="${H + 36}" text-anchor="middle" font-size="12" fill="${INK}">${esc(fig.caption)}</text>`, `</svg>`)

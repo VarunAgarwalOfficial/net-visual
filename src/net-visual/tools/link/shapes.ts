@@ -6,7 +6,7 @@ import { ALARM, INK, MUTED, esc, tex } from "../../components/figure.ts"
 /**
  * Colours by role. Besides ink, quieter ink and the page: the four meaning
  * colours (ok got there, busy under way, again, alarm lost or wrong), the
- * highlighter (mark: changed or current) and the code ground (a grey
+ * highlighter (mark: changed or current) and the code ground (a pale
  * band). Stations are told apart by their row, place or name, not colour.
  */
 export type Ink = "ink" | "muted" | "alarm" | "surface" | "ok" | "busy" | "again" | "mark" | "ground"
@@ -52,12 +52,12 @@ export const PAPER: Record<Ink, string> = {
   ink: INK,
   muted: MUTED,
   alarm: ALARM,
-  surface: "#f6f5f2",
+  surface: "#fffbf0",
   ok: "#3d6f48",
   busy: "#2f6297",
   again: "#8a6417",
-  mark: "#ebe1bd",
-  ground: "#ecebe6",
+  mark: "#fff0a0",
+  ground: "#fdf0d0",
 }
 
 /** Clips a polygon to the band lo ≤ y ≤ hi (Sutherland and Hodgman, one edge at a time). */
@@ -92,7 +92,7 @@ export function figSvg(fig: ShapeFigure): string {
   const out = [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${fig.w + 20}" height="${fig.h + 40}" viewBox="-10 -10 ${fig.w + 20} ${fig.h + 40}" font-family="Newsreader, Georgia, serif">`,
     `<title>${esc(fig.caption)}</title>`,
-    `<rect x="-10" y="-10" width="100%" height="100%" fill="#f6f5f2"/>`,
+    `<rect x="-10" y="-10" width="100%" height="100%" fill="#fffbf0"/>`,
     `<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="${MUTED}"/></marker></defs>`,
   ]
   for (const s of fig.shapes) {

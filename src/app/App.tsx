@@ -21,7 +21,7 @@ export function App() {
 
   return (
     <div className="mx-auto max-w-[calc(58rem+2*var(--site-gutter))] px-(--site-gutter) pb-(--site-space-8)">
-      <header className="border-b border-border py-(--site-space-2)">
+      <header className="nv-bar">
         <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
           <a href="#" className="text-sm text-foreground no-underline sm:text-lg">
             Networks you can take apart

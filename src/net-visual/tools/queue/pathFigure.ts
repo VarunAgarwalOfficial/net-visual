@@ -357,7 +357,7 @@ const PALETTE: Record<Ink, string> = {
   ink: INK,
   muted: MUTED,
   alarm: ALARM,
-  surface: "#f6f5f2",
+  surface: "#fffbf0",
   flow0: hex(FLOW_COLORS[0]),
   flow1: hex(FLOW_COLORS[1]),
   flow2: hex(FLOW_COLORS[2]),
@@ -383,7 +383,7 @@ export function pathSvg(fig: PathFigure): string {
   const out = [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${W + 20}" height="${h + 40}" viewBox="-10 ${y0 - 10} ${W + 20} ${h + 40}" font-family="Newsreader, Georgia, serif">`,
     `<title>${esc(fig.caption)}</title>`,
-    `<rect x="-10" y="${y0 - 10}" width="100%" height="100%" fill="#f6f5f2"/>`,
+    `<rect x="-10" y="${y0 - 10}" width="100%" height="100%" fill="#fffbf0"/>`,
     `<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="${MUTED}"/></marker></defs>`,
   ]
   for (const s of pathShapes(fig)) {

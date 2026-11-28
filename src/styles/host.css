@@ -1,15 +1,24 @@
 @import "tailwindcss";
 @import "katex/dist/katex.min.css";
 @import "shadcn/tailwind.css";
-/* The site's look, copied unchanged from the website (TOOLS.md, "The site's
-   look"): fonts and custom properties on :root, light with a
-   prefers-color-scheme dark block. Everything below resolves to its names. */
-@import "./tokens/c-editorial-tokens.css";
+/* The site's pixel look, copied unchanged from the website's
+   src/styles/tokens/pixel-tokens.css: fonts and custom properties on :root,
+   one light scheme. Everything below resolves to its names. */
+@import "./tokens/pixel-tokens.css";
+
+/* The pixel face for headings, as the site's /kit.css declares it. SIL OFL
+   1.1 (public/fonts/Pixelify-Sans-OFL.txt). */
+@font-face {
+  font-family: "Pixelify Sans";
+  src: url("/fonts/pixelify-sans-latin-400-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
 
 /*
- * One look, the site's "Editorial", in light and dark by the system setting
- * (Tailwind's dark: variant is the prefers-color-scheme media query). The
- * shadcn colour roles and the tools' own roles below are names for the
+ * One look, the site's pixel look: cream ground, warm brown ink, pastel
+ * grounds and sunflower frames, light only. The shadcn colour roles and the tools' own roles below are names for the
  * site's tokens, nothing more.
  *
  * Meaning in the pictures uses the site's four meaning colours, one meaning
@@ -26,7 +35,7 @@
   --font-serif: var(--site-font-body);
   --font-sans: var(--site-font-body);
   --font-mono: var(--site-font-mono);
-  --font-heading: var(--site-font-body);
+  --font-heading: var(--site-font-heading);
   --text-xs: var(--site-step--1);
   --text-xs--line-height: 1.4;
   --text-sm: var(--site-step--1);
@@ -85,19 +94,20 @@
 :root {
   --background: var(--site-color-bg);
   --foreground: var(--site-color-fg);
-  --card: var(--site-color-bg);
+  --card: var(--px-plate);
   --card-foreground: var(--site-color-fg);
-  --popover: var(--site-color-bg);
+  --popover: var(--px-plate);
   --popover-foreground: var(--site-color-fg);
-  --primary: var(--site-color-fg);
-  --primary-foreground: var(--site-color-bg);
+  /* The main button is sunflower with ink text, as on the site (ui.css). */
+  --primary: var(--px-sunflower);
+  --primary-foreground: var(--site-color-fg);
   --secondary: var(--site-color-bg);
   --secondary-foreground: var(--site-color-fg);
   /* The ground for code and table cells; also the slider's track. */
   --muted: var(--site-color-code-bg);
   --muted-foreground: var(--site-color-muted);
   /* Hover on a quiet control. */
-  --accent: var(--site-color-code-bg);
+  --accent: var(--px-butter);
   --accent-foreground: var(--site-color-fg);
   --destructive: var(--site-mean-against);
   --border: var(--site-color-rule);
@@ -135,11 +145,20 @@
     line-height: var(--site-leading-body);
     font-kerning: normal;
   }
+  /* Headings in the pixel face, as on the site. Pixelify Sans draws its
+     "fi" ligature as an "A", so no ligatures in it. */
   h1,
   h2,
   h3,
   h4 {
+    font-family: var(--site-font-heading);
     font-weight: var(--site-weight-normal);
+    font-variant-ligatures: none;
+    font-feature-settings:
+      "liga" 0,
+      "clig" 0;
+    /* The pixel face has one weight: never a smeared synthetic bold. */
+    font-synthesis-weight: none;
   }
   b,
   strong {
@@ -249,12 +268,25 @@
   font-family: var(--site-font-body);
 }
 
-/* A highlighted or hovered row sits on the highlighter or the code ground, where
-   two meaning colours fall under 4.5:1 in light: green 4.50 and amber 4.10 on
-   the highlighter, amber 4.49 on the code ground. Text in those two is set in
-   the ink there; the word itself (forwarding, the check value's tick) still says
-   what the colour said. Purple and red stay: 4.6 or more on both grounds. */
-:is(.bg-mark, .bg-muted, .hover\:bg-muted:hover) :is(.text-ok, .text-again),
-:is(.bg-mark, .bg-muted, .hover\:bg-muted:hover):is(.text-ok, .text-again) {
-  color: var(--foreground);
+/* The page frame of the stand-alone host: a sunflower bar with the kit's
+   stepped frame line and drop (the site's .pk-tool-bar in kit.css). */
+.nv-bar {
+  margin: var(--site-space-4) calc(3 * var(--px-u)) calc(3 * var(--px-u)) var(--px-u);
+  padding: var(--site-space-2) var(--site-space-4);
+  background: var(--px-sunflower);
+  box-shadow:
+    0 calc(-1 * var(--px-u)) 0 0 var(--px-frame-line),
+    0 var(--px-u) 0 0 var(--px-frame-line),
+    calc(-1 * var(--px-u)) 0 0 0 var(--px-frame-line),
+    var(--px-u) 0 0 0 var(--px-frame-line),
+    var(--px-u) calc(2 * var(--px-u)) 0 0 var(--px-frame-drop),
+    calc(2 * var(--px-u)) var(--px-u) 0 0 var(--px-frame-drop),
+    calc(2 * var(--px-u)) calc(2 * var(--px-u)) 0 0 var(--px-frame-drop);
+}
+.nv-bar :is(a, summary) {
+  font-family: var(--site-font-pixel);
+  font-variant-ligatures: none;
+  font-feature-settings:
+    "liga" 0,
+    "clig" 0;
 }
