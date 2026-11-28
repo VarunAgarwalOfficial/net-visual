@@ -254,7 +254,7 @@ export function ladderFigure(p: HttpParams, run: HttpRun, t: number, width: numb
 
   for (const q of run.packets) {
     if (q.start_ns > t) continue
-    // Data packets are purple, under way; alternate objects are drawn thin and thick.
+    // Data packets are blue, under way; alternate objects are drawn thin and thick.
     const ink: Ink = "busy"
     const wd = q.obj % 2 ? 2 : 1
     if (q.lost) {

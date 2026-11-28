@@ -119,8 +119,8 @@ export function ladderFigure(p: DnsParams, run: DnsRun, index: number, width: nu
   const H = 340
   // The line colours, under the columns, each phrase in its own colour.
   const colourKey: { text: string; fill: Ink }[] = [
-    { text: "grey: a question", fill: "muted" },
-    { text: "purple: a referral (ask this other server)", fill: KIND_INK.referral },
+    { text: "light brown: a question", fill: "muted" },
+    { text: "blue: a referral (ask this other server)", fill: KIND_INK.referral },
     { text: "green: the answer", fill: KIND_INK.answer },
     ...(run.messages.some((m) => m.kind === "cname")
       ? [{ text: "amber: an alias (CNAME), look up this other name", fill: KIND_INK.cname }]

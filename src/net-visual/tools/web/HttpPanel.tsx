@@ -56,7 +56,7 @@ const HELP: Record<View, string> = {
   streams:
     "One row per object, a file the page needs, with its size; time left to right. Upper ticks are packets as they arrive, lower ticks as they are handed to the browser; a red bar is data that has arrived but is held behind a gap, and a cross marks a lost packet. Dashed red lines mark each loss across every row.",
   ladder:
-    "The client (the browser) on the left, the server on the right, time running down. Grey lines are handshakes: SYN, SYN-ACK and ACK open a TCP (Transmission Control Protocol) connection, and ClientHello, ServerHello and Finished set up its encryption (TLS, Transport Layer Security). Dark lines are requests, and purple ones data packets, alternate objects thin and thick. Where there are several connections, [1], [2] and so on say which one a line belongs to. A cross is a lost packet, a dashed line its retransmission, and a red dot the moment the server noticed.",
+    "The client (the browser) on the left, the server on the right, time running down. Light brown lines are handshakes: SYN, SYN-ACK and ACK open a TCP (Transmission Control Protocol) connection, and ClientHello, ServerHello and Finished set up its encryption (TLS, Transport Layer Security). Dark lines are requests, and blue ones data packets, alternate objects thin and thick. Where there are several connections, [1], [2] and so on say which one a line belongs to. A cross is a lost packet, a dashed line its retransmission, and a red dot the moment the server noticed.",
 }
 
 const SLICE = 200

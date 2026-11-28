@@ -447,7 +447,7 @@ function sweep(sim: Netsim, p: HttpParams, variants: Variant[], axis: "loss" | "
   )
 }
 
-// Protocols and objects are told apart by ink or grey and by dash, and each line is named beside it.
+// Protocols and objects are told apart by dark or light brown and by dash, and each line is named beside it.
 const DASHES = [undefined, undefined, "7 3", "7 3", "2 3", "2 3"]
 const look = (k: number) => ({ color: k % 2 ? "var(--muted-foreground)" : "var(--foreground)", dash: DASHES[k % DASHES.length] })
 

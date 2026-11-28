@@ -336,7 +336,7 @@ function RoutingLoaded({ sim }: { sim: Netsim }) {
               <line x1="1" y1="5" x2="20" y2="5" className="stroke-busy" strokeWidth="3" />
               <path d="M19,0 L28,5 L19,10 z" className="fill-busy" />
             </svg>
-            purple arrow: the next router on the way to {D}
+            blue arrow: the next router on the way to {D}
           </span>
         </p>
         <Graph
@@ -422,7 +422,7 @@ function RoutingLoaded({ sim }: { sim: Netsim }) {
           <span className="block">
             Circles are routers and lines are links. The number on a link is its cost, the price of sending over it; routers look for the
             cheapest total. Next to each router, as &quot;cost 5&quot;, is its cost to reach {D} as far as it knows now (&quot;cost ∞&quot;:
-            it knows no route yet). A thick purple arrow running beside a link shows where a router sends traffic for {D}
+            it knows no route yet). A thick blue arrow running beside a link shows where a router sends traffic for {D}
             {loops.cycles.length > 0 ? "; red arrows go round in a loop" : ""}; routers with no arrow have no route yet.
             {fig.links.some((l) => l.cost === null)
               ? " A dashed link marked × has failed; a faded box marked × is a message lost on it."

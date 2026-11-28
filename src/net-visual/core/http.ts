@@ -419,7 +419,7 @@ export const HTTP_TOUR: HttpTourStep[] = [
     preset: "h10-serial",
     at: 0,
     step: "C1",
-    text: "A browser loads a page of nine objects over HTTP/1.0. Before it can ask for anything it opens a TCP connection: a SYN, a SYN-ACK, and the request goes with the final ACK, one round trip later. The ladder draws time running down; grey lines are handshakes and requests, coloured lines are data packets, one colour per object.",
+    text: "A browser loads a page of nine objects over HTTP/1.0. Before it can ask for anything it opens a TCP connection: a SYN, a SYN-ACK, and the request goes with the final ACK, one round trip later. The ladder draws time running down; light brown lines are handshakes and requests, coloured lines are data packets, one colour per object.",
   },
   {
     preset: "h10-serial",

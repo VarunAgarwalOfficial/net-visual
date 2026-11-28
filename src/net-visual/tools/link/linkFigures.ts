@@ -457,7 +457,7 @@ export function caFigure(p: CaParams, run: CaRun, t: number, w: number): CaFigur
     if (status) shapes.push(text(x, y + 19, status, { anchor: "middle", fill: nav ? "ink" : "muted", size: 11 }))
   })
 
-  // The lanes: every frame on the air, purple while sent, green once through, red once lost, and each NAV as a dashed bar.
+  // The lanes: every frame on the air, blue while sent, green once through, red once lost, and each NAV as a dashed bar.
   const st = run.stats
   const exchange = st.difs_us + st.data_us + p.sifs_us + st.ack_us + (p.rts ? st.rts_us + st.cts_us + 2 * p.sifs_us : 0)
   const span = Math.max(2000, 3.5 * exchange)

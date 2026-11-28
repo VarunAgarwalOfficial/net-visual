@@ -214,7 +214,7 @@ function QueueLoaded({ sim }: { sim: Netsim }) {
         <figcaption className="max-w-(--site-measure) font-sans text-sm text-muted-foreground">
           {started ? "" : "Nothing has been sent yet. "}Packets go left to right.{" "}
           {many
-            ? "Each flow has its own mark, named on the left: filled or outlined, in ink or grey. "
+            ? "Each flow has its own mark, named on the left: filled or outlined, in dark or light brown. "
             : "They come from the source on the left. "}
           {shaped ? "They pass through a bucket that smooths bursts (the filled part is how full it is), then " : "They "}
           enter the router (the long box). Inside it, each packet is first checked in the dashed square marked process, then waits in line

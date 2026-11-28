@@ -69,7 +69,7 @@ function build(run: TcpRun, compare: TcpRun | null, cmp: Algo | null, p: TcpPara
     if (ss.length)
       series.push({
         id: "ssthresh",
-        label: "slow-start threshold (grey dashed)",
+        label: "slow-start threshold (light brown, dashed)",
         note: "below it the window doubles each round trip;\na loss sets it to half the window",
         color: SSTHRESH_COLOR,
         kind: "step",
