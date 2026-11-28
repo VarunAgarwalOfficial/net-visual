@@ -24,13 +24,13 @@ npm install && npm run dev    # http://localhost:5173
 
 ## Build and test
 
-You need Node 22 or later. To rebuild the WebAssembly module, you also need Rust with the `wasm32-unknown-unknown` target and `wasm-opt` (Binaryen).
+You need Node 24, the version CI uses. To rebuild the WebAssembly module, you also need Rust with the `wasm32-unknown-unknown` target and `wasm-opt` (Binaryen).
 
 ```sh
-make check        # npm ci, then build, then npm test
-npm test          # Rust model tests, then Node tests that load the real wasm
-npm run lint      # eslint, prettier, clippy, rustfmt
-npm run build     # type check and static site in dist/
+make check        # npm ci, then build, then test
+make test         # Rust model tests, then Node tests that load the real wasm
+make lint         # eslint, prettier, clippy, rustfmt
+make build        # type check and static site in dist/
 npm run wasm      # rebuild src/net-visual/core/netsim.wasm after changing crates/
 ```
 
