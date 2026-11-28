@@ -111,7 +111,7 @@
   --accent-foreground: var(--site-color-fg);
   --destructive: var(--site-mean-against);
   --border: var(--site-color-rule);
-  --input: var(--site-color-rule);
+  --input: var(--site-color-fg);
   --ring: var(--site-color-focus);
   /* Links are set in the ink with the accent as the rule under them. */
   --link: var(--site-color-link);

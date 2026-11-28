@@ -3,17 +3,16 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "cn"
 import { Slot } from "radix-ui"
 
-// One quiet style from the site's tokens: an outlined control in the ink,
-// the hairline rule as its edge, the small text size, no shadow, no
-// movement. The filled ink button (default) is kept for the one main action
-// per tool (Play). Focus is the site's ring, set in host.css.
+// One quiet style from the site's tokens: an outlined control with an ink
+// edge, the small text size, no shadow, no movement. The filled sunflower
+// button (default) is kept for the one main action per tool (Play). Focus is the site's ring, set in host.css.
 const buttonVariants = cva(
   "group/button inline-flex shrink-0 items-center justify-center rounded-sm border border-transparent text-sm whitespace-nowrap select-none disabled:pointer-events-none disabled:text-muted-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
         default: "bg-primary text-primary-foreground",
-        outline: "border-border bg-background text-foreground hover:bg-accent aria-expanded:bg-accent",
+        outline: "border-input bg-background text-foreground hover:bg-accent aria-expanded:bg-accent",
         secondary: "border-foreground bg-background text-foreground",
         ghost: "text-foreground hover:bg-accent aria-expanded:bg-accent",
         destructive: "border-border bg-background text-foreground hover:bg-accent",
